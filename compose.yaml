@@ -1,0 +1,11 @@
+services:
+  builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    volumes:
+      - .:/workspace
+    stdin_open: true
+    tty: true

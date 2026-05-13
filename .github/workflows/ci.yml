@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  native:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Limine downloads
+        uses: actions/cache@v4
+        with:
+          path: .cache/limine
+          key: limine-v12.2.0
+
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang \
+            clang-format \
+            cmake \
+            curl \
+            g++ \
+            lld \
+            make \
+            mtools \
+            nasm \
+            ninja-build \
+            qemu-system-x86 \
+            xorriso \
+            xz-utils
+
+      - name: Format, build, and boot smoke test
+        run: make ci
+
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the development container
+        run: docker build -t os-lab-dev .
