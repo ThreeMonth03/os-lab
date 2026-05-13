@@ -1,9 +1,18 @@
+#include "kernel/fixed_vector.hpp"
 #include "kernel/framebuffer.hpp"
 #include "kernel/halt.hpp"
 #include "kernel/limine_support.hpp"
 #include "kernel/serial.hpp"
+#include "kernel/span.hpp"
+#include "kernel/string_view.hpp"
 
 namespace {
+
+static_assert(kernel::StringView("os-lab").size() == 6);
+static_assert(kernel::StringView("os-lab").starts_with("os"));
+
+constexpr char kUtilitySmokeText[] = "kernel";
+static_assert(kernel::Span<const char>(kUtilitySmokeText).size() == sizeof(kUtilitySmokeText));
 
 const char* firmware_name(uint64_t firmware_type) {
     switch (firmware_type) {
@@ -20,10 +29,25 @@ const char* firmware_name(uint64_t firmware_type) {
     }
 }
 
+void run_utility_smoke() {
+    kernel::FixedVector<kernel::StringView, 3> labels;
+    const bool ok = labels.push_back("string_view") && labels.push_back("span") &&
+                    labels.push_back("fixed_vector") && labels.full();
+    const kernel::Span<const kernel::StringView> label_span(labels.data(), labels.size());
+
+    if (!ok || label_span.size() != labels.capacity()) {
+        kernel::serial::write_line("os-lab: no-heap utility smoke failed");
+        return;
+    }
+
+    kernel::serial::write_line("os-lab: no-heap utilities ready");
+}
+
 } // namespace
 
 extern "C" [[noreturn]] void kernel_main() {
     kernel::serial::write_line("os-lab: kernel main entered");
+    run_utility_smoke();
 
     if (const auto* info = kernel::boot::bootloader_info(); info != nullptr) {
         kernel::serial::write_string("os-lab: bootloader = ");

@@ -38,23 +38,23 @@ void write_char(char value) {
     outb(kCom1, static_cast<uint8_t>(value));
 }
 
-void write_string(const char* value) {
-    if (value == nullptr) {
-        return;
-    }
-
-    for (size_t index = 0; value[index] != '\0'; ++index) {
-        if (value[index] == '\n') {
+void write_string(StringView value) {
+    for (char character : value) {
+        if (character == '\n') {
             write_char('\r');
         }
-        write_char(value[index]);
+        write_char(character);
     }
 }
 
-void write_line(const char* value) {
+void write_string(const char* value) { write_string(StringView(value)); }
+
+void write_line(StringView value) {
     write_string(value);
     write_string("\n");
 }
+
+void write_line(const char* value) { write_line(StringView(value)); }
 
 void write_hex(uint64_t value) {
     static constexpr char digits[] = "0123456789abcdef";
