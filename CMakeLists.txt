@@ -16,6 +16,7 @@ add_executable(kernel
     kernel/src/drivers/debug_port.cpp
     kernel/src/drivers/framebuffer.cpp
     kernel/src/drivers/serial.cpp
+    kernel/src/drivers/terminal.cpp
     kernel/src/kernel/main.cpp
     kernel/src/runtime/constructors.cpp
     kernel/src/runtime/memory.cpp

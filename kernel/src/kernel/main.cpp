@@ -1,10 +1,10 @@
 #include "kernel/fixed_vector.hpp"
-#include "kernel/framebuffer.hpp"
 #include "kernel/halt.hpp"
 #include "kernel/limine_support.hpp"
 #include "kernel/serial.hpp"
 #include "kernel/span.hpp"
 #include "kernel/string_view.hpp"
+#include "kernel/terminal.hpp"
 
 namespace {
 
@@ -47,6 +47,14 @@ void run_utility_smoke() {
 
 extern "C" [[noreturn]] void kernel_main() {
     kernel::serial::write_line("os-lab: kernel main entered");
+    const bool terminal_ready = kernel::terminal::init();
+    if (terminal_ready) {
+        kernel::terminal::write_line("os-lab terminal");
+        kernel::terminal::write_line("filesystem unavailable");
+        kernel::terminal::write_line("serial debug enabled");
+        kernel::terminal::write_line("");
+    }
+
     run_utility_smoke();
 
     if (const auto* info = kernel::boot::bootloader_info(); info != nullptr) {
@@ -54,17 +62,26 @@ extern "C" [[noreturn]] void kernel_main() {
         kernel::serial::write_string(info->name);
         kernel::serial::write_string(" ");
         kernel::serial::write_line(info->version);
+
+        kernel::terminal::write_string("bootloader = ");
+        kernel::terminal::write_string(info->name);
+        kernel::terminal::write_string(" ");
+        kernel::terminal::write_line(info->version);
     }
 
     kernel::serial::write_string("os-lab: firmware = ");
     kernel::serial::write_line(firmware_name(kernel::boot::firmware_type()));
+    kernel::terminal::write_string("firmware = ");
+    kernel::terminal::write_line(firmware_name(kernel::boot::firmware_type()));
 
     kernel::serial::write_string("os-lab: loaded base revision = ");
     kernel::serial::write_decimal(kernel::boot::loaded_base_revision());
     kernel::serial::write_string("\n");
 
-    kernel::framebuffer::paint_boot_splash();
-    kernel::serial::write_line("os-lab: framebuffer splash drawn if available");
+    kernel::serial::write_line(terminal_ready ? "os-lab: framebuffer terminal active"
+                                              : "os-lab: framebuffer terminal unavailable");
+    kernel::terminal::write_line("");
+    kernel::terminal::write_line("system halted");
     kernel::serial::write_line("os-lab: system halted");
 
     kernel::halt_forever();

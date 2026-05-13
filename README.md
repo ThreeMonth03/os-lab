@@ -10,6 +10,7 @@ native Linux and WSL2.
 - A pinned Limine `v12.2.0` fetch flow with checksum verification
 - A BIOS/UEFI hybrid ISO image builder
 - A host-side QEMU launcher that works on Linux and can bridge to Windows QEMU from WSL2
+- A tiny no-heap framebuffer terminal for early boot output
 - GitHub Actions for format, build, Docker sanity, and headless QEMU smoke boot
 
 ## Quick Start
@@ -36,7 +37,7 @@ os-lab: bootloader = Limine 12.2.0
 os-lab: system halted
 ```
 
-To see the QEMU window and framebuffer splash:
+To see the QEMU window and framebuffer terminal:
 
 ```bash
 make gui
@@ -100,5 +101,5 @@ make _run
 
 - Add an IDT and structured fault handling
 - Bring up a physical memory manager from the Limine memory map
-- Move from a framebuffer splash to a real text or graphics console
+- Add keyboard input and a minimal shell on top of the framebuffer terminal
 - Add a raw disk image target for USB boot on real hardware
