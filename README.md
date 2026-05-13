@@ -14,7 +14,8 @@ native Linux and WSL2.
 
 ## Quick Start
 
-Install the only host dependency needed for the demo:
+Install Docker plus either the Docker Compose plugin or legacy `docker-compose`.
+Then install the host QEMU dependency needed to boot the ISO:
 
 ```bash
 make deps
@@ -76,6 +77,8 @@ make _run
 ## WSL2
 
 - Keep the repo in the Linux filesystem, for example `/home/<you>/os-lab`.
+- Install Docker with either `docker compose` or legacy `docker-compose`; the
+  Makefile will use whichever one is available.
 - Install `QEMU` on Windows and make sure `qemu-system-x86_64.exe` is on the Windows
   `PATH`, or lives in the default `C:\Program Files\qemu\` location.
 - `make demo` and `make gui` prefer native Linux QEMU, but on WSL2 they will

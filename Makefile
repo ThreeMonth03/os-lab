@@ -7,7 +7,11 @@ GENERATOR ?= Ninja
 GENERATOR_BIN ?= ninja
 CMAKE ?= cmake
 CLANG_FORMAT ?= clang-format
-DOCKER_COMPOSE ?= docker compose
+DOCKER_COMPOSE ?= $(shell if docker compose version >/dev/null 2>&1; then \
+	printf 'docker compose'; \
+elif command -v docker-compose >/dev/null 2>&1; then \
+	printf 'docker-compose'; \
+fi)
 DOCKER_RUN_ENV := LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g)
 
 TOOLCHAIN_FILE := $(PROJECT_ROOT)/cmake/toolchains/x86_64-none-clang.cmake
@@ -15,7 +19,7 @@ KERNEL_ELF := $(BUILD_DIR)/artifacts/kernel.elf
 ISO_IMAGE := $(BUILD_DIR)/os-lab.iso
 
 .PHONY: help deps demo gui test format shell clean ci
-.PHONY: _check-native-tools _check-clang-format _configure _kernel _iso _run _run-gui _smoke _format _format-check _docker-image _docker-iso
+.PHONY: _check-native-tools _check-clang-format _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _format _format-check _docker-image _docker-iso
 
 help:
 	@printf '%s\n' \
@@ -60,6 +64,12 @@ _check-native-tools:
 _check-clang-format:
 	@if ! command -v $(CLANG_FORMAT) >/dev/null 2>&1; then \
 		printf 'Missing tool: %s\n' '$(CLANG_FORMAT)' >&2; \
+		exit 1; \
+	fi
+
+_check-docker-compose:
+	@if [[ -z "$(DOCKER_COMPOSE)" ]]; then \
+		printf 'Missing Docker Compose. Install the Docker Compose plugin or legacy docker-compose.\n' >&2; \
 		exit 1; \
 	fi
 
@@ -126,7 +136,7 @@ _format-check: _check-clang-format
 		$(CLANG_FORMAT) --dry-run --Werror "$${sources[@]}"; \
 	fi
 
-_docker-image:
+_docker-image: _check-docker-compose
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) build builder
 
 _docker-iso: _docker-image
