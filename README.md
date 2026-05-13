@@ -6,7 +6,7 @@ native Linux and WSL2.
 
 ## Current Baseline
 
-- A freestanding C++20 kernel built with `clang++` and `ld.lld`
+- A freestanding C++23 kernel built with `clang++` and `ld.lld`
 - A pinned Limine `v12.2.0` fetch flow with checksum verification
 - A BIOS/UEFI hybrid ISO image builder
 - A host-side QEMU launcher that works on Linux and can bridge to Windows QEMU from WSL2
