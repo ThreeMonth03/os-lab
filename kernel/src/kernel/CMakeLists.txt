@@ -1,5 +1,6 @@
 add_library(os_lab_kernel_logic OBJECT
     display.cpp
+    editor_view_layout.cpp
     history.cpp
     input.cpp
     keyboard_decoder.cpp

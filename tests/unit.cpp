@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "kernel/display.hpp"
+#include "kernel/editor_view_layout.hpp"
 #include "kernel/fixed_queue.hpp"
 #include "kernel/fixed_vector.hpp"
 #include "kernel/history.hpp"
@@ -377,6 +378,53 @@ TEST(TextConsoleTest, BackspaceAtLineStartDoesNothing) {
     EXPECT_FALSE(update.scroll);
     EXPECT_EQ(console.cursor_column(), 0u);
     EXPECT_EQ(console.cursor_row(), 1u);
+}
+
+void expect_editor_cell(kernel::EditorViewCell actual, uint64_t column, uint64_t row) {
+    EXPECT_EQ(actual.column, column);
+    EXPECT_EQ(actual.row, row);
+}
+
+TEST(EditorViewLayoutTest, MapsCursorWithinFirstVisualRow) {
+    const kernel::EditorViewLayout layout(10, 0, 2);
+
+    expect_editor_cell(layout.position_for(0), 2, 0);
+    expect_editor_cell(layout.position_for(7), 9, 0);
+    EXPECT_EQ(layout.visual_rows(7), 1u);
+}
+
+TEST(EditorViewLayoutTest, WrapsCursorAfterRowEnd) {
+    const kernel::EditorViewLayout layout(10, 0, 2);
+
+    expect_editor_cell(layout.position_for(8), 0, 1);
+    expect_editor_cell(layout.position_for(18), 0, 2);
+    EXPECT_EQ(layout.visual_rows(8), 2u);
+    EXPECT_EQ(layout.visual_rows(18), 3u);
+}
+
+TEST(EditorViewLayoutTest, AccountsForPromptColumnOffset) {
+    const kernel::EditorViewLayout layout(10, 5, 2);
+
+    expect_editor_cell(layout.position_for(0), 7, 0);
+    expect_editor_cell(layout.position_for(2), 9, 0);
+    expect_editor_cell(layout.position_for(3), 0, 1);
+    EXPECT_EQ(layout.visual_rows(3), 2u);
+}
+
+TEST(EditorViewLayoutTest, SupportsLongPrompt) {
+    const kernel::EditorViewLayout layout(12, 0, 9);
+
+    expect_editor_cell(layout.position_for(0), 9, 0);
+    expect_editor_cell(layout.position_for(3), 0, 1);
+    expect_editor_cell(layout.position_for(15), 0, 2);
+}
+
+TEST(EditorViewLayoutTest, HandlesZeroColumns) {
+    const kernel::EditorViewLayout layout(0, 4, 2);
+
+    EXPECT_FALSE(layout.ready());
+    expect_editor_cell(layout.position_for(10), 0, 0);
+    EXPECT_EQ(layout.visual_rows(10), 1u);
 }
 
 void expect_command(kernel::StringView input, kernel::ShellCommandKind kind,
