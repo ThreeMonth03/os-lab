@@ -9,7 +9,7 @@ fi
 compile_commands_dir=$1
 clang_tidy=$2
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-project_root=$(cd -- "${script_dir}/.." && pwd)
+project_root=$(cd -- "${script_dir}/../.." && pwd)
 
 if [[ ! -f "${compile_commands_dir}/compile_commands.json" ]]; then
     printf 'compile_commands.json not found in: %s\n' "${compile_commands_dir}" >&2

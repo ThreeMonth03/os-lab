@@ -15,6 +15,15 @@ elif command -v docker-compose >/dev/null 2>&1; then \
 fi)
 DOCKER_RUN_ENV := LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g)
 
+CREATE_ISO := ./scripts/build/create_iso.sh
+INSTALL_DEPS := ./scripts/dev/install-deps-debian.sh
+FORMAT_SOURCES := ./scripts/dev/format_sources.sh
+RUN_TIDY := ./scripts/dev/run_tidy.sh
+RUN_QEMU := ./scripts/qemu/run_qemu.sh
+SMOKE_DEMO := ./scripts/smoke/smoke_demo.sh
+SMOKE_EXCEPTION := ./scripts/smoke/smoke_exception.sh
+SMOKE_TIMER := ./scripts/smoke/smoke_timer.sh
+
 TOOLCHAIN_FILE := $(PROJECT_ROOT)/cmake/toolchains/x86_64-none-clang.cmake
 KERNEL_ELF := $(BUILD_DIR)/artifacts/kernel.elf
 ISO_IMAGE := $(BUILD_DIR)/os-lab.iso
@@ -50,7 +59,7 @@ help:
 		'  make clean     Remove generated files'
 
 deps:
-	./scripts/install-deps-debian.sh host
+	$(INSTALL_DEPS) host
 
 demo: _docker-iso _run
 
@@ -87,7 +96,7 @@ _check-native-tools:
 	@for tool in clang clang++ g++ ld.lld $(CMAKE) xorriso curl tar sha256sum $(GENERATOR_BIN); do \
 		if ! command -v "$$tool" >/dev/null 2>&1; then \
 			printf 'Missing native tool: %s\n' "$$tool" >&2; \
-			printf 'Use `make demo` or install native deps with scripts/install-deps-debian.sh native.\n' >&2; \
+			printf 'Use `make demo` or install native deps with $(INSTALL_DEPS) native.\n' >&2; \
 			exit 1; \
 		fi; \
 	done
@@ -130,7 +139,7 @@ _kernel: _configure
 	$(CMAKE) --build $(BUILD_DIR) --target kernel
 
 _iso: _kernel
-	./scripts/create_iso.sh $(KERNEL_ELF) $(ISO_IMAGE)
+	$(CREATE_ISO) $(KERNEL_ELF) $(ISO_IMAGE)
 
 _exception-configure: _check-native-tools
 	$(CMAKE) -S $(PROJECT_ROOT) -B $(EXCEPTION_BUILD_DIR) -G $(GENERATOR) \
@@ -143,7 +152,7 @@ _exception-kernel: _exception-configure
 	$(CMAKE) --build $(EXCEPTION_BUILD_DIR) --target kernel
 
 _exception-iso: _exception-kernel
-	./scripts/create_iso.sh $(EXCEPTION_KERNEL_ELF) $(EXCEPTION_ISO_IMAGE)
+	$(CREATE_ISO) $(EXCEPTION_KERNEL_ELF) $(EXCEPTION_ISO_IMAGE)
 
 _timer-configure: _check-native-tools
 	$(CMAKE) -S $(PROJECT_ROOT) -B $(TIMER_BUILD_DIR) -G $(GENERATOR) \
@@ -156,41 +165,41 @@ _timer-kernel: _timer-configure
 	$(CMAKE) --build $(TIMER_BUILD_DIR) --target kernel
 
 _timer-iso: _timer-kernel
-	./scripts/create_iso.sh $(TIMER_KERNEL_ELF) $(TIMER_ISO_IMAGE)
+	$(CREATE_ISO) $(TIMER_KERNEL_ELF) $(TIMER_ISO_IMAGE)
 
 _run:
 	@if [[ ! -f "$(ISO_IMAGE)" ]]; then $(MAKE) _iso; fi
-	./scripts/run_qemu.sh $(ISO_IMAGE)
+	$(RUN_QEMU) $(ISO_IMAGE)
 
 _run-gui:
 	@if [[ ! -f "$(ISO_IMAGE)" ]]; then $(MAKE) _iso; fi
-	QEMU_HEADLESS=0 ./scripts/run_qemu.sh $(ISO_IMAGE)
+	QEMU_HEADLESS=0 $(RUN_QEMU) $(ISO_IMAGE)
 
 _run-exception:
 	@if [[ ! -f "$(EXCEPTION_ISO_IMAGE)" ]]; then $(MAKE) _exception-iso EXCEPTION_SMOKE=$(EXCEPTION_SMOKE); fi
 	@set -euo pipefail; \
 	status=0; \
-	timeout 15s ./scripts/run_qemu.sh "$(EXCEPTION_ISO_IMAGE)" || status=$$?; \
+	timeout 15s $(RUN_QEMU) "$(EXCEPTION_ISO_IMAGE)" || status=$$?; \
 	if [[ $$status -ne 0 && $$status -ne 124 ]]; then exit "$$status"; fi
 
 _run-timer:
 	@if [[ ! -f "$(TIMER_ISO_IMAGE)" ]]; then $(MAKE) _timer-iso; fi
 	@set -euo pipefail; \
 	status=0; \
-	timeout 15s ./scripts/run_qemu.sh "$(TIMER_ISO_IMAGE)" || status=$$?; \
+	timeout 15s $(RUN_QEMU) "$(TIMER_ISO_IMAGE)" || status=$$?; \
 	if [[ $$status -ne 0 && $$status -ne 124 ]]; then exit "$$status"; fi
 
 _smoke:
 	@if [[ ! -f "$(ISO_IMAGE)" ]]; then $(MAKE) _iso; fi
-	./scripts/smoke_demo.sh $(ISO_IMAGE)
+	$(SMOKE_DEMO) $(ISO_IMAGE)
 
 _smoke-exception:
 	@if [[ ! -f "$(EXCEPTION_ISO_IMAGE)" ]]; then $(MAKE) _exception-iso EXCEPTION_SMOKE=$(EXCEPTION_SMOKE); fi
-	./scripts/smoke_exception.sh $(EXCEPTION_ISO_IMAGE) $(EXCEPTION_SMOKE)
+	$(SMOKE_EXCEPTION) $(EXCEPTION_ISO_IMAGE) $(EXCEPTION_SMOKE)
 
 _smoke-timer:
 	@if [[ ! -f "$(TIMER_ISO_IMAGE)" ]]; then $(MAKE) _timer-iso; fi
-	./scripts/smoke_timer.sh $(TIMER_ISO_IMAGE)
+	$(SMOKE_TIMER) $(TIMER_ISO_IMAGE)
 
 _unit:
 	$(CMAKE) -S $(PROJECT_ROOT) -B $(UNIT_BUILD_DIR) -G $(GENERATOR) \
@@ -202,13 +211,13 @@ _unit:
 	cd $(UNIT_BUILD_DIR) && ctest --output-on-failure
 
 _format: _check-clang-format
-	./scripts/format_sources.sh apply "$(CLANG_FORMAT)"
+	$(FORMAT_SOURCES) apply "$(CLANG_FORMAT)"
 
 _format-check: _check-clang-format
-	./scripts/format_sources.sh check "$(CLANG_FORMAT)"
+	$(FORMAT_SOURCES) check "$(CLANG_FORMAT)"
 
 _tidy: _check-clang-tidy _unit
-	./scripts/run_tidy.sh "$(UNIT_BUILD_DIR)" "$(CLANG_TIDY)"
+	$(RUN_TIDY) "$(UNIT_BUILD_DIR)" "$(CLANG_TIDY)"
 
 _docker-image: _check-docker-compose
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) build builder

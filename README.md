@@ -85,7 +85,7 @@ Normal `make demo` and `make gui` always build with the trigger disabled.
 Docker is the default path, but a full native setup is available:
 
 ```bash
-./scripts/install-deps-debian.sh native
+./scripts/dev/install-deps-debian.sh native
 make _iso
 make _run
 ```
@@ -107,7 +107,7 @@ make _run
 ├── cmake/toolchains/         # clang/lld freestanding toolchain setup
 ├── config/limine.conf        # boot menu entry
 ├── kernel/                   # freestanding kernel code and linker script
-├── scripts/                  # Limine fetch, ISO creation, QEMU/deps helpers
+├── scripts/                  # build/dev/qemu/smoke helper scripts
 ├── vendor/limine/            # pinned protocol header metadata
 └── .github/workflows/ci.yml  # format/build/smoke automation
 ```

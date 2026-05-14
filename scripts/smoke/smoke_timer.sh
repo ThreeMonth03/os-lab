@@ -7,6 +7,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+run_qemu="${script_dir}/../qemu/run_qemu.sh"
 image_path=$1
 
 if [[ ! -f "${image_path}" ]]; then
@@ -18,7 +19,7 @@ log_file=$(mktemp)
 trap 'rm -f "${log_file}"' EXIT
 
 set +e
-timeout 15s "${script_dir}/run_qemu.sh" "${image_path}" | tee "${log_file}"
+timeout 15s "${run_qemu}" "${image_path}" | tee "${log_file}"
 status=$?
 set -e
 
