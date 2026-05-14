@@ -432,4 +432,33 @@ void write_line(StringView value) {
 
 void write_line(const char* value) { write_line(StringView(value)); }
 
+void write_hex(uint64_t value) {
+    static constexpr char digits[] = "0123456789abcdef";
+    write_string("0x");
+
+    for (int shift = 60; shift >= 0; shift -= 4) {
+        const auto nibble = static_cast<uint8_t>((value >> shift) & 0xf);
+        write_char(digits[nibble]);
+    }
+}
+
+void write_decimal(uint64_t value) {
+    char buffer[21] = {};
+    size_t index = 0;
+
+    if (value == 0) {
+        write_char('0');
+        return;
+    }
+
+    while (value > 0) {
+        buffer[index++] = static_cast<char>('0' + (value % 10));
+        value /= 10;
+    }
+
+    while (index > 0) {
+        write_char(buffer[--index]);
+    }
+}
+
 } // namespace kernel::terminal
