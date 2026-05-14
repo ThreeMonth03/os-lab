@@ -257,6 +257,12 @@ bool init() {
 
 bool ready() { return g_state.framebuffer != nullptr; }
 
+uint64_t columns() { return g_state.columns; }
+
+uint64_t cursor_column() { return g_state.cursor_column; }
+
+uint64_t cursor_row() { return g_state.cursor_row; }
+
 void clear() {
     if (!ready()) {
         return;
@@ -265,6 +271,33 @@ void clear() {
     fill_rect(0, 0, g_state.framebuffer->width, g_state.framebuffer->height, g_state.background);
     g_state.cursor_column = 0;
     g_state.cursor_row = 0;
+}
+
+void clear_row_from(uint64_t column, uint64_t row) {
+    if (!ready() || row >= g_state.rows) {
+        return;
+    }
+
+    while (column < g_state.columns) {
+        clear_cell(column, row);
+        ++column;
+    }
+}
+
+void set_cursor(uint64_t column, uint64_t row) {
+    if (!ready()) {
+        return;
+    }
+
+    if (g_state.columns > 0 && column >= g_state.columns) {
+        column = g_state.columns - 1;
+    }
+    if (g_state.rows > 0 && row >= g_state.rows) {
+        row = g_state.rows - 1;
+    }
+
+    g_state.cursor_column = column;
+    g_state.cursor_row = row;
 }
 
 void write_char(char value) {

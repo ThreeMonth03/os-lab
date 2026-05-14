@@ -1,5 +1,7 @@
 #include "kernel/shell.hpp"
 
+#include <stdint.h>
+
 #include "kernel/halt.hpp"
 #include "kernel/keyboard.hpp"
 #include "kernel/line_editor.hpp"
@@ -11,7 +13,23 @@ namespace {
 
 constexpr kernel::StringView kPrompt = "> ";
 
-void write_prompt() { kernel::terminal::write_string(kPrompt); }
+struct LinePosition {
+    uint64_t column = 0;
+    uint64_t row = 0;
+};
+
+void write_prompt(LinePosition& position) {
+    kernel::terminal::write_string(kPrompt);
+    position.column = kernel::terminal::cursor_column();
+    position.row = kernel::terminal::cursor_row();
+}
+
+void redraw_line(const kernel::LineEditor& line, const LinePosition& position) {
+    kernel::terminal::set_cursor(position.column, position.row);
+    kernel::terminal::write_string(line.view());
+    kernel::terminal::clear_row_from(position.column + line.view().size(), position.row);
+    kernel::terminal::set_cursor(position.column + line.cursor(), position.row);
+}
 
 void write_help() {
     kernel::terminal::write_line("commands:");
@@ -48,7 +66,8 @@ void handle_line(kernel::StringView command) {
     }
 }
 
-void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEditor& line) {
+void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEditor& line,
+                      LinePosition& position) {
     if (!event.pressed) {
         return;
     }
@@ -56,19 +75,35 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
     switch (event.key) {
     case kernel::keyboard::Key::Character:
         if (line.insert(event.character)) {
-            kernel::terminal::write_char(event.character);
+            redraw_line(line, position);
         }
         break;
     case kernel::keyboard::Key::Backspace:
         if (line.backspace()) {
-            kernel::terminal::write_char('\b');
+            redraw_line(line, position);
+        }
+        break;
+    case kernel::keyboard::Key::Delete:
+        if (line.delete_forward()) {
+            redraw_line(line, position);
+        }
+        break;
+    case kernel::keyboard::Key::LeftArrow:
+        if (line.move_left()) {
+            redraw_line(line, position);
+        }
+        break;
+    case kernel::keyboard::Key::RightArrow:
+        if (line.move_right()) {
+            redraw_line(line, position);
         }
         break;
     case kernel::keyboard::Key::Enter:
+        kernel::terminal::set_cursor(position.column + line.view().size(), position.row);
         kernel::terminal::write_char('\n');
         handle_line(line.view());
         line.clear();
-        write_prompt();
+        write_prompt(position);
         break;
     default:
         break;
@@ -81,17 +116,18 @@ namespace kernel::shell {
 
 [[noreturn]] void run() {
     LineEditor line;
+    LinePosition position;
 
     terminal::write_line("");
     terminal::write_line("interactive input ready");
     write_help();
-    write_prompt();
+    write_prompt(position);
     serial::write_line("os-lab: interactive terminal ready");
 
     while (true) {
         keyboard::KeyEvent event;
         if (keyboard::poll_key(event)) {
-            handle_key_event(event, line);
+            handle_key_event(event, line, position);
         } else {
             asm volatile("pause");
         }

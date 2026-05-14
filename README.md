@@ -43,7 +43,8 @@ To see the QEMU window and framebuffer terminal:
 make gui
 ```
 
-The early shell supports `help`, `clear`, `about`, and `halt`.
+The early shell supports `help`, `clear`, `about`, and `halt`. The line editor
+supports left/right arrows, Backspace, and Delete.
 
 In headless mode, quit QEMU with `Ctrl+A`, then `X`.
 
