@@ -52,6 +52,14 @@ void write_both_line(kernel::StringView value)
     return (reinterpret_cast<uintptr_t>(memory) & (alignment - 1)) == 0;
 }
 
+void require_valid_heap(kernel::StringView context)
+{
+    if (!kernel::memory::heap::validate().valid)
+    {
+        fail(context);
+    }
+}
+
 #endif
 
 } // namespace
@@ -68,6 +76,7 @@ void run_heap_smoke()
     {
         fail("heap init failed");
     }
+    require_valid_heap("heap validate failed after init");
 
     auto * first = static_cast<volatile uint64_t *>(kernel::memory::heap::allocate(sizeof(uint64_t), 16));
     auto * second = static_cast<volatile uint64_t *>(kernel::memory::heap::allocate(sizeof(uint64_t), 64));
@@ -96,12 +105,21 @@ void run_heap_smoke()
     {
         fail("free failed");
     }
+    require_valid_heap("heap validate failed after free");
 
     void * reused = kernel::memory::heap::allocate(sizeof(uint64_t), 16);
     if (reused != const_cast<uint64_t *>(first))
     {
         fail("free block reuse failed");
     }
+    require_valid_heap("heap validate failed after reuse");
+
+    uint64_t outside_heap = 0;
+    if (kernel::memory::heap::free(&outside_heap))
+    {
+        fail("invalid free unexpectedly succeeded");
+    }
+    require_valid_heap("heap validate failed after invalid free");
 
     const kernel::memory::heap::Stats stats = kernel::memory::heap::stats();
     if (!stats.initialized || stats.committed_pages <= kernel::memory::heap::kInitialCommitPages ||
