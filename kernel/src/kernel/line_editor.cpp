@@ -60,6 +60,24 @@ bool LineEditor::move_right() {
     return true;
 }
 
+bool LineEditor::move_to_start() {
+    if (cursor_ == 0) {
+        return false;
+    }
+
+    cursor_ = 0;
+    return true;
+}
+
+bool LineEditor::move_to_end() {
+    if (cursor_ == buffer_.size()) {
+        return false;
+    }
+
+    cursor_ = buffer_.size();
+    return true;
+}
+
 void LineEditor::clear() {
     buffer_.clear();
     cursor_ = 0;

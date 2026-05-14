@@ -19,6 +19,8 @@ class LineEditor {
     [[nodiscard]] bool delete_forward();
     [[nodiscard]] bool move_left();
     [[nodiscard]] bool move_right();
+    [[nodiscard]] bool move_to_start();
+    [[nodiscard]] bool move_to_end();
     void clear();
 
   private:
