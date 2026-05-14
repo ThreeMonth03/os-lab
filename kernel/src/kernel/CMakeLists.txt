@@ -7,6 +7,7 @@ add_library(os_lab_kernel_logic OBJECT
     input.cpp
     keyboard_decoder.cpp
     line_editor.cpp
+    memory_map.cpp
     mouse_packet_decoder.cpp
     pointer_state.cpp
     shell_command.cpp

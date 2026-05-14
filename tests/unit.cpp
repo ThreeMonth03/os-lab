@@ -11,6 +11,7 @@
 #include "kernel/history.hpp"
 #include "kernel/keyboard_decoder.hpp"
 #include "kernel/line_editor.hpp"
+#include "kernel/memory_map.hpp"
 #include "kernel/mouse_packet_decoder.hpp"
 #include "kernel/pointer_state.hpp"
 #include "kernel/shell_command.hpp"
@@ -301,6 +302,43 @@ TEST(Font5x7Test, SpaceGlyphIsBlank) {
 TEST(Font5x7Test, UsesFallbackForUnsupportedCharacters) {
     EXPECT_FALSE(kernel::Font5x7::has_glyph('\n'));
     EXPECT_TRUE(glyph_equals(kernel::Font5x7::glyph_for('\n'), kernel::Font5x7::fallback_glyph()));
+}
+
+TEST(MemoryMapViewTest, ClassifiesRegionKinds) {
+    EXPECT_TRUE(kernel::memory::is_allocatable(kernel::memory::MemoryRegionKind::Usable));
+    EXPECT_FALSE(
+        kernel::memory::is_allocatable(kernel::memory::MemoryRegionKind::BootloaderReclaimable));
+    EXPECT_TRUE(
+        kernel::memory::is_reclaimable(kernel::memory::MemoryRegionKind::BootloaderReclaimable));
+    EXPECT_TRUE(kernel::memory::is_reclaimable(kernel::memory::MemoryRegionKind::AcpiReclaimable));
+    EXPECT_TRUE(kernel::memory::is_reserved(kernel::memory::MemoryRegionKind::Framebuffer));
+    EXPECT_TRUE(kernel::memory::is_reserved(kernel::memory::MemoryRegionKind::KernelAndModules));
+}
+
+TEST(MemoryMapViewTest, SummarizesMemoryByKind) {
+    const kernel::memory::MemoryRegion regions[] = {
+        {0x1000, 0x3000, kernel::memory::MemoryRegionKind::Usable},
+        {0x4000, 0x1000, kernel::memory::MemoryRegionKind::Reserved},
+        {0x5000, 0x2000, kernel::memory::MemoryRegionKind::BootloaderReclaimable},
+        {0x7000, 0x4000, kernel::memory::MemoryRegionKind::Framebuffer},
+        {0xb000, 0x1000, kernel::memory::MemoryRegionKind::AcpiReclaimable},
+    };
+    const kernel::memory::MemoryMapStats stats = kernel::memory::MemoryMapView(regions).stats();
+
+    EXPECT_EQ(stats.region_count, 5u);
+    EXPECT_EQ(stats.total_bytes, 0xb000u);
+    EXPECT_EQ(stats.usable_bytes, 0x3000u);
+    EXPECT_EQ(stats.bootloader_reclaimable_bytes, 0x2000u);
+    EXPECT_EQ(stats.framebuffer_bytes, 0x4000u);
+    EXPECT_EQ(stats.reserved_bytes, 0x2000u);
+}
+
+TEST(MemoryMapViewTest, HandlesEmptyMap) {
+    const kernel::memory::MemoryMapStats stats = kernel::memory::MemoryMapView().stats();
+
+    EXPECT_EQ(stats.region_count, 0u);
+    EXPECT_EQ(stats.total_bytes, 0u);
+    EXPECT_EQ(stats.usable_bytes, 0u);
 }
 
 void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t width,
