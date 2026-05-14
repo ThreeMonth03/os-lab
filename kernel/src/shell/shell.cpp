@@ -3,17 +3,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "shell_command_executor.hpp"
+
 #include "kernel/text/editor_dirty_range.hpp"
 #include "kernel/text/editor_view_layout.hpp"
-#include "kernel/halt.hpp"
 #include "kernel/text/history.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/input/keyboard.hpp"
 #include "kernel/text/line_editor.hpp"
-#include "kernel/memory/memory.hpp"
 #include "kernel/mouse_cursor.hpp"
 #include "kernel/serial.hpp"
-#include "kernel/shell/shell_command.hpp"
 #include "kernel/string_view.hpp"
 #include "kernel/terminal.hpp"
 
@@ -190,113 +189,6 @@ char lowercase(char value) {
     return value;
 }
 
-void write_help() {
-    kernel::terminal::write_line("commands:");
-    kernel::terminal::write_line("  help  - show this list");
-    kernel::terminal::write_line("  clear - clear the screen");
-    kernel::terminal::write_line("  about - show kernel info");
-    kernel::terminal::write_line("  input - show input stats");
-    kernel::terminal::write_line("  mem   - show memory stats");
-    kernel::terminal::write_line("  halt  - stop the cpu");
-}
-
-void write_about() {
-    kernel::terminal::write_line("os-lab early shell");
-    kernel::terminal::write_line("freestanding c++23 kernel");
-    kernel::terminal::write_line("no filesystem or heap yet");
-}
-
-void write_decimal(uint64_t value) {
-    char buffer[21] = {};
-    size_t index = 0;
-
-    if (value == 0) {
-        kernel::terminal::write_char('0');
-        return;
-    }
-
-    while (value > 0) {
-        buffer[index++] = static_cast<char>('0' + (value % 10));
-        value /= 10;
-    }
-
-    while (index > 0) {
-        kernel::terminal::write_char(buffer[--index]);
-    }
-}
-
-void write_stat(kernel::StringView name, uint64_t value) {
-    kernel::terminal::write_string("  ");
-    kernel::terminal::write_string(name);
-    kernel::terminal::write_string(": ");
-    write_decimal(value);
-    kernel::terminal::write_char('\n');
-}
-
-void write_input_stats() {
-    const kernel::input::Stats stats = kernel::input::stats();
-
-    kernel::terminal::write_line("input stats:");
-    write_stat("key events", stats.key_events);
-    write_stat("mouse move events", stats.mouse_move_events);
-    write_stat("dropped events", stats.dropped_events);
-    write_stat("queued events", stats.queued_events);
-    write_stat("queue available", stats.queue_available);
-    write_stat("queue capacity", stats.queue_capacity);
-}
-
-void write_memory_stats() {
-    const kernel::memory::Stats stats = kernel::memory::stats();
-    if (!stats.initialized) {
-        kernel::terminal::write_line("memory stats unavailable");
-        return;
-    }
-
-    kernel::terminal::write_line("memory stats:");
-    write_stat("regions", stats.map.region_count);
-    write_stat("usable KiB", stats.map.usable_bytes / 1024);
-    write_stat("bootloader reclaimable KiB", stats.map.bootloader_reclaimable_bytes / 1024);
-    write_stat("framebuffer KiB", stats.map.framebuffer_bytes / 1024);
-    write_stat("frame size", kernel::memory::kFrameSize);
-    write_stat("total frames", stats.frames.total_frames);
-    write_stat("allocated frames", stats.frames.allocated_frames);
-    write_stat("remaining frames", stats.frames.remaining_frames);
-    kernel::terminal::write_string("  truncated: ");
-    kernel::terminal::write_line(stats.truncated ? "yes" : "no");
-}
-
-void handle_line(kernel::StringView command) {
-    const kernel::ShellCommand parsed = kernel::parse_shell_command(command);
-
-    switch (parsed.kind) {
-    case kernel::ShellCommandKind::Empty:
-        return;
-    case kernel::ShellCommandKind::Help:
-        write_help();
-        break;
-    case kernel::ShellCommandKind::Clear:
-        kernel::terminal::clear();
-        break;
-    case kernel::ShellCommandKind::About:
-        write_about();
-        break;
-    case kernel::ShellCommandKind::Input:
-        write_input_stats();
-        break;
-    case kernel::ShellCommandKind::Mem:
-        write_memory_stats();
-        break;
-    case kernel::ShellCommandKind::Halt:
-        kernel::terminal::write_line("halting");
-        kernel::serial::write_line("os-lab: halt command requested");
-        kernel::halt_forever();
-    case kernel::ShellCommandKind::Unknown:
-        kernel::terminal::write_string("unknown command: ");
-        kernel::terminal::write_line(parsed.text);
-        break;
-    }
-}
-
 bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::LineEditor& line,
                              LinePosition& position, bool caps_lock, kernel::History& history) {
     if (!event.control || event.key != kernel::keyboard::Key::Character) {
@@ -425,7 +317,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
         if (!line.empty()) {
             (void)history.push(line.view());
         }
-        handle_line(line.view());
+        kernel::shell::execute_command(line.view());
         line.clear();
         history.reset_browse();
         write_new_prompt_and_line(line, position, caps_lock);
@@ -474,7 +366,7 @@ namespace kernel::shell {
 
     terminal::write_line("");
     terminal::write_line("interactive input ready");
-    write_help();
+    execute_command("help");
     write_new_prompt_and_line(line, position, caps_lock);
     serial::write_line("os-lab: interactive terminal ready");
 
