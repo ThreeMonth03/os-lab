@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+#include "kernel/display.hpp"
 #include "kernel/limine_support.hpp"
 
 namespace {
@@ -19,7 +20,7 @@ struct Glyph {
 };
 
 struct TerminalState {
-    limine_framebuffer* framebuffer = nullptr;
+    kernel::display::Surface surface;
     uint64_t columns = 0;
     uint64_t rows = 0;
     uint64_t cursor_column = 0;
@@ -200,22 +201,8 @@ Glyph glyph_for(char value) {
     }
 }
 
-void put_pixel(uint64_t x, uint64_t y, uint32_t color) {
-    auto* base = static_cast<uint8_t*>(g_state.framebuffer->address);
-    auto* pixel = reinterpret_cast<uint32_t*>(base + (y * g_state.framebuffer->pitch) +
-                                              (x * sizeof(uint32_t)));
-    *pixel = color;
-}
-
 void fill_rect(uint64_t x, uint64_t y, uint64_t width, uint64_t height, uint32_t color) {
-    for (uint64_t row = 0; row < height; ++row) {
-        auto* base = static_cast<uint8_t*>(g_state.framebuffer->address);
-        auto* pixel = reinterpret_cast<uint32_t*>(base + ((y + row) * g_state.framebuffer->pitch) +
-                                                  (x * sizeof(uint32_t)));
-        for (uint64_t column = 0; column < width; ++column) {
-            pixel[column] = color;
-        }
-    }
+    g_state.surface.fill_rect({x, y, width, height}, {color});
 }
 
 void clear_cell(uint64_t column, uint64_t row) {
@@ -247,32 +234,16 @@ void draw_glyph(char value, uint64_t column, uint64_t row) {
 
             for (uint64_t dy = 0; dy < kGlyphScale; ++dy) {
                 for (uint64_t dx = 0; dx < kGlyphScale; ++dx) {
-                    put_pixel(origin_x + (glyph_column * kGlyphScale) + dx,
-                              origin_y + (glyph_row * kGlyphScale) + dy, g_state.foreground);
+                    g_state.surface.put_pixel(origin_x + (glyph_column * kGlyphScale) + dx,
+                                              origin_y + (glyph_row * kGlyphScale) + dy,
+                                              {g_state.foreground});
                 }
             }
         }
     }
 }
 
-void clear_rows(uint64_t start_pixel_y, uint64_t height) {
-    fill_rect(0, start_pixel_y, g_state.framebuffer->width, height, g_state.background);
-}
-
-void scroll() {
-    auto* base = static_cast<uint8_t*>(g_state.framebuffer->address);
-    const uint64_t copy_height = g_state.framebuffer->height - kCellHeight;
-
-    for (uint64_t y = 0; y < copy_height; ++y) {
-        auto* destination = base + (y * g_state.framebuffer->pitch);
-        const auto* source = base + ((y + kCellHeight) * g_state.framebuffer->pitch);
-        for (uint64_t byte = 0; byte < g_state.framebuffer->pitch; ++byte) {
-            destination[byte] = source[byte];
-        }
-    }
-
-    clear_rows(copy_height, kCellHeight);
-}
+void scroll() { g_state.surface.scroll_up(kCellHeight, {g_state.background}); }
 
 void newline() {
     g_state.cursor_column = 0;
@@ -301,7 +272,8 @@ bool init() {
         return false;
     }
 
-    g_state.framebuffer = framebuffer;
+    g_state.surface = kernel::display::Surface(framebuffer->address, framebuffer->width,
+                                               framebuffer->height, framebuffer->pitch);
     g_state.columns = framebuffer->width / kCellWidth;
     g_state.rows = framebuffer->height / kCellHeight;
     g_state.cursor_column = 0;
@@ -313,7 +285,7 @@ bool init() {
     return true;
 }
 
-bool ready() { return g_state.framebuffer != nullptr; }
+bool ready() { return g_state.surface.ready(); }
 
 uint64_t columns() { return g_state.columns; }
 
@@ -327,7 +299,7 @@ void clear() {
     }
 
     g_state.cursor_visible = false;
-    fill_rect(0, 0, g_state.framebuffer->width, g_state.framebuffer->height, g_state.background);
+    fill_rect(0, 0, g_state.surface.width(), g_state.surface.height(), g_state.background);
     g_state.cursor_column = 0;
     g_state.cursor_row = 0;
 }
