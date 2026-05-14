@@ -301,6 +301,8 @@ bool ready() { return g_state.surface.ready(); }
 
 uint64_t columns() { return g_state.console.columns(); }
 
+uint64_t rows() { return g_state.console.rows(); }
+
 uint64_t cursor_column() { return g_state.console.cursor_column(); }
 
 uint64_t cursor_row() { return g_state.console.cursor_row(); }

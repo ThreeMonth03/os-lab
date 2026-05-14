@@ -9,6 +9,7 @@ namespace kernel::terminal {
 [[nodiscard]] bool init();
 [[nodiscard]] bool ready();
 [[nodiscard]] uint64_t columns();
+[[nodiscard]] uint64_t rows();
 [[nodiscard]] uint64_t cursor_column();
 [[nodiscard]] uint64_t cursor_row();
 

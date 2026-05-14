@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "kernel/editor_view_layout.hpp"
 #include "kernel/halt.hpp"
 #include "kernel/history.hpp"
 #include "kernel/input.hpp"
@@ -24,75 +25,99 @@ struct LinePosition {
     uint64_t prompt_row = 0;
     uint64_t input_column = 0;
     uint64_t input_row = 0;
+    uint64_t rendered_rows = 1;
 };
 
 kernel::StringView prompt_for_caps(bool caps_lock) {
     return caps_lock ? kCapsPrompt : kDefaultPrompt;
 }
 
-size_t line_capacity() {
-    const uint64_t columns = kernel::terminal::columns();
-    if (columns <= kCapsPrompt.size() + 1) {
-        return 0;
+kernel::EditorViewLayout editor_layout(const LinePosition& position, bool caps_lock) {
+    return {kernel::terminal::columns(), position.prompt_column, prompt_for_caps(caps_lock).size()};
+}
+
+uint64_t max_u64(uint64_t left, uint64_t right) { return left > right ? left : right; }
+
+void scroll_to_fit(LinePosition& position, uint64_t rows_needed) {
+    const uint64_t rows = kernel::terminal::rows();
+    if (rows == 0) {
+        return;
     }
 
-    uint64_t capacity = columns - kCapsPrompt.size() - 1;
-    if (capacity > kernel::LineEditor::capacity) {
-        capacity = kernel::LineEditor::capacity;
+    const uint64_t target_prompt_row = rows_needed >= rows ? 0 : rows - rows_needed;
+    if (position.prompt_row <= target_prompt_row) {
+        return;
     }
 
-    return static_cast<size_t>(capacity);
+    const uint64_t scroll_count = position.prompt_row - target_prompt_row;
+    for (uint64_t count = 0; count < scroll_count; ++count) {
+        kernel::terminal::set_cursor(0, rows - 1);
+        kernel::terminal::write_char('\n');
+    }
+
+    position.prompt_row = target_prompt_row;
 }
 
-void write_prompt(LinePosition& position, bool caps_lock) {
-    kernel::terminal::hide_cursor();
-    position.prompt_column = kernel::terminal::cursor_column();
-    position.prompt_row = kernel::terminal::cursor_row();
-    kernel::terminal::write_string(prompt_for_caps(caps_lock));
-    position.input_column = kernel::terminal::cursor_column();
-    position.input_row = kernel::terminal::cursor_row();
+void clear_rendered_area(const LinePosition& position, uint64_t rows_to_clear) {
+    const uint64_t rows = kernel::terminal::rows();
+    for (uint64_t row = 0; row < rows_to_clear && position.prompt_row + row < rows; ++row) {
+        const uint64_t column = row == 0 ? position.prompt_column : 0;
+        kernel::terminal::clear_row_from(column, position.prompt_row + row);
+    }
 }
 
-void redraw_line(const kernel::LineEditor& line, const LinePosition& position) {
-    kernel::terminal::hide_cursor();
-    kernel::terminal::set_cursor(position.input_column, position.input_row);
-    kernel::terminal::write_string(line.view());
-    kernel::terminal::clear_row_from(position.input_column + line.view().size(),
-                                     position.input_row);
-    kernel::terminal::set_cursor(position.input_column + line.cursor(), position.input_row);
-    kernel::terminal::show_cursor();
-}
-
-void write_new_prompt_and_line(const kernel::LineEditor& line, LinePosition& position,
-                               bool caps_lock) {
-    write_prompt(position, caps_lock);
-    redraw_line(line, position);
+void set_editor_cursor(const LinePosition& position, bool caps_lock, size_t index) {
+    const kernel::EditorViewCell cell = editor_layout(position, caps_lock).position_for(index);
+    kernel::terminal::set_cursor(cell.column, position.prompt_row + cell.row);
 }
 
 void redraw_prompt_and_line(const kernel::LineEditor& line, LinePosition& position,
                             bool caps_lock) {
     kernel::terminal::hide_cursor();
+
+    const kernel::StringView prompt = prompt_for_caps(caps_lock);
+    const kernel::EditorViewLayout layout = {kernel::terminal::columns(), position.prompt_column,
+                                             prompt.size()};
+    const uint64_t rows_needed = layout.visual_rows(line.view().size());
+
+    scroll_to_fit(position, rows_needed);
+    clear_rendered_area(position, max_u64(position.rendered_rows, rows_needed));
+
     kernel::terminal::set_cursor(position.prompt_column, position.prompt_row);
-    kernel::terminal::clear_row_from(position.prompt_column, position.prompt_row);
-    write_prompt(position, caps_lock);
-    redraw_line(line, position);
+    kernel::terminal::write_string(prompt);
+    position.input_column = kernel::terminal::cursor_column();
+    position.input_row = kernel::terminal::cursor_row();
+    kernel::terminal::write_string(line.view());
+    position.rendered_rows = rows_needed;
+
+    set_editor_cursor(position, caps_lock, line.cursor());
+    kernel::terminal::show_cursor();
 }
 
-void move_to_line_end(const kernel::LineEditor& line, const LinePosition& position) {
-    kernel::terminal::set_cursor(position.input_column + line.view().size(), position.input_row);
+void write_new_prompt_and_line(const kernel::LineEditor& line, LinePosition& position,
+                               bool caps_lock) {
+    position.prompt_column = kernel::terminal::cursor_column();
+    position.prompt_row = kernel::terminal::cursor_row();
+    position.rendered_rows = 1;
+    redraw_prompt_and_line(line, position, caps_lock);
+}
+
+void move_to_line_end(const kernel::LineEditor& line, const LinePosition& position,
+                      bool caps_lock) {
+    set_editor_cursor(position, caps_lock, line.view().size());
 }
 
 void redraw_history_result(kernel::HistoryResult result, kernel::StringView command,
-                           kernel::LineEditor& line, const LinePosition& position) {
+                           kernel::LineEditor& line, LinePosition& position, bool caps_lock) {
     switch (result) {
     case kernel::HistoryResult::Command:
-        if (command.size() <= line_capacity() && line.replace(command)) {
-            redraw_line(line, position);
+        if (line.replace(command)) {
+            redraw_prompt_and_line(line, position, caps_lock);
         }
         break;
     case kernel::HistoryResult::Blank:
         line.clear();
-        redraw_line(line, position);
+        redraw_prompt_and_line(line, position, caps_lock);
         break;
     case kernel::HistoryResult::None:
         break;
@@ -199,12 +224,12 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
     switch (lowercase(event.character)) {
     case 'a':
         if (line.move_to_start()) {
-            redraw_line(line, position);
+            redraw_prompt_and_line(line, position, caps_lock);
         }
         break;
     case 'c':
         kernel::terminal::hide_cursor();
-        move_to_line_end(line, position);
+        move_to_line_end(line, position, caps_lock);
         kernel::terminal::write_char('\n');
         kernel::terminal::write_line("cancelled");
         line.clear();
@@ -213,7 +238,7 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
         break;
     case 'e':
         if (line.move_to_end()) {
-            redraw_line(line, position);
+            redraw_prompt_and_line(line, position, caps_lock);
         }
         break;
     case 'l':
@@ -224,7 +249,7 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
     case 'u':
         line.clear();
         history.reset_browse();
-        redraw_line(line, position);
+        redraw_prompt_and_line(line, position, caps_lock);
         break;
     default:
         break;
@@ -245,47 +270,46 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
 
     switch (event.key) {
     case kernel::keyboard::Key::Character:
-        if (line.size() < line_capacity() && line.insert(event.character)) {
+        if (line.insert(event.character)) {
             history.reset_browse();
-            redraw_line(line, position);
+            redraw_prompt_and_line(line, position, caps_lock);
         }
         break;
     case kernel::keyboard::Key::Backspace:
         if (line.backspace()) {
             history.reset_browse();
-            redraw_line(line, position);
+            redraw_prompt_and_line(line, position, caps_lock);
         }
         break;
     case kernel::keyboard::Key::Delete:
         if (line.delete_forward()) {
             history.reset_browse();
-            redraw_line(line, position);
+            redraw_prompt_and_line(line, position, caps_lock);
         }
         break;
     case kernel::keyboard::Key::UpArrow: {
         kernel::StringView command;
-        redraw_history_result(history.previous(command), command, line, position);
+        redraw_history_result(history.previous(command), command, line, position, caps_lock);
         break;
     }
     case kernel::keyboard::Key::DownArrow: {
         kernel::StringView command;
-        redraw_history_result(history.next(command), command, line, position);
+        redraw_history_result(history.next(command), command, line, position, caps_lock);
         break;
     }
     case kernel::keyboard::Key::LeftArrow:
         if (line.move_left()) {
-            redraw_line(line, position);
+            redraw_prompt_and_line(line, position, caps_lock);
         }
         break;
     case kernel::keyboard::Key::RightArrow:
         if (line.move_right()) {
-            redraw_line(line, position);
+            redraw_prompt_and_line(line, position, caps_lock);
         }
         break;
     case kernel::keyboard::Key::Enter:
         kernel::terminal::hide_cursor();
-        kernel::terminal::set_cursor(position.input_column + line.view().size(),
-                                     position.input_row);
+        move_to_line_end(line, position, caps_lock);
         kernel::terminal::write_char('\n');
         if (!line.empty()) {
             (void)history.push(line.view());
