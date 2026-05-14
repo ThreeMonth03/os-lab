@@ -14,9 +14,9 @@ namespace {
     kernel::drivers::serial::write_string("os-lab: triggering exception smoke: ");
     kernel::drivers::serial::write_line(name);
 
-    if (kernel::terminal::ready()) {
-        kernel::terminal::write_string("triggering exception smoke: ");
-        kernel::terminal::write_line(name);
+    if (kernel::console::terminal::ready()) {
+        kernel::console::terminal::write_string("triggering exception smoke: ");
+        kernel::console::terminal::write_line(name);
     }
 }
 

@@ -26,8 +26,8 @@ TerminalState g_state;
 
 class MouseCursorGuard {
   public:
-    MouseCursorGuard() { kernel::mouse_cursor::hide(); }
-    ~MouseCursorGuard() { kernel::mouse_cursor::show(); }
+    MouseCursorGuard() { kernel::display::mouse_cursor::hide(); }
+    ~MouseCursorGuard() { kernel::display::mouse_cursor::show(); }
 
     MouseCursorGuard(const MouseCursorGuard&) = delete;
     MouseCursorGuard& operator=(const MouseCursorGuard&) = delete;
@@ -67,7 +67,7 @@ void apply_console_update(kernel::TextConsoleUpdate update) {
 
 } // namespace
 
-namespace kernel::terminal {
+namespace kernel::console::terminal {
 
 bool init() {
     const auto* response = boot::framebuffer();
@@ -251,4 +251,4 @@ void write_decimal(uint64_t value) {
     }
 }
 
-} // namespace kernel::terminal
+} // namespace kernel::console::terminal

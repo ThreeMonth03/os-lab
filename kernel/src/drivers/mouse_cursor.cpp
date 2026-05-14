@@ -76,7 +76,7 @@ void draw_bitmap() {
 
 } // namespace
 
-namespace kernel::mouse_cursor {
+namespace kernel::display::mouse_cursor {
 
 bool init() {
     g_state = {};
@@ -140,4 +140,4 @@ void move_by(int16_t delta_x, int16_t delta_y) {
     }
 }
 
-} // namespace kernel::mouse_cursor
+} // namespace kernel::display::mouse_cursor

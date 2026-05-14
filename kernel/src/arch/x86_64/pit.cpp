@@ -17,7 +17,7 @@ volatile uint64_t g_ticks = 0;
 
 } // namespace
 
-namespace kernel::timer {
+namespace kernel::time::timer {
 
 void init() {
     g_ticks = 0;
@@ -35,4 +35,4 @@ uint64_t ticks() { return g_ticks; }
 
 void handle_tick() { g_ticks = g_ticks + 1; }
 
-} // namespace kernel::timer
+} // namespace kernel::time::timer

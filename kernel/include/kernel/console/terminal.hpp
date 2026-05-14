@@ -4,7 +4,7 @@
 
 #include "kernel/base/string_view.hpp"
 
-namespace kernel::terminal {
+namespace kernel::console::terminal {
 
 [[nodiscard]] bool init();
 [[nodiscard]] bool ready();
@@ -28,4 +28,4 @@ void write_line(const char* value);
 void write_hex(uint64_t value);
 void write_decimal(uint64_t value);
 
-} // namespace kernel::terminal
+} // namespace kernel::console::terminal

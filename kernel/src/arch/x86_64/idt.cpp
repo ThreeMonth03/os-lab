@@ -84,29 +84,29 @@ kernel::StringView exception_name(uint64_t vector) {
 
 void write_both(kernel::StringView value) {
     kernel::drivers::serial::write_string(value);
-    if (kernel::terminal::ready()) {
-        kernel::terminal::write_string(value);
+    if (kernel::console::terminal::ready()) {
+        kernel::console::terminal::write_string(value);
     }
 }
 
 void write_both_line(kernel::StringView value) {
     kernel::drivers::serial::write_line(value);
-    if (kernel::terminal::ready()) {
-        kernel::terminal::write_line(value);
+    if (kernel::console::terminal::ready()) {
+        kernel::console::terminal::write_line(value);
     }
 }
 
 void write_both_decimal(uint64_t value) {
     kernel::drivers::serial::write_decimal(value);
-    if (kernel::terminal::ready()) {
-        kernel::terminal::write_decimal(value);
+    if (kernel::console::terminal::ready()) {
+        kernel::console::terminal::write_decimal(value);
     }
 }
 
 void write_both_hex(uint64_t value) {
     kernel::drivers::serial::write_hex(value);
-    if (kernel::terminal::ready()) {
-        kernel::terminal::write_hex(value);
+    if (kernel::console::terminal::ready()) {
+        kernel::console::terminal::write_hex(value);
     }
 }
 

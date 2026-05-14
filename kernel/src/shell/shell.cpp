@@ -41,10 +41,10 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
         break;
     }
     case 'c':
-        kernel::terminal::hide_cursor();
+        kernel::console::terminal::hide_cursor();
         view.move_to_line_end(line, caps_lock);
-        kernel::terminal::write_char('\n');
-        kernel::terminal::write_line("cancelled");
+        kernel::console::terminal::write_char('\n');
+        kernel::console::terminal::write_line("cancelled");
         line.clear();
         history.reset_browse();
         view.write_new_prompt_and_line(line, caps_lock);
@@ -57,8 +57,8 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
         break;
     }
     case 'l':
-        kernel::terminal::hide_cursor();
-        kernel::terminal::clear();
+        kernel::console::terminal::hide_cursor();
+        kernel::console::terminal::clear();
         view.write_new_prompt_and_line(line, caps_lock);
         break;
     case 'u':
@@ -142,9 +142,9 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
         break;
     }
     case kernel::keyboard::Key::Enter:
-        kernel::terminal::hide_cursor();
+        kernel::console::terminal::hide_cursor();
         view.move_to_line_end(line, caps_lock);
-        kernel::terminal::write_char('\n');
+        kernel::console::terminal::write_char('\n');
         if (!line.empty()) {
             (void)history.push(line.view());
         }
@@ -166,7 +166,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
 
 void handle_mouse_move_event(const kernel::input::MouseMoveEvent& event) {
     if (!event.x_overflow && !event.y_overflow) {
-        kernel::mouse_cursor::move_by(event.delta_x, event.delta_y);
+        kernel::display::mouse_cursor::move_by(event.delta_x, event.delta_y);
     }
 }
 
@@ -195,8 +195,8 @@ namespace kernel::shell {
     EditorView view;
     bool caps_lock = false;
 
-    terminal::write_line("");
-    terminal::write_line("interactive input ready");
+    kernel::console::terminal::write_line("");
+    kernel::console::terminal::write_line("interactive input ready");
     execute_command("help");
     view.write_new_prompt_and_line(line, caps_lock);
     kernel::drivers::serial::write_line("os-lab: interactive terminal ready");

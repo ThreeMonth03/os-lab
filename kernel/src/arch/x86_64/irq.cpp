@@ -90,7 +90,7 @@ extern "C" void kernel_x86_64_irq_dispatch(const IrqFrame* frame) {
         static_cast<uint8_t>(frame->vector - kernel::arch::x86_64::pic::vector_base);
 
     if (irq_line == 0) {
-        kernel::timer::handle_tick();
+        kernel::time::timer::handle_tick();
     }
 
     kernel::arch::x86_64::pic::send_eoi(irq_line);

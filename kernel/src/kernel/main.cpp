@@ -53,7 +53,7 @@ void run_utility_smoke() {
 void write_memory_summary(bool ready) {
     if (!ready) {
         kernel::drivers::serial::write_line("os-lab: memory map unavailable");
-        kernel::terminal::write_line("memory map unavailable");
+        kernel::console::terminal::write_line("memory map unavailable");
         return;
     }
 
@@ -73,20 +73,20 @@ void write_memory_summary(bool ready) {
         kernel::drivers::serial::write_line("os-lab: memory map truncated");
     }
 
-    kernel::terminal::write_string("memory usable = ");
-    kernel::terminal::write_decimal(usable_kib);
-    kernel::terminal::write_line(" KiB");
+    kernel::console::terminal::write_string("memory usable = ");
+    kernel::console::terminal::write_decimal(usable_kib);
+    kernel::console::terminal::write_line(" KiB");
 }
 
 void write_terminal_banner() {
-    kernel::terminal::write_line("os-lab terminal");
-    kernel::terminal::write_line("filesystem unavailable");
-    kernel::terminal::write_line("serial debug enabled");
-    kernel::terminal::write_line("");
+    kernel::console::terminal::write_line("os-lab terminal");
+    kernel::console::terminal::write_line("filesystem unavailable");
+    kernel::console::terminal::write_line("serial debug enabled");
+    kernel::console::terminal::write_line("");
 }
 
 bool init_terminal() {
-    const bool ready = kernel::terminal::init();
+    const bool ready = kernel::console::terminal::init();
     if (ready) {
         write_terminal_banner();
     }
@@ -104,18 +104,18 @@ void write_bootloader_info() {
     kernel::drivers::serial::write_string(" ");
     kernel::drivers::serial::write_line(info->version);
 
-    kernel::terminal::write_string("bootloader = ");
-    kernel::terminal::write_string(info->name);
-    kernel::terminal::write_string(" ");
-    kernel::terminal::write_line(info->version);
+    kernel::console::terminal::write_string("bootloader = ");
+    kernel::console::terminal::write_string(info->name);
+    kernel::console::terminal::write_string(" ");
+    kernel::console::terminal::write_line(info->version);
 }
 
 void write_firmware_info() {
     const char* firmware = firmware_name(kernel::boot::firmware_type());
     kernel::drivers::serial::write_string("os-lab: firmware = ");
     kernel::drivers::serial::write_line(firmware);
-    kernel::terminal::write_string("firmware = ");
-    kernel::terminal::write_line(firmware);
+    kernel::console::terminal::write_string("firmware = ");
+    kernel::console::terminal::write_line(firmware);
 }
 
 void write_loaded_base_revision() {
@@ -132,9 +132,9 @@ void write_terminal_status(bool terminal_ready) {
 
 void init_mouse_cursor() {
     const bool mouse_ready = kernel::mouse::init();
-    const bool mouse_cursor_ready = mouse_ready && kernel::mouse_cursor::init();
+    const bool mouse_cursor_ready = mouse_ready && kernel::display::mouse_cursor::init();
     if (mouse_cursor_ready && mouse_ready) {
-        kernel::mouse_cursor::show();
+        kernel::display::mouse_cursor::show();
         kernel::drivers::serial::write_line("os-lab: ps/2 mouse cursor active");
     } else {
         kernel::drivers::serial::write_line("os-lab: ps/2 mouse cursor unavailable");
@@ -142,7 +142,7 @@ void init_mouse_cursor() {
 }
 
 void init_timer_interrupts() {
-    kernel::timer::init();
+    kernel::time::timer::init();
     kernel::arch::x86_64::enable_interrupts();
     kernel::drivers::serial::write_line("os-lab: hardware interrupts enabled");
 }
@@ -163,7 +163,7 @@ extern "C" [[noreturn]] void kernel_main() {
     write_terminal_status(terminal_ready);
     init_mouse_cursor();
     init_timer_interrupts();
-    kernel::run_timer_smoke();
+    kernel::debug::run_timer_smoke();
 
     kernel::shell::run();
 }
