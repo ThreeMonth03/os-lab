@@ -77,6 +77,7 @@ void run_heap_smoke()
         fail("heap init failed");
     }
     require_valid_heap("heap validate failed after init");
+    const kernel::memory::heap::Stats baseline_stats = kernel::memory::heap::stats();
 
     auto * first = static_cast<volatile uint64_t *>(kernel::memory::heap::allocate(sizeof(uint64_t), 16));
     auto * second = static_cast<volatile uint64_t *>(kernel::memory::heap::allocate(sizeof(uint64_t), 64));
@@ -122,8 +123,8 @@ void run_heap_smoke()
     require_valid_heap("heap validate failed after invalid free");
 
     const kernel::memory::heap::Stats stats = kernel::memory::heap::stats();
-    if (!stats.initialized || stats.committed_pages <= kernel::memory::heap::kInitialCommitPages ||
-        stats.allocator.allocation_count != 3)
+    if (!stats.initialized || stats.committed_pages <= baseline_stats.committed_pages ||
+        stats.allocator.allocation_count != baseline_stats.allocator.allocation_count + 3)
     {
         fail("unexpected stats");
     }
