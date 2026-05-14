@@ -6,11 +6,6 @@
 
 namespace {
 
-kernel::memory::MemoryRegion g_regions[kernel::memory::kMaxBootMemoryRegions];
-size_t g_region_count = 0;
-kernel::memory::EarlyFrameAllocator g_allocator;
-kernel::memory::Stats g_stats;
-
 kernel::memory::MemoryRegionKind memory_region_kind_from_limine(uint64_t type) {
     switch (type) {
     case LIMINE_MEMMAP_USABLE:
@@ -36,70 +31,93 @@ kernel::memory::MemoryRegionKind memory_region_kind_from_limine(uint64_t type) {
     }
 }
 
-kernel::memory::MemoryMapView current_memory_map() { return {g_regions, g_region_count}; }
+class BootMemoryState {
+  public:
+    bool init(const limine_memmap_response* response) {
+        reset();
+        if (response == nullptr || response->entries == nullptr) {
+            return false;
+        }
 
-void refresh_stats() {
-    g_stats.map = current_memory_map().stats();
-    g_stats.frames = g_allocator.stats();
-}
+        stats_.initialized = true;
+        for (uint64_t index = 0; index < response->entry_count; ++index) {
+            const limine_memmap_entry* entry = response->entries[index];
+            if (entry == nullptr) {
+                continue;
+            }
+
+            append(*entry);
+        }
+
+        allocator_.reset(memory_map());
+        refresh_stats();
+        return true;
+    }
+
+    kernel::memory::Stats stats() {
+        if (stats_.initialized) {
+            refresh_stats();
+        }
+
+        return stats_;
+    }
+
+    kernel::memory::MemoryMapView memory_map() const { return {regions_, region_count_}; }
+
+    bool allocate_frame(kernel::memory::PhysicalFrame& frame) {
+        if (!stats_.initialized) {
+            frame = {};
+            return false;
+        }
+
+        const bool allocated = allocator_.allocate(frame);
+        refresh_stats();
+        return allocated;
+    }
+
+  private:
+    void reset() {
+        region_count_ = 0;
+        allocator_.reset({});
+        stats_ = {};
+    }
+
+    void append(const limine_memmap_entry& entry) {
+        if (region_count_ >= kernel::memory::kMaxBootMemoryRegions) {
+            stats_.truncated = true;
+            return;
+        }
+
+        regions_[region_count_++] = {
+            entry.base,
+            entry.length,
+            memory_region_kind_from_limine(entry.type),
+        };
+    }
+
+    void refresh_stats() {
+        stats_.map = memory_map().stats();
+        stats_.frames = allocator_.stats();
+    }
+
+    kernel::memory::MemoryRegion regions_[kernel::memory::kMaxBootMemoryRegions] = {};
+    size_t region_count_ = 0;
+    kernel::memory::EarlyFrameAllocator allocator_;
+    kernel::memory::Stats stats_;
+};
+
+BootMemoryState g_memory;
 
 } // namespace
 
 namespace kernel::memory {
 
-bool init() {
-    g_region_count = 0;
-    g_allocator.reset({});
-    g_stats = {};
+bool init() { return g_memory.init(kernel::boot::memory_map()); }
 
-    const limine_memmap_response* response = kernel::boot::memory_map();
-    if (response == nullptr || response->entries == nullptr) {
-        return false;
-    }
+Stats stats() { return g_memory.stats(); }
 
-    g_stats.initialized = true;
-    for (uint64_t index = 0; index < response->entry_count; ++index) {
-        const limine_memmap_entry* entry = response->entries[index];
-        if (entry == nullptr) {
-            continue;
-        }
+MemoryMapView memory_map() { return g_memory.memory_map(); }
 
-        const MemoryRegion region{
-            entry->base,
-            entry->length,
-            memory_region_kind_from_limine(entry->type),
-        };
-        if (g_region_count < kMaxBootMemoryRegions) {
-            g_regions[g_region_count++] = region;
-        } else {
-            g_stats.truncated = true;
-        }
-    }
-
-    g_allocator.reset(current_memory_map());
-    refresh_stats();
-    return true;
-}
-
-Stats stats() {
-    if (g_stats.initialized) {
-        refresh_stats();
-    }
-
-    return g_stats;
-}
-
-MemoryMapView memory_map() { return current_memory_map(); }
-
-bool allocate_frame(PhysicalFrame& frame) {
-    if (!g_stats.initialized) {
-        frame = {};
-        return false;
-    }
-
-    const bool allocated = g_allocator.allocate(frame);
-    refresh_stats();
-    return allocated;
-}
+bool allocate_frame(PhysicalFrame& frame) { return g_memory.allocate_frame(frame); }
 
 } // namespace kernel::memory

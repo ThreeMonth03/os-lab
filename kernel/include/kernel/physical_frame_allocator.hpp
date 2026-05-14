@@ -10,8 +10,21 @@ namespace kernel::memory {
 
 constexpr uint64_t kFrameSize = 4096;
 
-struct PhysicalFrame {
-    uint64_t address = 0;
+class PhysicalFrame {
+  public:
+    constexpr PhysicalFrame() = default;
+
+    [[nodiscard]] static constexpr PhysicalFrame from_address(uint64_t address) {
+        return PhysicalFrame(address);
+    }
+
+    [[nodiscard]] constexpr uint64_t address() const { return address_; }
+    [[nodiscard]] constexpr bool valid() const { return address_ != 0; }
+
+  private:
+    explicit constexpr PhysicalFrame(uint64_t address) : address_(address) {}
+
+    uint64_t address_ = 0;
 };
 
 struct FrameAllocatorStats {

@@ -91,7 +91,7 @@ bool EarlyFrameAllocator::allocate(PhysicalFrame& frame) {
         }
 
         if (next_frame_ <= end - kFrameSize) {
-            frame.address = next_frame_;
+            frame = PhysicalFrame::from_address(next_frame_);
             next_frame_ += kFrameSize;
             ++allocated_frames_;
             return true;

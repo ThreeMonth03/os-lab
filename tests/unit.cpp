@@ -367,14 +367,16 @@ TEST(EarlyFrameAllocatorTest, AllocatesAcrossUsableRegionsAndSkipsReserved) {
 
     EXPECT_EQ(allocator.stats().total_frames, 4u);
     EXPECT_TRUE(allocator.allocate(frame));
-    EXPECT_EQ(frame.address, 0x1000u);
+    EXPECT_TRUE(frame.valid());
+    EXPECT_EQ(frame.address(), 0x1000u);
     EXPECT_TRUE(allocator.allocate(frame));
-    EXPECT_EQ(frame.address, 0x2000u);
+    EXPECT_EQ(frame.address(), 0x2000u);
     EXPECT_TRUE(allocator.allocate(frame));
-    EXPECT_EQ(frame.address, 0x8000u);
+    EXPECT_EQ(frame.address(), 0x8000u);
     EXPECT_TRUE(allocator.allocate(frame));
-    EXPECT_EQ(frame.address, 0x9000u);
+    EXPECT_EQ(frame.address(), 0x9000u);
     EXPECT_FALSE(allocator.allocate(frame));
+    EXPECT_FALSE(frame.valid());
     EXPECT_EQ(allocator.stats().allocated_frames, 4u);
     EXPECT_EQ(allocator.stats().remaining_frames, 0u);
 }
@@ -389,9 +391,9 @@ TEST(EarlyFrameAllocatorTest, AlignsAllocationsAndSkipsPhysicalZero) {
 
     EXPECT_EQ(allocator.stats().total_frames, 2u);
     EXPECT_TRUE(allocator.allocate(frame));
-    EXPECT_EQ(frame.address, 0x1000u);
+    EXPECT_EQ(frame.address(), 0x1000u);
     EXPECT_TRUE(allocator.allocate(frame));
-    EXPECT_EQ(frame.address, 0x3000u);
+    EXPECT_EQ(frame.address(), 0x3000u);
     EXPECT_FALSE(allocator.allocate(frame));
 }
 
