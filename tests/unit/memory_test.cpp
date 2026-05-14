@@ -9,6 +9,16 @@
 namespace
 {
 
+constexpr size_t kTestAllocationHeaderBytes =
+    sizeof(uint64_t) + sizeof(uintptr_t) + (2 * sizeof(size_t));
+
+void corrupt_allocation_magic(void * memory)
+{
+    auto * magic = reinterpret_cast<uint64_t *>(
+        static_cast<unsigned char *>(memory) - kTestAllocationHeaderBytes);
+    *magic = 0;
+}
+
 TEST(MemoryMapViewTest, ClassifiesRegionKinds)
 {
     EXPECT_TRUE(kernel::memory::is_allocatable(kernel::memory::MemoryRegionKind::Usable));
@@ -130,9 +140,11 @@ TEST(HeapAllocatorTest, AllocatesAlignedBlocksAndReportsStats)
 
     const kernel::memory::HeapAllocatorStats stats = allocator.stats();
     EXPECT_TRUE(stats.initialized);
+    EXPECT_EQ(stats.region_count, 1u);
     EXPECT_EQ(stats.allocated_bytes, 45u);
     EXPECT_EQ(stats.allocation_count, 2u);
     EXPECT_GT(stats.free_bytes, 0u);
+    EXPECT_TRUE(allocator.validate().valid);
 }
 
 TEST(HeapAllocatorTest, RejectsInvalidAlignmentAndExhaustion)
@@ -145,6 +157,7 @@ TEST(HeapAllocatorTest, RejectsInvalidAlignmentAndExhaustion)
     EXPECT_EQ(allocator.allocate(8, 3), nullptr);
     EXPECT_NE(allocator.allocate(64, 8), nullptr);
     EXPECT_EQ(allocator.allocate(4096, 8), nullptr);
+    EXPECT_TRUE(allocator.validate().valid);
 }
 
 TEST(HeapAllocatorTest, FreesAndReusesBlocks)
@@ -169,6 +182,7 @@ TEST(HeapAllocatorTest, FreesAndReusesBlocks)
     EXPECT_EQ(stats.allocated_bytes, 0u);
     EXPECT_EQ(stats.free_block_count, 1u);
     EXPECT_EQ(stats.free_bytes, stats.region_bytes);
+    EXPECT_TRUE(allocator.validate().valid);
 }
 
 TEST(HeapAllocatorTest, AddsAdjacentRegionAndCoalesces)
@@ -181,8 +195,85 @@ TEST(HeapAllocatorTest, AddsAdjacentRegionAndCoalesces)
     const kernel::memory::HeapAllocatorStats stats = allocator.stats();
 
     EXPECT_EQ(stats.region_bytes, 512u);
+    EXPECT_EQ(stats.region_count, 1u);
     EXPECT_EQ(stats.free_block_count, 1u);
     EXPECT_EQ(stats.free_bytes, 512u);
+    EXPECT_TRUE(allocator.validate().valid);
+}
+
+TEST(HeapAllocatorTest, ValidatesUninitializedAndAllocatedState)
+{
+    kernel::memory::HeapAllocator allocator;
+
+    kernel::memory::HeapValidationResult validation = allocator.validate();
+    EXPECT_TRUE(validation.valid);
+    EXPECT_FALSE(validation.observed.initialized);
+    EXPECT_EQ(validation.error, kernel::memory::HeapValidationError::None);
+
+    alignas(16) unsigned char storage[256] = {};
+    allocator.reset(storage, sizeof(storage));
+    void * first = allocator.allocate(24, 8);
+    void * second = allocator.allocate(32, 16);
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+
+    validation = allocator.validate();
+    EXPECT_TRUE(validation.valid);
+    EXPECT_TRUE(validation.observed.initialized);
+    EXPECT_EQ(validation.observed.allocation_count, 2u);
+
+    EXPECT_TRUE(allocator.free(first));
+    EXPECT_TRUE(allocator.free(second));
+    validation = allocator.validate();
+    EXPECT_TRUE(validation.valid);
+    EXPECT_EQ(validation.observed.allocation_count, 0u);
+    EXPECT_EQ(validation.observed.free_bytes, validation.observed.region_bytes);
+}
+
+TEST(HeapAllocatorTest, RejectsDoubleFreeAndInvalidFree)
+{
+    alignas(16) unsigned char storage[256] = {};
+    kernel::memory::HeapAllocator allocator;
+    allocator.reset(storage, sizeof(storage));
+
+    void * memory = allocator.allocate(24, 8);
+    ASSERT_NE(memory, nullptr);
+
+    EXPECT_TRUE(allocator.free(memory));
+    EXPECT_FALSE(allocator.free(memory));
+
+    int outside_heap = 0;
+    EXPECT_FALSE(allocator.free(&outside_heap));
+    EXPECT_TRUE(allocator.validate().valid);
+}
+
+TEST(HeapAllocatorTest, RejectsInteriorPointerFreeWithoutLosingOriginalBlock)
+{
+    alignas(16) unsigned char storage[256] = {};
+    kernel::memory::HeapAllocator allocator;
+    allocator.reset(storage, sizeof(storage));
+
+    void * memory = allocator.allocate(24, 8);
+    ASSERT_NE(memory, nullptr);
+
+    auto * interior = static_cast<unsigned char *>(memory) + 1;
+    EXPECT_FALSE(allocator.free(interior));
+    EXPECT_TRUE(allocator.validate().valid);
+    EXPECT_TRUE(allocator.free(memory));
+}
+
+TEST(HeapAllocatorTest, RejectsCorruptedAllocationHeader)
+{
+    alignas(16) unsigned char storage[256] = {};
+    kernel::memory::HeapAllocator allocator;
+    allocator.reset(storage, sizeof(storage));
+
+    void * memory = allocator.allocate(24, alignof(uintptr_t));
+    ASSERT_NE(memory, nullptr);
+    corrupt_allocation_magic(memory);
+
+    EXPECT_FALSE(allocator.free(memory));
+    EXPECT_TRUE(allocator.validate().valid);
 }
 
 TEST(HeapRangeTest, CountsRequiredPages)

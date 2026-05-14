@@ -81,6 +81,19 @@ public:
         };
     }
 
+    kernel::memory::HeapValidationResult validate() const
+    {
+        kernel::memory::HeapValidationResult result = allocator_.validate();
+        if (committed_bytes_ > heap::kMaxBytes ||
+            (committed_bytes_ % paging::kPageSize) != 0 ||
+            (initialized_ && !result.observed.initialized))
+        {
+            result.valid = false;
+            result.error = kernel::memory::HeapValidationError::RegionStatsMismatch;
+        }
+        return result;
+    }
+
 private:
     [[nodiscard]] size_t required_pages(size_t bytes, size_t alignment) const
     {
@@ -168,5 +181,7 @@ void * allocate(size_t bytes, size_t alignment) { return g_heap.allocate(bytes, 
 bool free(void * memory) { return g_heap.free(memory); }
 
 Stats stats() { return g_heap.stats(); }
+
+HeapValidationResult validate() { return g_heap.validate(); }
 
 } // namespace kernel::memory::heap

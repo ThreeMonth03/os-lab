@@ -42,6 +42,11 @@ struct HeapAllocator::FreeBlock
 
 void HeapAllocator::reset(void * memory, size_t bytes)
 {
+    for (Region & region : regions_)
+    {
+        region = {};
+    }
+    region_count_ = 0;
     free_head_ = nullptr;
     region_bytes_ = 0;
     allocated_bytes_ = 0;
@@ -51,6 +56,11 @@ void HeapAllocator::reset(void * memory, size_t bytes)
     uintptr_t start = 0;
     size_t usable_bytes = 0;
     if (!usable_region(memory, bytes, start, usable_bytes))
+    {
+        return;
+    }
+
+    if (!record_region(start, usable_bytes))
     {
         return;
     }
@@ -65,6 +75,10 @@ bool HeapAllocator::add_region(void * memory, size_t bytes)
     uintptr_t start = 0;
     size_t usable_bytes = 0;
     if (!usable_region(memory, bytes, start, usable_bytes))
+    {
+        return false;
+    }
+    if (!record_region(start, usable_bytes))
     {
         return false;
     }
@@ -143,11 +157,12 @@ bool HeapAllocator::free(void * memory)
     }
 
     const auto payload = reinterpret_cast<uintptr_t>(memory);
-    auto * header = allocation_header_at(payload - sizeof(AllocationHeader));
-    if (header->magic != kAllocationMagic || header->block_size < sizeof(FreeBlock))
+    if (!allocation_header_valid(payload))
     {
         return false;
     }
+
+    auto * header = allocation_header_at(payload - sizeof(AllocationHeader));
 
     header->magic = 0;
     allocated_bytes_ -= header->requested_size;
@@ -160,6 +175,7 @@ HeapAllocatorStats HeapAllocator::stats() const
 {
     HeapAllocatorStats result;
     result.initialized = initialized_;
+    result.region_count = region_count_;
     result.region_bytes = region_bytes_;
     result.allocated_bytes = allocated_bytes_;
     result.allocation_count = allocation_count_;
@@ -172,6 +188,40 @@ HeapAllocatorStats HeapAllocator::stats() const
         {
             result.largest_free_block = block->size;
         }
+    }
+
+    return result;
+}
+
+HeapValidationResult HeapAllocator::validate() const
+{
+    HeapValidationResult result;
+    result.observed.initialized = initialized_;
+    result.observed.region_count = region_count_;
+    result.observed.region_bytes = region_bytes_;
+    result.observed.allocated_bytes = allocated_bytes_;
+    result.observed.allocation_count = allocation_count_;
+
+    size_t region_bytes = 0;
+    result.error = validate_regions(region_bytes);
+    if (result.error != HeapValidationError::None)
+    {
+        result.valid = false;
+        return result;
+    }
+
+    result.error = validate_free_list(result.observed);
+    if (result.error != HeapValidationError::None)
+    {
+        result.valid = false;
+        return result;
+    }
+
+    if (region_bytes != region_bytes_)
+    {
+        result.valid = false;
+        result.error = HeapValidationError::RegionStatsMismatch;
+        return result;
     }
 
     return result;
@@ -232,6 +282,253 @@ HeapAllocator::FreeBlock * HeapAllocator::free_block_at(uintptr_t address)
 {
     // Free list nodes live inside the free heap blocks they describe.
     return reinterpret_cast<FreeBlock *>(address); // NOLINT(performance-no-int-to-ptr)
+}
+
+bool HeapAllocator::record_region(uintptr_t start, size_t bytes)
+{
+    if ((start % kMinimumAlignment) != 0 || bytes < sizeof(FreeBlock) ||
+        (bytes % kMinimumAlignment) != 0 || bytes > UINTPTR_MAX - start)
+    {
+        return false;
+    }
+
+    uintptr_t merged_start = start;
+    size_t merged_size = bytes;
+    bool merged = true;
+    while (merged)
+    {
+        merged = false;
+        const uintptr_t merged_end = merged_start + merged_size;
+
+        for (size_t index = 0; index < region_count_; ++index)
+        {
+            const uintptr_t region_start = regions_[index].start;
+            const uintptr_t region_end = region_start + regions_[index].size;
+            const bool overlaps = merged_start < region_end && merged_end > region_start;
+            if (overlaps)
+            {
+                return false;
+            }
+
+            if (region_end == merged_start || merged_end == region_start)
+            {
+                if (merged_size > static_cast<size_t>(-1) - regions_[index].size)
+                {
+                    return false;
+                }
+                merged_start = region_end == merged_start ? region_start : merged_start;
+                merged_size += regions_[index].size;
+                for (size_t move = index + 1; move < region_count_; ++move)
+                {
+                    regions_[move - 1] = regions_[move];
+                }
+                regions_[region_count_ - 1] = {};
+                --region_count_;
+                merged = true;
+                break;
+            }
+        }
+    }
+
+    if (region_count_ == kMaxRegions)
+    {
+        return false;
+    }
+
+    size_t insert_at = 0;
+    while (insert_at < region_count_ && regions_[insert_at].start < merged_start)
+    {
+        ++insert_at;
+    }
+
+    for (size_t move = region_count_; move > insert_at; --move)
+    {
+        regions_[move] = regions_[move - 1];
+    }
+    regions_[insert_at] = {merged_start, merged_size};
+    ++region_count_;
+    return true;
+}
+
+bool HeapAllocator::managed_range(uintptr_t address, size_t bytes) const
+{
+    if (bytes == 0 || bytes > UINTPTR_MAX - address)
+    {
+        return false;
+    }
+
+    const uintptr_t end = address + bytes;
+    for (size_t index = 0; index < region_count_; ++index)
+    {
+        const uintptr_t region_start = regions_[index].start;
+        const uintptr_t region_end = region_start + regions_[index].size;
+        if (address >= region_start && end <= region_end)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool HeapAllocator::overlaps_free_block(uintptr_t start, size_t bytes) const
+{
+    if (bytes == 0 || bytes > UINTPTR_MAX - start)
+    {
+        return false;
+    }
+
+    const uintptr_t end = start + bytes;
+    for (const FreeBlock * block = free_head_; block != nullptr; block = block->next)
+    {
+        const auto block_start = reinterpret_cast<uintptr_t>(block);
+        const uintptr_t block_end = block_start + block->size;
+        if (start < block_end && end > block_start)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool HeapAllocator::allocation_header_valid(uintptr_t payload) const
+{
+    if (payload < sizeof(AllocationHeader))
+    {
+        return false;
+    }
+
+    const uintptr_t header_address = payload - sizeof(AllocationHeader);
+    if (!managed_range(header_address, sizeof(AllocationHeader)))
+    {
+        return false;
+    }
+
+    const AllocationHeader * header = allocation_header_at(header_address);
+    if (header->magic != kAllocationMagic || header->block_size < sizeof(FreeBlock) ||
+        header->requested_size == 0 || (header->block_start % kMinimumAlignment) != 0 ||
+        (header->block_size % kMinimumAlignment) != 0)
+    {
+        return false;
+    }
+    if (header->block_size > UINTPTR_MAX - header->block_start)
+    {
+        return false;
+    }
+
+    const uintptr_t block_end = header->block_start + header->block_size;
+    if (!managed_range(header->block_start, header->block_size) ||
+        header_address < header->block_start ||
+        header_address > block_end - sizeof(AllocationHeader) ||
+        payload > block_end ||
+        header->requested_size > block_end - payload)
+    {
+        return false;
+    }
+
+    return !overlaps_free_block(header->block_start, header->block_size);
+}
+
+HeapValidationError HeapAllocator::validate_regions(size_t & bytes) const
+{
+    bytes = 0;
+    uintptr_t previous_end = 0;
+    for (size_t index = 0; index < region_count_; ++index)
+    {
+        const Region & region = regions_[index];
+        if ((region.start % kMinimumAlignment) != 0)
+        {
+            return HeapValidationError::RegionMisaligned;
+        }
+        if (region.size < sizeof(FreeBlock) || (region.size % kMinimumAlignment) != 0)
+        {
+            return HeapValidationError::RegionTooSmall;
+        }
+        if (region.size > UINTPTR_MAX - region.start)
+        {
+            return HeapValidationError::RegionOverlap;
+        }
+
+        const uintptr_t region_end = region.start + region.size;
+        if (index > 0 && previous_end > region.start)
+        {
+            return HeapValidationError::RegionOverlap;
+        }
+        if (bytes > static_cast<size_t>(-1) - region.size)
+        {
+            return HeapValidationError::RegionStatsMismatch;
+        }
+
+        bytes += region.size;
+        previous_end = region_end;
+    }
+
+    if (bytes != region_bytes_)
+    {
+        return HeapValidationError::RegionStatsMismatch;
+    }
+    return HeapValidationError::None;
+}
+
+HeapValidationError HeapAllocator::validate_free_list(HeapAllocatorStats & observed) const
+{
+    const FreeBlock * previous = nullptr;
+    uintptr_t previous_end = 0;
+
+    for (const FreeBlock * block = free_head_; block != nullptr; block = block->next)
+    {
+        const auto block_start = reinterpret_cast<uintptr_t>(block);
+        if (block->previous != previous)
+        {
+            return HeapValidationError::FreeListPreviousMismatch;
+        }
+        if (previous != nullptr && reinterpret_cast<uintptr_t>(previous) >= block_start)
+        {
+            return HeapValidationError::FreeListOrder;
+        }
+        if ((block_start % kMinimumAlignment) != 0)
+        {
+            return HeapValidationError::FreeBlockMisaligned;
+        }
+        if (block->size < sizeof(FreeBlock))
+        {
+            return HeapValidationError::FreeBlockTooSmall;
+        }
+        if ((block->size % kMinimumAlignment) != 0)
+        {
+            return HeapValidationError::FreeBlockSizeMisaligned;
+        }
+        if (block->size > UINTPTR_MAX - block_start ||
+            !managed_range(block_start, block->size))
+        {
+            return HeapValidationError::FreeBlockOutOfRegion;
+        }
+        if (previous != nullptr && previous_end > block_start)
+        {
+            return HeapValidationError::FreeBlockOutOfRegion;
+        }
+
+        if (observed.free_bytes > static_cast<size_t>(-1) - block->size)
+        {
+            return HeapValidationError::FreeStatsMismatch;
+        }
+        observed.free_bytes += block->size;
+        ++observed.free_block_count;
+        if (block->size > observed.largest_free_block)
+        {
+            observed.largest_free_block = block->size;
+        }
+
+        previous = block;
+        previous_end = block_start + block->size;
+    }
+
+    if (observed.free_bytes > region_bytes_ || allocated_bytes_ > region_bytes_ ||
+        observed.free_bytes > region_bytes_ - allocated_bytes_)
+    {
+        return HeapValidationError::AllocatedBytesExceedRegion;
+    }
+
+    return HeapValidationError::None;
 }
 
 void HeapAllocator::insert_free_block(uintptr_t address, size_t bytes)
