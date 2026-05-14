@@ -1,6 +1,7 @@
 add_library(os_lab_kernel_logic OBJECT
     display.cpp
     history.cpp
+    input.cpp
     keyboard_decoder.cpp
     line_editor.cpp
     mouse_packet_decoder.cpp
