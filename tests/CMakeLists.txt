@@ -2,6 +2,7 @@ find_package(GTest REQUIRED)
 
 add_library(os_lab_host_logic
     ${PROJECT_SOURCE_DIR}/kernel/src/kernel/history.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/kernel/keyboard_decoder.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/kernel/line_editor.cpp
 )
 target_compile_features(os_lab_host_logic PUBLIC cxx_std_23)
