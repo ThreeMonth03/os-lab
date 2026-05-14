@@ -46,12 +46,14 @@ function(os_lab_configure_kernel_object target)
     target_link_libraries(${target} PRIVATE os_lab_kernel_compile_settings)
 endfunction()
 
+add_subdirectory(src/arch/x86_64)
 add_subdirectory(src/boot)
 add_subdirectory(src/drivers)
 add_subdirectory(src/kernel)
 add_subdirectory(src/runtime)
 
 add_executable(kernel
+    $<TARGET_OBJECTS:os_lab_kernel_arch_x86_64>
     $<TARGET_OBJECTS:os_lab_kernel_boot>
     $<TARGET_OBJECTS:os_lab_kernel_drivers>
     $<TARGET_OBJECTS:os_lab_kernel_logic>

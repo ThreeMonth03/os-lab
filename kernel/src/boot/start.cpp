@@ -1,3 +1,4 @@
+#include "kernel/arch/x86_64/idt.hpp"
 #include "kernel/debug_port.hpp"
 #include "kernel/halt.hpp"
 #include "kernel/limine_support.hpp"
@@ -9,6 +10,7 @@ extern "C" [[noreturn]] void kernel_main();
 extern "C" [[gnu::section(".text._start"), noreturn]] void _start() {
     kernel::debug_port::write_string("os-lab: reached _start\n");
     kernel::serial::init();
+    kernel::arch::x86_64::init_exceptions();
 
     if (!kernel::boot::base_revision_supported()) {
         kernel::debug_port::write_string("os-lab: unsupported base revision\n");
