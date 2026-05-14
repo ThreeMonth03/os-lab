@@ -146,6 +146,8 @@ kernel::keyboard::Key key_for_scancode(uint8_t scancode, bool extended) {
     }
 
     switch (scancode) {
+    case 0x0f:
+        return kernel::keyboard::Key::Tab;
     case 0x0e:
         return kernel::keyboard::Key::Backspace;
     case 0x1c:

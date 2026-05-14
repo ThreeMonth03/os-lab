@@ -98,6 +98,25 @@ TEST(LineEditorTest, ReplacesCurrentLine) {
     expect_text(line.view(), "z");
 }
 
+TEST(LineEditorTest, ComputesTabStopSpacing) {
+    EXPECT_EQ(kernel::LineEditor::spaces_to_next_tab_stop(0), 4u);
+    EXPECT_EQ(kernel::LineEditor::spaces_to_next_tab_stop(1), 3u);
+    EXPECT_EQ(kernel::LineEditor::spaces_to_next_tab_stop(3), 1u);
+    EXPECT_EQ(kernel::LineEditor::spaces_to_next_tab_stop(4), 4u);
+}
+
+TEST(LineEditorTest, InsertsSpacesAtCursor) {
+    kernel::LineEditor line;
+
+    EXPECT_TRUE(line.insert('a'));
+    EXPECT_TRUE(line.insert('b'));
+    EXPECT_TRUE(line.move_left());
+    EXPECT_TRUE(line.insert_spaces(kernel::LineEditor::spaces_to_next_tab_stop(line.cursor())));
+
+    expect_text(line.view(), "a   b");
+    EXPECT_EQ(line.cursor(), 4u);
+}
+
 TEST(HistoryTest, BrowsesCommandsAndReturnsBlankAtNewest) {
     kernel::History history;
     kernel::StringView command;
@@ -593,6 +612,14 @@ kernel::keyboard::KeyEvent expect_extended_key(kernel::keyboard::KeyboardDecoder
     return expect_key(decoder, scancode);
 }
 
+void expect_character_key(kernel::keyboard::KeyboardDecoder& decoder, uint8_t scancode,
+                          char expected) {
+    const kernel::keyboard::KeyEvent event = expect_key(decoder, scancode);
+    EXPECT_EQ(event.key, kernel::keyboard::Key::Character);
+    EXPECT_EQ(event.character, expected);
+    EXPECT_TRUE(event.pressed);
+}
+
 TEST(KeyboardDecoderTest, DecodesLowercaseAndShiftUppercase) {
     kernel::keyboard::KeyboardDecoder decoder;
 
@@ -736,6 +763,47 @@ TEST(KeyboardDecoderTest, DoesNotEmitCharactersForKeyRelease) {
     EXPECT_EQ(event.key, kernel::keyboard::Key::Shift);
     EXPECT_FALSE(event.pressed);
     EXPECT_EQ(event.character, '\0');
+}
+
+TEST(KeyboardDecoderTest, DecodesTabPressOnly) {
+    kernel::keyboard::KeyboardDecoder decoder;
+
+    kernel::keyboard::KeyEvent event = expect_key(decoder, 0x0f);
+    EXPECT_EQ(event.key, kernel::keyboard::Key::Tab);
+    EXPECT_TRUE(event.pressed);
+    EXPECT_EQ(event.character, '\0');
+
+    expect_no_key(decoder, 0x8f);
+}
+
+TEST(KeyboardDecoderTest, DecodesPunctuationAndShiftedPunctuation) {
+    kernel::keyboard::KeyboardDecoder decoder;
+
+    expect_character_key(decoder, 0x2b, '\\');
+    expect_character_key(decoder, 0x29, '`');
+    expect_character_key(decoder, 0x1a, '[');
+    expect_character_key(decoder, 0x1b, ']');
+    expect_character_key(decoder, 0x27, ';');
+    expect_character_key(decoder, 0x28, '\'');
+
+    kernel::keyboard::KeyEvent event = expect_key(decoder, 0x2a);
+    EXPECT_EQ(event.key, kernel::keyboard::Key::Shift);
+    EXPECT_TRUE(event.shift);
+
+    expect_character_key(decoder, 0x2b, '|');
+    expect_character_key(decoder, 0x29, '~');
+    expect_character_key(decoder, 0x1a, '{');
+    expect_character_key(decoder, 0x1b, '}');
+    expect_character_key(decoder, 0x27, ':');
+    expect_character_key(decoder, 0x28, '"');
+    expect_character_key(decoder, 0x02, '!');
+    expect_character_key(decoder, 0x03, '@');
+    expect_character_key(decoder, 0x04, '#');
+    expect_character_key(decoder, 0x05, '$');
+    expect_character_key(decoder, 0x06, '%');
+    expect_character_key(decoder, 0x07, '^');
+    expect_character_key(decoder, 0x08, '&');
+    expect_character_key(decoder, 0x09, '*');
 }
 
 TEST(MousePacketDecoderTest, DecodesMovementAndButtons) {

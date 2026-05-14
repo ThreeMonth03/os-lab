@@ -5,6 +5,7 @@ namespace kernel::keyboard {
 enum class Key {
     Unknown,
     Character,
+    Tab,
     Enter,
     Backspace,
     Shift,

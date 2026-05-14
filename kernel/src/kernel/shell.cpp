@@ -340,6 +340,15 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
         }
         break;
     }
+    case kernel::keyboard::Key::Tab: {
+        const kernel::EditorSnapshot before = editor_snapshot(line, caps_lock);
+        const size_t spaces = kernel::LineEditor::spaces_to_next_tab_stop(line.cursor());
+        if (line.insert_spaces(spaces)) {
+            history.reset_browse();
+            redraw_editor_change(line, position, caps_lock, kernel::EditorEditKind::Insert, before);
+        }
+        break;
+    }
     case kernel::keyboard::Key::Backspace: {
         const kernel::EditorSnapshot before = editor_snapshot(line, caps_lock);
         if (line.backspace()) {

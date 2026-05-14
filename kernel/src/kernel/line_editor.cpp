@@ -2,6 +2,11 @@
 
 namespace kernel {
 
+size_t LineEditor::spaces_to_next_tab_stop(size_t column) {
+    const size_t offset = column % tab_width;
+    return offset == 0 ? tab_width : tab_width - offset;
+}
+
 bool LineEditor::insert(char value) {
     const size_t old_size = buffer_.size();
     if (!buffer_.push_back(value)) {
@@ -14,6 +19,18 @@ bool LineEditor::insert(char value) {
 
     buffer_[cursor_] = value;
     ++cursor_;
+    return true;
+}
+
+bool LineEditor::insert_spaces(size_t count) {
+    if (count > capacity - buffer_.size()) {
+        return false;
+    }
+
+    for (size_t index = 0; index < count; ++index) {
+        (void)insert(' ');
+    }
+
     return true;
 }
 
