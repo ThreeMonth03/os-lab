@@ -6,6 +6,8 @@
 #include "kernel/history.hpp"
 #include "kernel/keyboard.hpp"
 #include "kernel/line_editor.hpp"
+#include "kernel/mouse.hpp"
+#include "kernel/mouse_cursor.hpp"
 #include "kernel/serial.hpp"
 #include "kernel/shell_command.hpp"
 #include "kernel/string_view.hpp"
@@ -244,6 +246,23 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
     }
 }
 
+bool handle_mouse_events() {
+    bool handled = false;
+    for (int event_count = 0; event_count < 16; ++event_count) {
+        kernel::mouse::MouseEvent event;
+        if (!kernel::mouse::poll(event)) {
+            break;
+        }
+
+        handled = true;
+        if (!event.x_overflow && !event.y_overflow) {
+            kernel::mouse_cursor::move_by(event.delta_x, event.delta_y);
+        }
+    }
+
+    return handled;
+}
+
 } // namespace
 
 namespace kernel::shell {
@@ -261,10 +280,17 @@ namespace kernel::shell {
     serial::write_line("os-lab: interactive terminal ready");
 
     while (true) {
+        bool handled = false;
+
         keyboard::KeyEvent event;
         if (keyboard::poll_key(event)) {
             handle_key_event(event, line, position, caps_lock, history);
-        } else {
+            handled = true;
+        }
+        if (handle_mouse_events()) {
+            handled = true;
+        }
+        if (!handled) {
             asm volatile("pause");
         }
     }

@@ -183,6 +183,8 @@ TEST(DisplayTest, PutPixelAndFillRectAreClipped) {
     surface.put_pixel(1, 1, {3});
     surface.put_pixel(9, 9, {7});
     EXPECT_EQ(pixels[5], 3u);
+    EXPECT_EQ(surface.pixel(1, 1).value, 3u);
+    EXPECT_EQ(surface.pixel(9, 9).value, 0u);
 
     surface.fill_rect({2, 1, 9, 9}, {5});
     EXPECT_EQ(pixels[6], 5u);

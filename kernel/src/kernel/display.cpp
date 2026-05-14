@@ -5,6 +5,17 @@ namespace kernel::display {
 Surface::Surface(void* address, uint64_t width, uint64_t height, uint64_t pitch)
     : address_(address), width_(width), height_(height), pitch_(pitch) {}
 
+Color Surface::pixel(uint64_t x, uint64_t y) const {
+    if (!ready() || x >= width_ || y >= height_) {
+        return {};
+    }
+
+    const auto* base = static_cast<const uint8_t*>(address_);
+    const auto* pixel =
+        reinterpret_cast<const uint32_t*>(base + (y * pitch_) + (x * sizeof(uint32_t)));
+    return {*pixel};
+}
+
 void Surface::put_pixel(uint64_t x, uint64_t y, Color color) {
     if (!ready() || x >= width_ || y >= height_) {
         return;

@@ -1,0 +1,156 @@
+#include "kernel/mouse_cursor.hpp"
+
+#include "kernel/display.hpp"
+#include "kernel/limine_support.hpp"
+
+namespace {
+
+constexpr uint64_t kCursorWidth = 10;
+constexpr uint64_t kCursorHeight = 16;
+
+constexpr char kCursorBitmap[kCursorHeight][kCursorWidth + 1] = {
+    "#.........", "##........", "#o#.......", "#oo#......", "#ooo#.....", "#oooo#....",
+    "#ooooo#...", "#oooooo#..", "#ooooooo#.", "#oooo#....", "#oo#o#....", "#o#.#o#...",
+    "##..#o#...", "#....#o#..", ".....#o#..", "......##..",
+};
+
+struct CursorState {
+    kernel::display::Surface surface;
+    uint64_t x = 0;
+    uint64_t y = 0;
+    uint64_t saved_width = 0;
+    uint64_t saved_height = 0;
+    uint32_t saved_pixels[kCursorWidth * kCursorHeight] = {};
+    uint32_t outline = 0;
+    uint32_t fill = 0;
+    bool initialized = false;
+    bool visible = false;
+};
+
+CursorState g_state;
+
+uint32_t pack_rgb(const limine_framebuffer& framebuffer, uint8_t red, uint8_t green, uint8_t blue) {
+    return (static_cast<uint32_t>(red) << framebuffer.red_mask_shift) |
+           (static_cast<uint32_t>(green) << framebuffer.green_mask_shift) |
+           (static_cast<uint32_t>(blue) << framebuffer.blue_mask_shift);
+}
+
+uint64_t min_u64(uint64_t lhs, uint64_t rhs) { return lhs < rhs ? lhs : rhs; }
+
+uint64_t clamp_position(int64_t value, uint64_t extent, uint64_t cursor_extent) {
+    const uint64_t max = extent > cursor_extent ? extent - cursor_extent : 0;
+    if (value <= 0) {
+        return 0;
+    }
+    if (static_cast<uint64_t>(value) > max) {
+        return max;
+    }
+
+    return static_cast<uint64_t>(value);
+}
+
+void save_background() {
+    g_state.saved_width = min_u64(kCursorWidth, g_state.surface.width() - g_state.x);
+    g_state.saved_height = min_u64(kCursorHeight, g_state.surface.height() - g_state.y);
+
+    for (uint64_t row = 0; row < g_state.saved_height; ++row) {
+        for (uint64_t column = 0; column < g_state.saved_width; ++column) {
+            g_state.saved_pixels[(row * kCursorWidth) + column] =
+                g_state.surface.pixel(g_state.x + column, g_state.y + row).value;
+        }
+    }
+}
+
+void restore_background() {
+    for (uint64_t row = 0; row < g_state.saved_height; ++row) {
+        for (uint64_t column = 0; column < g_state.saved_width; ++column) {
+            g_state.surface.put_pixel(g_state.x + column, g_state.y + row,
+                                      {g_state.saved_pixels[(row * kCursorWidth) + column]});
+        }
+    }
+}
+
+void draw_bitmap() {
+    for (uint64_t row = 0; row < kCursorHeight; ++row) {
+        for (uint64_t column = 0; column < kCursorWidth; ++column) {
+            const char pixel = kCursorBitmap[row][column];
+            if (pixel == '#') {
+                g_state.surface.put_pixel(g_state.x + column, g_state.y + row, {g_state.outline});
+            } else if (pixel == 'o') {
+                g_state.surface.put_pixel(g_state.x + column, g_state.y + row, {g_state.fill});
+            }
+        }
+    }
+}
+
+} // namespace
+
+namespace kernel::mouse_cursor {
+
+bool init() {
+    g_state = {};
+
+    const auto* response = boot::framebuffer();
+    if (response == nullptr || response->framebuffer_count == 0) {
+        return false;
+    }
+
+    auto* framebuffer = response->framebuffers[0];
+    if (framebuffer == nullptr || framebuffer->bpp != 32 ||
+        framebuffer->memory_model != LIMINE_FRAMEBUFFER_RGB || framebuffer->width == 0 ||
+        framebuffer->height == 0) {
+        return false;
+    }
+
+    g_state.surface = kernel::display::Surface(framebuffer->address, framebuffer->width,
+                                               framebuffer->height, framebuffer->pitch);
+    g_state.x = framebuffer->width > kCursorWidth ? (framebuffer->width - kCursorWidth) / 2 : 0;
+    g_state.y = framebuffer->height > kCursorHeight ? (framebuffer->height - kCursorHeight) / 2 : 0;
+    g_state.outline = pack_rgb(*framebuffer, 0x00, 0x00, 0x00);
+    g_state.fill = pack_rgb(*framebuffer, 0xff, 0xff, 0xff);
+    g_state.initialized = true;
+    return true;
+}
+
+bool ready() { return g_state.initialized; }
+
+void show() {
+    if (!g_state.initialized || g_state.visible) {
+        return;
+    }
+
+    save_background();
+    draw_bitmap();
+    g_state.visible = true;
+}
+
+void hide() {
+    if (!g_state.initialized || !g_state.visible) {
+        return;
+    }
+
+    restore_background();
+    g_state.visible = false;
+}
+
+void move_by(int16_t delta_x, int16_t delta_y) {
+    if (!g_state.initialized) {
+        return;
+    }
+
+    const bool was_visible = g_state.visible;
+    if (was_visible) {
+        hide();
+    }
+
+    g_state.x = clamp_position(static_cast<int64_t>(g_state.x) + delta_x, g_state.surface.width(),
+                               kCursorWidth);
+    g_state.y = clamp_position(static_cast<int64_t>(g_state.y) - delta_y, g_state.surface.height(),
+                               kCursorHeight);
+
+    if (was_visible) {
+        show();
+    }
+}
+
+} // namespace kernel::mouse_cursor

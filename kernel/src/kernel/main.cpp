@@ -1,5 +1,7 @@
 #include "kernel/fixed_vector.hpp"
 #include "kernel/limine_support.hpp"
+#include "kernel/mouse.hpp"
+#include "kernel/mouse_cursor.hpp"
 #include "kernel/serial.hpp"
 #include "kernel/shell.hpp"
 #include "kernel/span.hpp"
@@ -80,5 +82,15 @@ extern "C" [[noreturn]] void kernel_main() {
 
     kernel::serial::write_line(terminal_ready ? "os-lab: framebuffer terminal active"
                                               : "os-lab: framebuffer terminal unavailable");
+
+    const bool mouse_ready = kernel::mouse::init();
+    const bool mouse_cursor_ready = mouse_ready && kernel::mouse_cursor::init();
+    if (mouse_cursor_ready && mouse_ready) {
+        kernel::mouse_cursor::show();
+        kernel::serial::write_line("os-lab: ps/2 mouse cursor active");
+    } else {
+        kernel::serial::write_line("os-lab: ps/2 mouse cursor unavailable");
+    }
+
     kernel::shell::run();
 }

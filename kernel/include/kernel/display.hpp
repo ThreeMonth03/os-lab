@@ -27,6 +27,7 @@ class Surface {
     [[nodiscard]] uint64_t height() const { return height_; }
     [[nodiscard]] uint64_t pitch() const { return pitch_; }
 
+    [[nodiscard]] Color pixel(uint64_t x, uint64_t y) const;
     void put_pixel(uint64_t x, uint64_t y, Color color);
     void fill_rect(Rect rect, Color color);
     void scroll_up(uint64_t pixel_count, Color clear_color);

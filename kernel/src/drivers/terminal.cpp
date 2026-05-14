@@ -4,6 +4,7 @@
 
 #include "kernel/display.hpp"
 #include "kernel/limine_support.hpp"
+#include "kernel/mouse_cursor.hpp"
 #include "kernel/text_console.hpp"
 
 namespace {
@@ -243,6 +244,15 @@ void draw_glyph(char value, uint64_t column, uint64_t row) {
 
 void scroll() { g_state.surface.scroll_up(kCellHeight, {g_state.background}); }
 
+void hide_text_cursor() {
+    if (!g_state.cursor_visible) {
+        return;
+    }
+
+    draw_cursor(g_state.visible_cursor_column, g_state.visible_cursor_row, g_state.background);
+    g_state.cursor_visible = false;
+}
+
 void apply_console_update(kernel::TextConsoleUpdate update) {
     switch (update.action) {
     case kernel::TextConsoleAction::DrawGlyph:
@@ -301,8 +311,10 @@ void clear() {
     }
 
     g_state.cursor_visible = false;
+    kernel::mouse_cursor::hide();
     fill_rect(0, 0, g_state.surface.width(), g_state.surface.height(), g_state.background);
     g_state.console.clear();
+    kernel::mouse_cursor::show();
 }
 
 void clear_row_from(uint64_t column, uint64_t row) {
@@ -310,10 +322,12 @@ void clear_row_from(uint64_t column, uint64_t row) {
         return;
     }
 
+    kernel::mouse_cursor::hide();
     while (column < g_state.console.columns()) {
         clear_cell(column, row);
         ++column;
     }
+    kernel::mouse_cursor::show();
 }
 
 void set_cursor(uint64_t column, uint64_t row) {
@@ -329,11 +343,13 @@ void show_cursor() {
         return;
     }
 
-    hide_cursor();
+    kernel::mouse_cursor::hide();
+    hide_text_cursor();
     draw_cursor(g_state.console.cursor_column(), g_state.console.cursor_row(), g_state.foreground);
     g_state.visible_cursor_column = g_state.console.cursor_column();
     g_state.visible_cursor_row = g_state.console.cursor_row();
     g_state.cursor_visible = true;
+    kernel::mouse_cursor::show();
 }
 
 void hide_cursor() {
@@ -341,8 +357,9 @@ void hide_cursor() {
         return;
     }
 
-    draw_cursor(g_state.visible_cursor_column, g_state.visible_cursor_row, g_state.background);
-    g_state.cursor_visible = false;
+    kernel::mouse_cursor::hide();
+    hide_text_cursor();
+    kernel::mouse_cursor::show();
 }
 
 void write_char(char value) {
@@ -350,26 +367,32 @@ void write_char(char value) {
         return;
     }
 
+    kernel::mouse_cursor::hide();
     switch (value) {
     case '\n':
         apply_console_update(g_state.console.newline());
+        kernel::mouse_cursor::show();
         return;
     case '\r':
         g_state.console.carriage_return();
+        kernel::mouse_cursor::show();
         return;
     case '\t':
+        kernel::mouse_cursor::show();
         for (int index = 0; index < 4; ++index) {
             write_char(' ');
         }
         return;
     case '\b':
         apply_console_update(g_state.console.backspace());
+        kernel::mouse_cursor::show();
         return;
     default:
         break;
     }
 
     apply_console_update(g_state.console.write_char(value));
+    kernel::mouse_cursor::show();
 }
 
 void write_string(StringView value) {
