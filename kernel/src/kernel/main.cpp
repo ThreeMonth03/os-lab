@@ -78,47 +78,58 @@ void write_memory_summary(bool ready) {
     kernel::terminal::write_line(" KiB");
 }
 
-} // namespace
+void write_terminal_banner() {
+    kernel::terminal::write_line("os-lab terminal");
+    kernel::terminal::write_line("filesystem unavailable");
+    kernel::terminal::write_line("serial debug enabled");
+    kernel::terminal::write_line("");
+}
 
-extern "C" [[noreturn]] void kernel_main() {
-    kernel::serial::write_line("os-lab: kernel main entered");
-    const bool terminal_ready = kernel::terminal::init();
-    if (terminal_ready) {
-        kernel::terminal::write_line("os-lab terminal");
-        kernel::terminal::write_line("filesystem unavailable");
-        kernel::terminal::write_line("serial debug enabled");
-        kernel::terminal::write_line("");
+bool init_terminal() {
+    const bool ready = kernel::terminal::init();
+    if (ready) {
+        write_terminal_banner();
+    }
+    return ready;
+}
+
+void write_bootloader_info() {
+    const auto* info = kernel::boot::bootloader_info();
+    if (info == nullptr) {
+        return;
     }
 
-    kernel::arch::x86_64::run_exception_smoke();
+    kernel::serial::write_string("os-lab: bootloader = ");
+    kernel::serial::write_string(info->name);
+    kernel::serial::write_string(" ");
+    kernel::serial::write_line(info->version);
 
-    run_utility_smoke();
-    write_memory_summary(kernel::memory::init());
+    kernel::terminal::write_string("bootloader = ");
+    kernel::terminal::write_string(info->name);
+    kernel::terminal::write_string(" ");
+    kernel::terminal::write_line(info->version);
+}
 
-    if (const auto* info = kernel::boot::bootloader_info(); info != nullptr) {
-        kernel::serial::write_string("os-lab: bootloader = ");
-        kernel::serial::write_string(info->name);
-        kernel::serial::write_string(" ");
-        kernel::serial::write_line(info->version);
-
-        kernel::terminal::write_string("bootloader = ");
-        kernel::terminal::write_string(info->name);
-        kernel::terminal::write_string(" ");
-        kernel::terminal::write_line(info->version);
-    }
-
+void write_firmware_info() {
+    const char* firmware = firmware_name(kernel::boot::firmware_type());
     kernel::serial::write_string("os-lab: firmware = ");
-    kernel::serial::write_line(firmware_name(kernel::boot::firmware_type()));
+    kernel::serial::write_line(firmware);
     kernel::terminal::write_string("firmware = ");
-    kernel::terminal::write_line(firmware_name(kernel::boot::firmware_type()));
+    kernel::terminal::write_line(firmware);
+}
 
+void write_loaded_base_revision() {
     kernel::serial::write_string("os-lab: loaded base revision = ");
     kernel::serial::write_decimal(kernel::boot::loaded_base_revision());
     kernel::serial::write_string("\n");
+}
 
+void write_terminal_status(bool terminal_ready) {
     kernel::serial::write_line(terminal_ready ? "os-lab: framebuffer terminal active"
                                               : "os-lab: framebuffer terminal unavailable");
+}
 
+void init_mouse_cursor() {
     const bool mouse_ready = kernel::mouse::init();
     const bool mouse_cursor_ready = mouse_ready && kernel::mouse_cursor::init();
     if (mouse_cursor_ready && mouse_ready) {
@@ -127,10 +138,30 @@ extern "C" [[noreturn]] void kernel_main() {
     } else {
         kernel::serial::write_line("os-lab: ps/2 mouse cursor unavailable");
     }
+}
 
+void init_timer_interrupts() {
     kernel::timer::init();
     kernel::arch::x86_64::enable_interrupts();
     kernel::serial::write_line("os-lab: hardware interrupts enabled");
+}
+
+} // namespace
+
+extern "C" [[noreturn]] void kernel_main() {
+    kernel::serial::write_line("os-lab: kernel main entered");
+    const bool terminal_ready = init_terminal();
+
+    kernel::arch::x86_64::run_exception_smoke();
+
+    run_utility_smoke();
+    write_memory_summary(kernel::memory::init());
+    write_bootloader_info();
+    write_firmware_info();
+    write_loaded_base_revision();
+    write_terminal_status(terminal_ready);
+    init_mouse_cursor();
+    init_timer_interrupts();
     kernel::run_timer_smoke();
 
     kernel::shell::run();
