@@ -30,6 +30,20 @@ kernel::StringView prompt_for_caps(bool caps_lock) {
     return caps_lock ? kCapsPrompt : kDefaultPrompt;
 }
 
+size_t line_capacity() {
+    const uint64_t columns = kernel::terminal::columns();
+    if (columns <= kCapsPrompt.size() + 1) {
+        return 0;
+    }
+
+    uint64_t capacity = columns - kCapsPrompt.size() - 1;
+    if (capacity > kernel::LineEditor::capacity) {
+        capacity = kernel::LineEditor::capacity;
+    }
+
+    return static_cast<size_t>(capacity);
+}
+
 void write_prompt(LinePosition& position, bool caps_lock) {
     kernel::terminal::hide_cursor();
     position.prompt_column = kernel::terminal::cursor_column();
@@ -72,7 +86,7 @@ void redraw_history_result(kernel::HistoryResult result, kernel::StringView comm
                            kernel::LineEditor& line, const LinePosition& position) {
     switch (result) {
     case kernel::HistoryResult::Command:
-        if (line.replace(command)) {
+        if (command.size() <= line_capacity() && line.replace(command)) {
             redraw_line(line, position);
         }
         break;
@@ -231,7 +245,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
 
     switch (event.key) {
     case kernel::keyboard::Key::Character:
-        if (line.insert(event.character)) {
+        if (line.size() < line_capacity() && line.insert(event.character)) {
             history.reset_browse();
             redraw_line(line, position);
         }
