@@ -22,6 +22,7 @@ RUN_TIDY := ./scripts/dev/run_tidy.sh
 RUN_QEMU := ./scripts/qemu/run_qemu.sh
 SMOKE_DEMO := ./scripts/smoke/smoke_demo.sh
 SMOKE_EXCEPTION := ./scripts/smoke/smoke_exception.sh
+SMOKE_PAGING := ./scripts/smoke/smoke_paging.sh
 SMOKE_TIMER := ./scripts/smoke/smoke_timer.sh
 
 TOOLCHAIN_FILE := $(PROJECT_ROOT)/cmake/toolchains/x86_64-none-clang.cmake
@@ -35,9 +36,12 @@ EXCEPTION_ISO_IMAGE := $(EXCEPTION_BUILD_DIR)/os-lab.iso
 TIMER_BUILD_DIR := $(BUILD_DIR)/timer-smoke
 TIMER_KERNEL_ELF := $(TIMER_BUILD_DIR)/artifacts/kernel.elf
 TIMER_ISO_IMAGE := $(TIMER_BUILD_DIR)/os-lab.iso
+PAGING_BUILD_DIR := $(BUILD_DIR)/paging-smoke
+PAGING_KERNEL_ELF := $(PAGING_BUILD_DIR)/artifacts/kernel.elf
+PAGING_ISO_IMAGE := $(PAGING_BUILD_DIR)/os-lab.iso
 
-.PHONY: help deps demo gui test demo-exception test-exception demo-timer test-timer unit format tidy shell clean ci
-.PHONY: _check-native-tools _check-clang-format _check-clang-tidy _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _exception-configure _exception-kernel _exception-iso _run-exception _smoke-exception _timer-configure _timer-kernel _timer-iso _run-timer _smoke-timer _unit _format _format-check _tidy _docker-image _docker-iso _docker-exception-iso _docker-timer-iso
+.PHONY: help deps demo gui test demo-exception test-exception demo-timer test-timer test-paging unit format tidy shell clean ci
+.PHONY: _check-native-tools _check-clang-format _check-clang-tidy _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _exception-configure _exception-kernel _exception-iso _run-exception _smoke-exception _timer-configure _timer-kernel _timer-iso _run-timer _smoke-timer _paging-configure _paging-kernel _paging-iso _smoke-paging _unit _format _format-check _tidy _docker-image _docker-iso _docker-exception-iso _docker-timer-iso _docker-paging-iso
 
 help:
 	@printf '%s\n' \
@@ -52,6 +56,8 @@ help:
 		'                 Build and verify a debug exception dump' \
 		'  make test-timer' \
 		'                 Build and verify the debug PIT timer smoke path' \
+		'  make test-paging' \
+		'                 Build and verify the debug active paging smoke path' \
 		'  make unit      Run host-side unit tests' \
 		'  make format    Apply clang-format inside Docker' \
 		'  make tidy      Run clang-tidy on host-side pure logic' \
@@ -74,6 +80,8 @@ test-exception: _docker-exception-iso _smoke-exception
 demo-timer: _docker-timer-iso _run-timer
 
 test-timer: _docker-timer-iso _smoke-timer
+
+test-paging: _docker-paging-iso _smoke-paging
 
 unit: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _unit
@@ -167,6 +175,19 @@ _timer-kernel: _timer-configure
 _timer-iso: _timer-kernel
 	$(CREATE_ISO) $(TIMER_KERNEL_ELF) $(TIMER_ISO_IMAGE)
 
+_paging-configure: _check-native-tools
+	$(CMAKE) -S $(PROJECT_ROOT) -B $(PAGING_BUILD_DIR) -G $(GENERATOR) \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+		-DOS_LAB_PAGING_SMOKE=ON
+
+_paging-kernel: _paging-configure
+	$(CMAKE) --build $(PAGING_BUILD_DIR) --target kernel
+
+_paging-iso: _paging-kernel
+	$(CREATE_ISO) $(PAGING_KERNEL_ELF) $(PAGING_ISO_IMAGE)
+
 _run:
 	@if [[ ! -f "$(ISO_IMAGE)" ]]; then $(MAKE) _iso; fi
 	$(RUN_QEMU) $(ISO_IMAGE)
@@ -201,6 +222,10 @@ _smoke-timer:
 	@if [[ ! -f "$(TIMER_ISO_IMAGE)" ]]; then $(MAKE) _timer-iso; fi
 	$(SMOKE_TIMER) $(TIMER_ISO_IMAGE)
 
+_smoke-paging:
+	@if [[ ! -f "$(PAGING_ISO_IMAGE)" ]]; then $(MAKE) _paging-iso; fi
+	$(SMOKE_PAGING) $(PAGING_ISO_IMAGE)
+
 _unit:
 	$(CMAKE) -S $(PROJECT_ROOT) -B $(UNIT_BUILD_DIR) -G $(GENERATOR) \
 		-DCMAKE_BUILD_TYPE=Debug \
@@ -230,3 +255,6 @@ _docker-exception-iso: _docker-image
 
 _docker-timer-iso: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _timer-iso
+
+_docker-paging-iso: _docker-image
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _paging-iso

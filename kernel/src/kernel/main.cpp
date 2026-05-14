@@ -4,6 +4,7 @@
 #include "kernel/base/fixed_vector.hpp"
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/memory/memory.hpp"
+#include "kernel/debug/paging_smoke.hpp"
 #include "kernel/input/mouse.hpp"
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/drivers/serial.hpp"
@@ -190,6 +191,7 @@ extern "C" [[noreturn]] void kernel_main()
 
     run_utility_smoke();
     write_memory_summary(init_memory_and_paging());
+    kernel::debug::run_paging_smoke();
     write_bootloader_info();
     write_firmware_info();
     write_loaded_base_revision();
