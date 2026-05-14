@@ -1,0 +1,25 @@
+add_executable(os_lab_unit_tests
+    containers_test.cpp
+    display_test.cpp
+    editor_test.cpp
+    font5x7_test.cpp
+    keyboard_decoder_test.cpp
+    memory_test.cpp
+    mouse_packet_decoder_test.cpp
+    pointer_state_test.cpp
+    shell_command_test.cpp
+    string_view_test.cpp
+    text_console_test.cpp
+)
+target_link_libraries(os_lab_unit_tests PRIVATE
+    os_lab_host_logic
+    GTest::gtest_main
+)
+target_compile_options(os_lab_unit_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+)
+
+include(GoogleTest)
+gtest_discover_tests(os_lab_unit_tests)
