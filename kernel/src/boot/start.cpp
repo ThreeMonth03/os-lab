@@ -1,10 +1,10 @@
 #include "kernel/arch/x86_64/idt.hpp"
 #include "kernel/arch/x86_64/irq.hpp"
-#include "kernel/debug_port.hpp"
+#include "kernel/drivers/debug_port.hpp"
 #include "kernel/halt.hpp"
 #include "kernel/limine_support.hpp"
 #include "kernel/runtime.hpp"
-#include "kernel/serial.hpp"
+#include "kernel/drivers/serial.hpp"
 
 extern "C" [[noreturn]] void kernel_main();
 

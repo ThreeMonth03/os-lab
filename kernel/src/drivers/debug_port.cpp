@@ -1,4 +1,4 @@
-#include "kernel/debug_port.hpp"
+#include "kernel/drivers/debug_port.hpp"
 
 namespace {
 

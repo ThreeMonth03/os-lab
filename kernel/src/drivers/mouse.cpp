@@ -1,7 +1,7 @@
 #include "kernel/input/mouse.hpp"
 
 #include "kernel/input/mouse_packet_decoder.hpp"
-#include "kernel/ps2_controller.hpp"
+#include "kernel/drivers/ps2_controller.hpp"
 
 namespace {
 

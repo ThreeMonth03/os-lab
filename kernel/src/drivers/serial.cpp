@@ -1,4 +1,4 @@
-#include "kernel/serial.hpp"
+#include "kernel/drivers/serial.hpp"
 
 #include <stddef.h>
 

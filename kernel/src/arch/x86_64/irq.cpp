@@ -4,7 +4,7 @@
 
 #include "kernel/arch/x86_64/idt.hpp"
 #include "kernel/arch/x86_64/pic.hpp"
-#include "kernel/serial.hpp"
+#include "kernel/drivers/serial.hpp"
 #include "kernel/timer.hpp"
 
 namespace {

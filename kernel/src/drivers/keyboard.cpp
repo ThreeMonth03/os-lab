@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #include "kernel/input/keyboard_decoder.hpp"
-#include "kernel/ps2_controller.hpp"
+#include "kernel/drivers/ps2_controller.hpp"
 
 namespace {
 

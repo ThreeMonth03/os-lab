@@ -1,4 +1,4 @@
-#include "kernel/mouse_cursor.hpp"
+#include "kernel/display/mouse_cursor.hpp"
 
 #include "kernel/display/display.hpp"
 #include "kernel/limine_support.hpp"

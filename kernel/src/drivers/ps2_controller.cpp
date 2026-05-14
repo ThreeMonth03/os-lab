@@ -1,4 +1,4 @@
-#include "kernel/ps2_controller.hpp"
+#include "kernel/drivers/ps2_controller.hpp"
 
 namespace {
 

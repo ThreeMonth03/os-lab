@@ -5,9 +5,9 @@
 #include "kernel/halt.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/memory/memory.hpp"
-#include "kernel/serial.hpp"
+#include "kernel/drivers/serial.hpp"
 #include "kernel/shell/shell_command.hpp"
-#include "kernel/terminal.hpp"
+#include "kernel/console/terminal.hpp"
 
 namespace {
 

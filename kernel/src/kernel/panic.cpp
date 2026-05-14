@@ -1,8 +1,8 @@
 #include "kernel/panic.hpp"
 
 #include "kernel/halt.hpp"
-#include "kernel/serial.hpp"
-#include "kernel/terminal.hpp"
+#include "kernel/drivers/serial.hpp"
+#include "kernel/console/terminal.hpp"
 
 namespace {
 

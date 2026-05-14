@@ -4,9 +4,9 @@
 #include <stdint.h>
 
 #include "kernel/halt.hpp"
-#include "kernel/serial.hpp"
+#include "kernel/drivers/serial.hpp"
 #include "kernel/base/string_view.hpp"
-#include "kernel/terminal.hpp"
+#include "kernel/console/terminal.hpp"
 
 namespace {
 

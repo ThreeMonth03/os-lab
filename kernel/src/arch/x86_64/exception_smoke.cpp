@@ -1,8 +1,8 @@
 #include "kernel/arch/x86_64/exception_smoke.hpp"
 
 #include "kernel/halt.hpp"
-#include "kernel/serial.hpp"
-#include "kernel/terminal.hpp"
+#include "kernel/drivers/serial.hpp"
+#include "kernel/console/terminal.hpp"
 
 #ifndef OS_LAB_EXCEPTION_SMOKE
 #define OS_LAB_EXCEPTION_SMOKE 0

@@ -1,6 +1,6 @@
 #include "shell_editor_view.hpp"
 
-#include "kernel/terminal.hpp"
+#include "kernel/console/terminal.hpp"
 
 namespace {
 

@@ -1,11 +1,11 @@
-#include "kernel/terminal.hpp"
+#include "kernel/console/terminal.hpp"
 
 #include <stdint.h>
 
 #include "kernel/display/display.hpp"
 #include "kernel/display/terminal_renderer.hpp"
 #include "kernel/limine_support.hpp"
-#include "kernel/mouse_cursor.hpp"
+#include "kernel/display/mouse_cursor.hpp"
 #include "kernel/text/text_console.hpp"
 
 namespace {
