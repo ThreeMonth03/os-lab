@@ -7,7 +7,6 @@ GENERATOR ?= Ninja
 GENERATOR_BIN ?= ninja
 CMAKE ?= cmake
 CLANG_FORMAT ?= clang-format
-HOST_CXX ?= g++
 DOCKER_COMPOSE ?= $(shell if docker compose version >/dev/null 2>&1; then \
 	printf 'docker compose'; \
 elif command -v docker-compose >/dev/null 2>&1; then \
@@ -18,15 +17,10 @@ DOCKER_RUN_ENV := LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g)
 TOOLCHAIN_FILE := $(PROJECT_ROOT)/cmake/toolchains/x86_64-none-clang.cmake
 KERNEL_ELF := $(BUILD_DIR)/artifacts/kernel.elf
 ISO_IMAGE := $(BUILD_DIR)/os-lab.iso
-UNIT_BINARY := $(BUILD_DIR)/unit/unit_tests
-UNIT_SOURCES := \
-	$(PROJECT_ROOT)/tests/unit.cpp \
-	$(PROJECT_ROOT)/kernel/src/kernel/history.cpp \
-	$(PROJECT_ROOT)/kernel/src/kernel/line_editor.cpp
-UNIT_CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wpedantic -I$(PROJECT_ROOT)/kernel/include
+UNIT_BUILD_DIR := $(BUILD_DIR)/unit
 
 .PHONY: help deps demo gui test unit format shell clean ci
-.PHONY: _check-native-tools _check-clang-format _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _format _format-check _docker-image _docker-iso
+.PHONY: _check-native-tools _check-clang-format _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _unit _format _format-check _docker-image _docker-iso
 
 help:
 	@printf '%s\n' \
@@ -49,10 +43,8 @@ gui: _docker-iso _run-gui
 
 test: _docker-iso _smoke
 
-unit:
-	mkdir -p $(dir $(UNIT_BINARY))
-	$(HOST_CXX) $(UNIT_CXXFLAGS) $(UNIT_SOURCES) -o $(UNIT_BINARY)
-	$(UNIT_BINARY)
+unit: _docker-image
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _unit
 
 format: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _format
@@ -134,6 +126,15 @@ _smoke:
 	grep -q "os-lab: reached _start" "$$log_file"; \
 	grep -q "os-lab: entering kernel_main" "$$log_file"; \
 	printf 'Smoke test passed\n'
+
+_unit:
+	$(CMAKE) -S $(PROJECT_ROOT) -B $(UNIT_BUILD_DIR) -G $(GENERATOR) \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+		-DOS_LAB_BUILD_KERNEL=OFF \
+		-DOS_LAB_BUILD_TESTS=ON
+	$(CMAKE) --build $(UNIT_BUILD_DIR)
+	cd $(UNIT_BUILD_DIR) && ctest --output-on-failure
 
 _format: _check-clang-format
 	@mapfile -d '' sources < <(find kernel/include/kernel kernel/src tests -type f \

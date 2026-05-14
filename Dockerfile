@@ -8,6 +8,7 @@ RUN apt-get update \
         cmake \
         curl \
         g++ \
+        libgtest-dev \
         lld \
         make \
         mtools \
