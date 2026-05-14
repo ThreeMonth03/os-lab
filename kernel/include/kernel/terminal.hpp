@@ -14,7 +14,9 @@ namespace kernel::terminal {
 [[nodiscard]] uint64_t cursor_row();
 
 void clear();
+void clear_cell_at(uint64_t column, uint64_t row);
 void clear_row_from(uint64_t column, uint64_t row);
+void draw_char_at(uint64_t column, uint64_t row, char value);
 void set_cursor(uint64_t column, uint64_t row);
 void show_cursor();
 void hide_cursor();

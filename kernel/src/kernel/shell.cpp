@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "kernel/editor_dirty_range.hpp"
 #include "kernel/editor_view_layout.hpp"
 #include "kernel/halt.hpp"
 #include "kernel/history.hpp"
@@ -30,6 +31,10 @@ struct LinePosition {
 
 kernel::StringView prompt_for_caps(bool caps_lock) {
     return caps_lock ? kCapsPrompt : kDefaultPrompt;
+}
+
+kernel::EditorSnapshot editor_snapshot(const kernel::LineEditor& line, bool caps_lock) {
+    return {line.cursor(), line.size(), prompt_for_caps(caps_lock).size()};
 }
 
 kernel::EditorViewLayout editor_layout(const LinePosition& position, bool caps_lock) {
@@ -71,6 +76,22 @@ void set_editor_cursor(const LinePosition& position, bool caps_lock, size_t inde
     kernel::terminal::set_cursor(cell.column, position.prompt_row + cell.row);
 }
 
+void draw_text_range(kernel::StringView text, const LinePosition& position,
+                     const kernel::EditorViewLayout& layout, size_t start, size_t end) {
+    for (size_t index = start; index < end && index < text.size(); ++index) {
+        const kernel::EditorViewCell cell = layout.position_for(index);
+        kernel::terminal::draw_char_at(cell.column, position.prompt_row + cell.row, text[index]);
+    }
+}
+
+void clear_text_range(const LinePosition& position, const kernel::EditorViewLayout& layout,
+                      size_t start, size_t end) {
+    for (size_t index = start; index < end; ++index) {
+        const kernel::EditorViewCell cell = layout.position_for(index);
+        kernel::terminal::clear_cell_at(cell.column, position.prompt_row + cell.row);
+    }
+}
+
 void redraw_prompt_and_line(const kernel::LineEditor& line, LinePosition& position,
                             bool caps_lock) {
     kernel::terminal::hide_cursor();
@@ -92,6 +113,42 @@ void redraw_prompt_and_line(const kernel::LineEditor& line, LinePosition& positi
 
     set_editor_cursor(position, caps_lock, line.cursor());
     kernel::terminal::show_cursor();
+}
+
+void redraw_dirty_range(const kernel::LineEditor& line, LinePosition& position, bool caps_lock,
+                        kernel::EditorDirtyRange dirty) {
+    switch (dirty.kind) {
+    case kernel::EditorDirtyKind::None:
+        return;
+    case kernel::EditorDirtyKind::CursorOnly:
+        set_editor_cursor(position, caps_lock, line.cursor());
+        kernel::terminal::show_cursor();
+        return;
+    case kernel::EditorDirtyKind::Full:
+        redraw_prompt_and_line(line, position, caps_lock);
+        return;
+    case kernel::EditorDirtyKind::Partial:
+        break;
+    }
+
+    kernel::terminal::hide_cursor();
+
+    const kernel::EditorViewLayout layout = editor_layout(position, caps_lock);
+    const uint64_t rows_needed = layout.visual_rows(line.view().size());
+
+    scroll_to_fit(position, rows_needed);
+    draw_text_range(line.view(), position, layout, dirty.start, dirty.new_end);
+    clear_text_range(position, layout, dirty.new_end, dirty.old_end);
+    position.rendered_rows = rows_needed;
+
+    set_editor_cursor(position, caps_lock, line.cursor());
+    kernel::terminal::show_cursor();
+}
+
+void redraw_editor_change(const kernel::LineEditor& line, LinePosition& position, bool caps_lock,
+                          kernel::EditorEditKind edit, kernel::EditorSnapshot before) {
+    const kernel::EditorSnapshot after = editor_snapshot(line, caps_lock);
+    redraw_dirty_range(line, position, caps_lock, kernel::editor_dirty_range(edit, before, after));
 }
 
 void write_new_prompt_and_line(const kernel::LineEditor& line, LinePosition& position,
@@ -222,11 +279,14 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
     }
 
     switch (lowercase(event.character)) {
-    case 'a':
+    case 'a': {
+        const kernel::EditorSnapshot before = editor_snapshot(line, caps_lock);
         if (line.move_to_start()) {
-            redraw_prompt_and_line(line, position, caps_lock);
+            redraw_editor_change(line, position, caps_lock, kernel::EditorEditKind::CursorMove,
+                                 before);
         }
         break;
+    }
     case 'c':
         kernel::terminal::hide_cursor();
         move_to_line_end(line, position, caps_lock);
@@ -236,11 +296,14 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
         history.reset_browse();
         write_new_prompt_and_line(line, position, caps_lock);
         break;
-    case 'e':
+    case 'e': {
+        const kernel::EditorSnapshot before = editor_snapshot(line, caps_lock);
         if (line.move_to_end()) {
-            redraw_prompt_and_line(line, position, caps_lock);
+            redraw_editor_change(line, position, caps_lock, kernel::EditorEditKind::CursorMove,
+                                 before);
         }
         break;
+    }
     case 'l':
         kernel::terminal::hide_cursor();
         kernel::terminal::clear();
@@ -269,24 +332,32 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
     }
 
     switch (event.key) {
-    case kernel::keyboard::Key::Character:
+    case kernel::keyboard::Key::Character: {
+        const kernel::EditorSnapshot before = editor_snapshot(line, caps_lock);
         if (line.insert(event.character)) {
             history.reset_browse();
-            redraw_prompt_and_line(line, position, caps_lock);
+            redraw_editor_change(line, position, caps_lock, kernel::EditorEditKind::Insert, before);
         }
         break;
-    case kernel::keyboard::Key::Backspace:
+    }
+    case kernel::keyboard::Key::Backspace: {
+        const kernel::EditorSnapshot before = editor_snapshot(line, caps_lock);
         if (line.backspace()) {
             history.reset_browse();
-            redraw_prompt_and_line(line, position, caps_lock);
+            redraw_editor_change(line, position, caps_lock, kernel::EditorEditKind::Backspace,
+                                 before);
         }
         break;
-    case kernel::keyboard::Key::Delete:
+    }
+    case kernel::keyboard::Key::Delete: {
+        const kernel::EditorSnapshot before = editor_snapshot(line, caps_lock);
         if (line.delete_forward()) {
             history.reset_browse();
-            redraw_prompt_and_line(line, position, caps_lock);
+            redraw_editor_change(line, position, caps_lock, kernel::EditorEditKind::DeleteForward,
+                                 before);
         }
         break;
+    }
     case kernel::keyboard::Key::UpArrow: {
         kernel::StringView command;
         redraw_history_result(history.previous(command), command, line, position, caps_lock);
@@ -297,16 +368,22 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
         redraw_history_result(history.next(command), command, line, position, caps_lock);
         break;
     }
-    case kernel::keyboard::Key::LeftArrow:
+    case kernel::keyboard::Key::LeftArrow: {
+        const kernel::EditorSnapshot before = editor_snapshot(line, caps_lock);
         if (line.move_left()) {
-            redraw_prompt_and_line(line, position, caps_lock);
+            redraw_editor_change(line, position, caps_lock, kernel::EditorEditKind::CursorMove,
+                                 before);
         }
         break;
-    case kernel::keyboard::Key::RightArrow:
+    }
+    case kernel::keyboard::Key::RightArrow: {
+        const kernel::EditorSnapshot before = editor_snapshot(line, caps_lock);
         if (line.move_right()) {
-            redraw_prompt_and_line(line, position, caps_lock);
+            redraw_editor_change(line, position, caps_lock, kernel::EditorEditKind::CursorMove,
+                                 before);
         }
         break;
+    }
     case kernel::keyboard::Key::Enter:
         kernel::terminal::hide_cursor();
         move_to_line_end(line, position, caps_lock);
@@ -319,10 +396,13 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
         history.reset_browse();
         write_new_prompt_and_line(line, position, caps_lock);
         break;
-    case kernel::keyboard::Key::CapsLock:
+    case kernel::keyboard::Key::CapsLock: {
+        const kernel::EditorSnapshot before = editor_snapshot(line, caps_lock);
         caps_lock = event.caps_lock;
-        redraw_prompt_and_line(line, position, caps_lock);
+        redraw_editor_change(line, position, caps_lock, kernel::EditorEditKind::PromptChange,
+                             before);
         break;
+    }
     default:
         break;
     }

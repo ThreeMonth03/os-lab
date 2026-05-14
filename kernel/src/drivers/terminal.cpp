@@ -319,6 +319,16 @@ void clear() {
     kernel::mouse_cursor::show();
 }
 
+void clear_cell_at(uint64_t column, uint64_t row) {
+    if (!ready() || column >= g_state.console.columns() || row >= g_state.console.rows()) {
+        return;
+    }
+
+    kernel::mouse_cursor::hide();
+    clear_cell(column, row);
+    kernel::mouse_cursor::show();
+}
+
 void clear_row_from(uint64_t column, uint64_t row) {
     if (!ready() || row >= g_state.console.rows()) {
         return;
@@ -329,6 +339,16 @@ void clear_row_from(uint64_t column, uint64_t row) {
         clear_cell(column, row);
         ++column;
     }
+    kernel::mouse_cursor::show();
+}
+
+void draw_char_at(uint64_t column, uint64_t row, char value) {
+    if (!ready() || column >= g_state.console.columns() || row >= g_state.console.rows()) {
+        return;
+    }
+
+    kernel::mouse_cursor::hide();
+    draw_glyph(value, column, row);
     kernel::mouse_cursor::show();
 }
 
