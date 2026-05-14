@@ -384,6 +384,30 @@ TEST(KeyboardDecoderTest, DecodesLowercaseAndShiftUppercase) {
     EXPECT_FALSE(event.shift);
 }
 
+TEST(KeyboardDecoderTest, DecodesRightShiftUppercaseAndRelease) {
+    kernel::keyboard::KeyboardDecoder decoder;
+
+    kernel::keyboard::KeyEvent event = expect_key(decoder, 0x36);
+    EXPECT_EQ(event.key, kernel::keyboard::Key::Shift);
+    EXPECT_TRUE(event.shift);
+    EXPECT_TRUE(event.pressed);
+
+    event = expect_key(decoder, 0x1e);
+    EXPECT_EQ(event.key, kernel::keyboard::Key::Character);
+    EXPECT_EQ(event.character, 'A');
+    EXPECT_TRUE(event.shift);
+
+    event = expect_key(decoder, 0xb6);
+    EXPECT_EQ(event.key, kernel::keyboard::Key::Shift);
+    EXPECT_FALSE(event.pressed);
+    EXPECT_FALSE(event.shift);
+
+    event = expect_key(decoder, 0x1e);
+    EXPECT_EQ(event.key, kernel::keyboard::Key::Character);
+    EXPECT_EQ(event.character, 'a');
+    EXPECT_FALSE(event.shift);
+}
+
 TEST(KeyboardDecoderTest, DecodesCapsLockWithShiftXorBehavior) {
     kernel::keyboard::KeyboardDecoder decoder;
 
