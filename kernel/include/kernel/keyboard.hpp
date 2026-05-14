@@ -11,6 +11,8 @@ enum class Key {
     Control,
     Alt,
     CapsLock,
+    UpArrow,
+    DownArrow,
     LeftArrow,
     RightArrow,
     Delete,

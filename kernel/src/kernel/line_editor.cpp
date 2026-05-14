@@ -17,6 +17,23 @@ bool LineEditor::insert(char value) {
     return true;
 }
 
+bool LineEditor::replace(StringView value) {
+    if (value.size() > capacity) {
+        return false;
+    }
+
+    clear();
+    for (char character : value) {
+        if (!buffer_.push_back(character)) {
+            clear();
+            return false;
+        }
+    }
+
+    cursor_ = buffer_.size();
+    return true;
+}
+
 bool LineEditor::backspace() {
     if (cursor_ == 0) {
         return false;

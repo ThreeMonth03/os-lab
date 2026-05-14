@@ -11,10 +11,12 @@ class LineEditor {
 
     [[nodiscard]] bool empty() const { return buffer_.empty(); }
     [[nodiscard]] bool full() const { return buffer_.full(); }
+    [[nodiscard]] size_t size() const { return buffer_.size(); }
     [[nodiscard]] size_t cursor() const { return cursor_; }
     [[nodiscard]] StringView view() const { return {buffer_.data(), buffer_.size()}; }
 
     [[nodiscard]] bool insert(char value);
+    [[nodiscard]] bool replace(StringView value);
     [[nodiscard]] bool backspace();
     [[nodiscard]] bool delete_forward();
     [[nodiscard]] bool move_left();

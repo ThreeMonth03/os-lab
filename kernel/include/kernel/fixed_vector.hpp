@@ -75,7 +75,7 @@ template <typename T, size_t Capacity> class FixedVector {
   private:
     void copy_from(const FixedVector& other) {
         for (const T& value : other) {
-            push_back(value);
+            (void)push_back(value);
         }
     }
 

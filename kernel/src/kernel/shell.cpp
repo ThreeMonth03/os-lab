@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "kernel/halt.hpp"
+#include "kernel/history.hpp"
 #include "kernel/keyboard.hpp"
 #include "kernel/line_editor.hpp"
 #include "kernel/serial.hpp"
@@ -63,6 +64,23 @@ void move_to_line_end(const kernel::LineEditor& line, const LinePosition& positi
     kernel::terminal::set_cursor(position.input_column + line.view().size(), position.input_row);
 }
 
+void redraw_history_result(kernel::HistoryResult result, kernel::StringView command,
+                           kernel::LineEditor& line, const LinePosition& position) {
+    switch (result) {
+    case kernel::HistoryResult::Command:
+        if (line.replace(command)) {
+            redraw_line(line, position);
+        }
+        break;
+    case kernel::HistoryResult::Blank:
+        line.clear();
+        redraw_line(line, position);
+        break;
+    case kernel::HistoryResult::None:
+        break;
+    }
+}
+
 char lowercase(char value) {
     if (value >= 'A' && value <= 'Z') {
         return static_cast<char>(value - 'A' + 'a');
@@ -107,7 +125,7 @@ void handle_line(kernel::StringView command) {
 }
 
 bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::LineEditor& line,
-                             LinePosition& position, bool caps_lock) {
+                             LinePosition& position, bool caps_lock, kernel::History& history) {
     if (!event.control || event.key != kernel::keyboard::Key::Character) {
         return false;
     }
@@ -124,6 +142,7 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
         kernel::terminal::write_char('\n');
         kernel::terminal::write_line("cancelled");
         line.clear();
+        history.reset_browse();
         write_new_prompt_and_line(line, position, caps_lock);
         break;
     case 'e':
@@ -138,6 +157,7 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
         break;
     case 'u':
         line.clear();
+        history.reset_browse();
         redraw_line(line, position);
         break;
     default:
@@ -148,31 +168,44 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
 }
 
 void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEditor& line,
-                      LinePosition& position, bool& caps_lock) {
+                      LinePosition& position, bool& caps_lock, kernel::History& history) {
     if (!event.pressed) {
         return;
     }
 
-    if (handle_control_shortcut(event, line, position, caps_lock)) {
+    if (handle_control_shortcut(event, line, position, caps_lock, history)) {
         return;
     }
 
     switch (event.key) {
     case kernel::keyboard::Key::Character:
         if (line.insert(event.character)) {
+            history.reset_browse();
             redraw_line(line, position);
         }
         break;
     case kernel::keyboard::Key::Backspace:
         if (line.backspace()) {
+            history.reset_browse();
             redraw_line(line, position);
         }
         break;
     case kernel::keyboard::Key::Delete:
         if (line.delete_forward()) {
+            history.reset_browse();
             redraw_line(line, position);
         }
         break;
+    case kernel::keyboard::Key::UpArrow: {
+        kernel::StringView command;
+        redraw_history_result(history.previous(command), command, line, position);
+        break;
+    }
+    case kernel::keyboard::Key::DownArrow: {
+        kernel::StringView command;
+        redraw_history_result(history.next(command), command, line, position);
+        break;
+    }
     case kernel::keyboard::Key::LeftArrow:
         if (line.move_left()) {
             redraw_line(line, position);
@@ -188,8 +221,12 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
         kernel::terminal::set_cursor(position.input_column + line.view().size(),
                                      position.input_row);
         kernel::terminal::write_char('\n');
+        if (!line.empty()) {
+            (void)history.push(line.view());
+        }
         handle_line(line.view());
         line.clear();
+        history.reset_browse();
         write_new_prompt_and_line(line, position, caps_lock);
         break;
     case kernel::keyboard::Key::CapsLock:
@@ -207,6 +244,7 @@ namespace kernel::shell {
 
 [[noreturn]] void run() {
     LineEditor line;
+    History history;
     LinePosition position;
     bool caps_lock = false;
 
@@ -219,7 +257,7 @@ namespace kernel::shell {
     while (true) {
         keyboard::KeyEvent event;
         if (keyboard::poll_key(event)) {
-            handle_key_event(event, line, position, caps_lock);
+            handle_key_event(event, line, position, caps_lock, history);
         } else {
             asm volatile("pause");
         }

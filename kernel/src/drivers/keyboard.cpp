@@ -152,10 +152,14 @@ char decode_character(uint8_t scancode, bool shift, bool caps_lock) {
 kernel::keyboard::Key key_for_scancode(uint8_t scancode, bool extended) {
     if (extended) {
         switch (scancode) {
+        case 0x48:
+            return kernel::keyboard::Key::UpArrow;
         case 0x4b:
             return kernel::keyboard::Key::LeftArrow;
         case 0x4d:
             return kernel::keyboard::Key::RightArrow;
+        case 0x50:
+            return kernel::keyboard::Key::DownArrow;
         case 0x53:
             return kernel::keyboard::Key::Delete;
         case kControl:
