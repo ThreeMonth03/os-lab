@@ -1,13 +1,14 @@
 #pragma once
 
 #include "kernel/fixed_vector.hpp"
+#include "kernel/shell_limits.hpp"
 #include "kernel/string_view.hpp"
 
 namespace kernel {
 
 class LineEditor {
   public:
-    static constexpr size_t capacity = 80;
+    static constexpr size_t capacity = kShellLineCapacity;
 
     [[nodiscard]] bool empty() const { return buffer_.empty(); }
     [[nodiscard]] bool full() const { return buffer_.full(); }

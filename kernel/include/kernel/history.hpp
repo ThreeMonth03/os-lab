@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include "kernel/fixed_vector.hpp"
+#include "kernel/shell_limits.hpp"
 #include "kernel/string_view.hpp"
 
 namespace kernel {
@@ -15,8 +16,8 @@ enum class HistoryResult {
 
 class History {
   public:
-    static constexpr size_t capacity = 8;
-    static constexpr size_t entry_capacity = 80;
+    static constexpr size_t capacity = kShellHistoryCapacity;
+    static constexpr size_t entry_capacity = kShellLineCapacity;
 
     [[nodiscard]] bool empty() const { return count_ == 0; }
     [[nodiscard]] size_t size() const { return count_; }

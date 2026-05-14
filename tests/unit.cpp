@@ -137,6 +137,20 @@ TEST(HistoryTest, KeepsFixedCapacity) {
     expect_text(command, "1");
 }
 
+TEST(HistoryTest, StoresFullLineEditorCapacityCommands) {
+    kernel::History history;
+    kernel::StringView command;
+    char text[kernel::LineEditor::capacity] = {};
+
+    for (size_t index = 0; index < kernel::LineEditor::capacity; ++index) {
+        text[index] = 'x';
+    }
+
+    EXPECT_TRUE(history.push({text, kernel::LineEditor::capacity}));
+    EXPECT_EQ(history.previous(command), kernel::HistoryResult::Command);
+    EXPECT_EQ(command.size(), kernel::LineEditor::capacity);
+}
+
 TEST(StringViewTest, SupportsBasicViewOperations) {
     const kernel::StringView text = "kernel";
 
