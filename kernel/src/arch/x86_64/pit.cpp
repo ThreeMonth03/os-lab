@@ -28,7 +28,7 @@ void init() {
     kernel::arch::x86_64::io::outb(kPitChannel0, static_cast<uint8_t>((divisor >> 8) & 0xff));
     kernel::arch::x86_64::pic::unmask(0);
 
-    serial::write_line("os-lab: PIT timer configured at 100 Hz");
+    kernel::drivers::serial::write_line("os-lab: PIT timer configured at 100 Hz");
 }
 
 uint64_t ticks() { return g_ticks; }

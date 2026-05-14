@@ -17,9 +17,9 @@ constexpr uint32_t kResponseWaitLimit = 100000;
 kernel::mouse::MousePacketDecoder g_decoder;
 bool g_ready = false;
 
-bool wait_for_data(uint8_t& data, kernel::ps2::Device& device) {
+bool wait_for_data(uint8_t& data, kernel::drivers::ps2::Device& device) {
     for (uint32_t attempt = 0; attempt < kResponseWaitLimit; ++attempt) {
-        if (kernel::ps2::read_data(data, device)) {
+        if (kernel::drivers::ps2::read_data(data, device)) {
             return true;
         }
     }
@@ -29,13 +29,13 @@ bool wait_for_data(uint8_t& data, kernel::ps2::Device& device) {
 
 bool wait_for_mouse_ack() {
     uint8_t data = 0;
-    kernel::ps2::Device device = kernel::ps2::Device::Keyboard;
+    kernel::drivers::ps2::Device device = kernel::drivers::ps2::Device::Keyboard;
 
     for (uint32_t attempt = 0; attempt < kResponseWaitLimit; ++attempt) {
-        if (!kernel::ps2::read_data(data, device)) {
+        if (!kernel::drivers::ps2::read_data(data, device)) {
             continue;
         }
-        if (device == kernel::ps2::Device::Mouse) {
+        if (device == kernel::drivers::ps2::Device::Mouse) {
             return data == kMouseAck;
         }
     }
@@ -44,20 +44,21 @@ bool wait_for_mouse_ack() {
 }
 
 bool read_controller_config(uint8_t& config) {
-    if (!kernel::ps2::write_command(kCommandReadConfig)) {
+    if (!kernel::drivers::ps2::write_command(kCommandReadConfig)) {
         return false;
     }
 
-    kernel::ps2::Device device = kernel::ps2::Device::Keyboard;
+    kernel::drivers::ps2::Device device = kernel::drivers::ps2::Device::Keyboard;
     return wait_for_data(config, device);
 }
 
 bool write_controller_config(uint8_t config) {
-    return kernel::ps2::write_command(kCommandWriteConfig) && kernel::ps2::write_data(config);
+    return kernel::drivers::ps2::write_command(kCommandWriteConfig) &&
+           kernel::drivers::ps2::write_data(config);
 }
 
 bool send_mouse_command(uint8_t command) {
-    return kernel::ps2::write_mouse_data(command) && wait_for_mouse_ack();
+    return kernel::drivers::ps2::write_mouse_data(command) && wait_for_mouse_ack();
 }
 
 } // namespace
@@ -68,8 +69,8 @@ bool init() {
     g_ready = false;
     g_decoder.reset();
 
-    kernel::ps2::flush_output();
-    if (!kernel::ps2::write_command(kCommandEnableAuxiliary)) {
+    kernel::drivers::ps2::flush_output();
+    if (!kernel::drivers::ps2::write_command(kCommandEnableAuxiliary)) {
         return false;
     }
 
@@ -81,7 +82,7 @@ bool init() {
         }
     }
 
-    kernel::ps2::flush_output();
+    kernel::drivers::ps2::flush_output();
     if (!send_mouse_command(kMouseSetDefaults)) {
         return false;
     }
@@ -102,7 +103,7 @@ bool poll(MouseEvent& event) {
     }
 
     uint8_t data = 0;
-    if (!kernel::ps2::read_mouse_data(data)) {
+    if (!kernel::drivers::ps2::read_mouse_data(data)) {
         return false;
     }
 

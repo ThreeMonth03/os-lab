@@ -199,7 +199,7 @@ namespace kernel::shell {
     terminal::write_line("interactive input ready");
     execute_command("help");
     view.write_new_prompt_and_line(line, caps_lock);
-    serial::write_line("os-lab: interactive terminal ready");
+    kernel::drivers::serial::write_line("os-lab: interactive terminal ready");
 
     while (true) {
         input::Event event;

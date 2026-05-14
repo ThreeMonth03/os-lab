@@ -4,7 +4,7 @@
 
 #include "kernel/base/string_view.hpp"
 
-namespace kernel::serial {
+namespace kernel::drivers::serial {
 
 void init();
 void write_char(char value);
@@ -15,4 +15,4 @@ void write_line(const char* value);
 void write_hex(uint64_t value);
 void write_decimal(uint64_t value);
 
-} // namespace kernel::serial
+} // namespace kernel::drivers::serial

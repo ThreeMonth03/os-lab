@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-namespace kernel::ps2 {
+namespace kernel::drivers::ps2 {
 
 enum class Device {
     Keyboard,
@@ -17,4 +17,4 @@ enum class Device {
 [[nodiscard]] bool write_mouse_data(uint8_t data);
 void flush_output();
 
-} // namespace kernel::ps2
+} // namespace kernel::drivers::ps2

@@ -17,7 +17,7 @@ bool poll_key(KeyEvent& event) {
     event = {};
 
     uint8_t raw_scancode = 0;
-    if (!ps2::read_keyboard_data(raw_scancode)) {
+    if (!kernel::drivers::ps2::read_keyboard_data(raw_scancode)) {
         return false;
     }
 

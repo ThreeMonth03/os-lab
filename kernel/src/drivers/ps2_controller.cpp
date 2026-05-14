@@ -50,7 +50,7 @@ bool read_data_for(bool mouse, uint8_t& data) {
 
 } // namespace
 
-namespace kernel::ps2 {
+namespace kernel::drivers::ps2 {
 
 bool read_keyboard_data(uint8_t& data) { return read_data_for(false, data); }
 
@@ -96,4 +96,4 @@ void flush_output() {
     }
 }
 
-} // namespace kernel::ps2
+} // namespace kernel::drivers::ps2

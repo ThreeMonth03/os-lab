@@ -20,7 +20,7 @@ bool can_transmit() { return (inb(kCom1 + 5) & 0x20) != 0; }
 
 } // namespace
 
-namespace kernel::serial {
+namespace kernel::drivers::serial {
 
 void init() {
     outb(kCom1 + 1, 0x00);
@@ -85,4 +85,4 @@ void write_decimal(uint64_t value) {
     }
 }
 
-} // namespace kernel::serial
+} // namespace kernel::drivers::serial

@@ -11,8 +11,8 @@
 namespace {
 
 [[maybe_unused]] void write_trigger(kernel::StringView name) {
-    kernel::serial::write_string("os-lab: triggering exception smoke: ");
-    kernel::serial::write_line(name);
+    kernel::drivers::serial::write_string("os-lab: triggering exception smoke: ");
+    kernel::drivers::serial::write_line(name);
 
     if (kernel::terminal::ready()) {
         kernel::terminal::write_string("triggering exception smoke: ");

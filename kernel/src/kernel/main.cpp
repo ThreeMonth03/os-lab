@@ -43,16 +43,16 @@ void run_utility_smoke() {
     const kernel::Span<const kernel::StringView> label_span(labels.data(), labels.size());
 
     if (!ok || label_span.size() != labels.capacity()) {
-        kernel::serial::write_line("os-lab: no-heap utility smoke failed");
+        kernel::drivers::serial::write_line("os-lab: no-heap utility smoke failed");
         return;
     }
 
-    kernel::serial::write_line("os-lab: no-heap utilities ready");
+    kernel::drivers::serial::write_line("os-lab: no-heap utilities ready");
 }
 
 void write_memory_summary(bool ready) {
     if (!ready) {
-        kernel::serial::write_line("os-lab: memory map unavailable");
+        kernel::drivers::serial::write_line("os-lab: memory map unavailable");
         kernel::terminal::write_line("memory map unavailable");
         return;
     }
@@ -60,17 +60,17 @@ void write_memory_summary(bool ready) {
     const kernel::memory::Stats stats = kernel::memory::stats();
     const uint64_t usable_kib = stats.map.usable_bytes / 1024;
 
-    kernel::serial::write_string("os-lab: memory map regions = ");
-    kernel::serial::write_decimal(stats.map.region_count);
-    kernel::serial::write_string("\n");
-    kernel::serial::write_string("os-lab: memory usable KiB = ");
-    kernel::serial::write_decimal(usable_kib);
-    kernel::serial::write_string("\n");
-    kernel::serial::write_string("os-lab: frame allocator frames = ");
-    kernel::serial::write_decimal(stats.frames.total_frames);
-    kernel::serial::write_string("\n");
+    kernel::drivers::serial::write_string("os-lab: memory map regions = ");
+    kernel::drivers::serial::write_decimal(stats.map.region_count);
+    kernel::drivers::serial::write_string("\n");
+    kernel::drivers::serial::write_string("os-lab: memory usable KiB = ");
+    kernel::drivers::serial::write_decimal(usable_kib);
+    kernel::drivers::serial::write_string("\n");
+    kernel::drivers::serial::write_string("os-lab: frame allocator frames = ");
+    kernel::drivers::serial::write_decimal(stats.frames.total_frames);
+    kernel::drivers::serial::write_string("\n");
     if (stats.truncated) {
-        kernel::serial::write_line("os-lab: memory map truncated");
+        kernel::drivers::serial::write_line("os-lab: memory map truncated");
     }
 
     kernel::terminal::write_string("memory usable = ");
@@ -99,10 +99,10 @@ void write_bootloader_info() {
         return;
     }
 
-    kernel::serial::write_string("os-lab: bootloader = ");
-    kernel::serial::write_string(info->name);
-    kernel::serial::write_string(" ");
-    kernel::serial::write_line(info->version);
+    kernel::drivers::serial::write_string("os-lab: bootloader = ");
+    kernel::drivers::serial::write_string(info->name);
+    kernel::drivers::serial::write_string(" ");
+    kernel::drivers::serial::write_line(info->version);
 
     kernel::terminal::write_string("bootloader = ");
     kernel::terminal::write_string(info->name);
@@ -112,21 +112,22 @@ void write_bootloader_info() {
 
 void write_firmware_info() {
     const char* firmware = firmware_name(kernel::boot::firmware_type());
-    kernel::serial::write_string("os-lab: firmware = ");
-    kernel::serial::write_line(firmware);
+    kernel::drivers::serial::write_string("os-lab: firmware = ");
+    kernel::drivers::serial::write_line(firmware);
     kernel::terminal::write_string("firmware = ");
     kernel::terminal::write_line(firmware);
 }
 
 void write_loaded_base_revision() {
-    kernel::serial::write_string("os-lab: loaded base revision = ");
-    kernel::serial::write_decimal(kernel::boot::loaded_base_revision());
-    kernel::serial::write_string("\n");
+    kernel::drivers::serial::write_string("os-lab: loaded base revision = ");
+    kernel::drivers::serial::write_decimal(kernel::boot::loaded_base_revision());
+    kernel::drivers::serial::write_string("\n");
 }
 
 void write_terminal_status(bool terminal_ready) {
-    kernel::serial::write_line(terminal_ready ? "os-lab: framebuffer terminal active"
-                                              : "os-lab: framebuffer terminal unavailable");
+    kernel::drivers::serial::write_line(terminal_ready
+                                            ? "os-lab: framebuffer terminal active"
+                                            : "os-lab: framebuffer terminal unavailable");
 }
 
 void init_mouse_cursor() {
@@ -134,22 +135,22 @@ void init_mouse_cursor() {
     const bool mouse_cursor_ready = mouse_ready && kernel::mouse_cursor::init();
     if (mouse_cursor_ready && mouse_ready) {
         kernel::mouse_cursor::show();
-        kernel::serial::write_line("os-lab: ps/2 mouse cursor active");
+        kernel::drivers::serial::write_line("os-lab: ps/2 mouse cursor active");
     } else {
-        kernel::serial::write_line("os-lab: ps/2 mouse cursor unavailable");
+        kernel::drivers::serial::write_line("os-lab: ps/2 mouse cursor unavailable");
     }
 }
 
 void init_timer_interrupts() {
     kernel::timer::init();
     kernel::arch::x86_64::enable_interrupts();
-    kernel::serial::write_line("os-lab: hardware interrupts enabled");
+    kernel::drivers::serial::write_line("os-lab: hardware interrupts enabled");
 }
 
 } // namespace
 
 extern "C" [[noreturn]] void kernel_main() {
-    kernel::serial::write_line("os-lab: kernel main entered");
+    kernel::drivers::serial::write_line("os-lab: kernel main entered");
     const bool terminal_ready = init_terminal();
 
     kernel::arch::x86_64::run_exception_smoke();

@@ -83,28 +83,28 @@ kernel::StringView exception_name(uint64_t vector) {
 }
 
 void write_both(kernel::StringView value) {
-    kernel::serial::write_string(value);
+    kernel::drivers::serial::write_string(value);
     if (kernel::terminal::ready()) {
         kernel::terminal::write_string(value);
     }
 }
 
 void write_both_line(kernel::StringView value) {
-    kernel::serial::write_line(value);
+    kernel::drivers::serial::write_line(value);
     if (kernel::terminal::ready()) {
         kernel::terminal::write_line(value);
     }
 }
 
 void write_both_decimal(uint64_t value) {
-    kernel::serial::write_decimal(value);
+    kernel::drivers::serial::write_decimal(value);
     if (kernel::terminal::ready()) {
         kernel::terminal::write_decimal(value);
     }
 }
 
 void write_both_hex(uint64_t value) {
-    kernel::serial::write_hex(value);
+    kernel::drivers::serial::write_hex(value);
     if (kernel::terminal::ready()) {
         kernel::terminal::write_hex(value);
     }
@@ -181,7 +181,7 @@ void init_exceptions() {
     const Idtr idtr = {static_cast<uint16_t>(sizeof(g_idt) - 1),
                        reinterpret_cast<uint64_t>(&g_idt)};
     load_idt(idtr);
-    serial::write_line("os-lab: x86_64 exception handlers loaded");
+    kernel::drivers::serial::write_line("os-lab: x86_64 exception handlers loaded");
 }
 
 } // namespace kernel::arch::x86_64

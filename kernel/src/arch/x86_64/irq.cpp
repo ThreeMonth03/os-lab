@@ -106,7 +106,7 @@ void init_irqs() {
     disable_local_apic_for_pic();
     pic::remap();
     pic::mask_all();
-    serial::write_line("os-lab: x86_64 IRQ foundation loaded");
+    kernel::drivers::serial::write_line("os-lab: x86_64 IRQ foundation loaded");
 }
 
 void enable_interrupts() { asm volatile("sti" ::: "memory"); }

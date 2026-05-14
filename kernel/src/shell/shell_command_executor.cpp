@@ -94,7 +94,7 @@ void execute_command(StringView command) {
         break;
     case ShellCommandKind::Halt:
         terminal::write_line("halting");
-        serial::write_line("os-lab: halt command requested");
+        kernel::drivers::serial::write_line("os-lab: halt command requested");
         halt_forever();
     case ShellCommandKind::Unknown:
         terminal::write_string("unknown command: ");
