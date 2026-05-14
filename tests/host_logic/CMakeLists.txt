@@ -2,6 +2,10 @@ set(OS_LAB_HOST_LOGIC_DISPLAY_SOURCES
     ${PROJECT_SOURCE_DIR}/kernel/src/display/display.cpp
 )
 
+set(OS_LAB_HOST_LOGIC_ARCH_X86_64_SOURCES
+    ${PROJECT_SOURCE_DIR}/kernel/src/arch/x86_64/paging.cpp
+)
+
 set(OS_LAB_HOST_LOGIC_INPUT_SOURCES
     ${PROJECT_SOURCE_DIR}/kernel/src/input/keyboard_decoder.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/input/mouse_packet_decoder.cpp
@@ -28,6 +32,7 @@ set(OS_LAB_HOST_LOGIC_TEXT_SOURCES
 
 add_library(os_lab_host_logic)
 target_sources(os_lab_host_logic PRIVATE
+    ${OS_LAB_HOST_LOGIC_ARCH_X86_64_SOURCES}
     ${OS_LAB_HOST_LOGIC_DISPLAY_SOURCES}
     ${OS_LAB_HOST_LOGIC_INPUT_SOURCES}
     ${OS_LAB_HOST_LOGIC_MEMORY_SOURCES}

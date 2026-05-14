@@ -25,6 +25,7 @@ mapfile -d '' sources < <(
         -name '*.cpp' \
         -print0
     printf '%s\0' \
+        "${project_root}/kernel/src/arch/x86_64/paging.cpp" \
         "${project_root}/kernel/src/display/display.cpp" \
         "${project_root}/kernel/src/input/keyboard_decoder.cpp" \
         "${project_root}/kernel/src/input/mouse_packet_decoder.cpp" \

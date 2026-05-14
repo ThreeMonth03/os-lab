@@ -2,6 +2,7 @@ add_library(os_lab_kernel_arch_x86_64 OBJECT
     exception_smoke.cpp
     idt.cpp
     irq.cpp
+    paging.cpp
     pic.cpp
     pit.cpp
 )

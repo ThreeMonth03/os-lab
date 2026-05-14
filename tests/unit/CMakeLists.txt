@@ -6,6 +6,7 @@ add_executable(os_lab_unit_tests
     keyboard_decoder_test.cpp
     memory_test.cpp
     mouse_packet_decoder_test.cpp
+    paging_test.cpp
     pointer_state_test.cpp
     shell_command_test.cpp
     string_view_test.cpp
