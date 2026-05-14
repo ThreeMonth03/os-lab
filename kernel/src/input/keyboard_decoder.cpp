@@ -1,4 +1,4 @@
-#include "kernel/keyboard_decoder.hpp"
+#include "kernel/input/keyboard_decoder.hpp"
 
 namespace {
 

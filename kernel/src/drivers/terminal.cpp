@@ -2,11 +2,11 @@
 
 #include <stdint.h>
 
-#include "kernel/display.hpp"
-#include "kernel/font5x7.hpp"
+#include "kernel/display/display.hpp"
+#include "kernel/text/font5x7.hpp"
 #include "kernel/limine_support.hpp"
 #include "kernel/mouse_cursor.hpp"
-#include "kernel/text_console.hpp"
+#include "kernel/text/text_console.hpp"
 
 namespace {
 

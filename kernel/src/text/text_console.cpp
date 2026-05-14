@@ -1,4 +1,4 @@
-#include "kernel/text_console.hpp"
+#include "kernel/text/text_console.hpp"
 
 namespace kernel {
 

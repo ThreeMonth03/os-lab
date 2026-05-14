@@ -1,4 +1,4 @@
-#include "kernel/editor_view_layout.hpp"
+#include "kernel/text/editor_view_layout.hpp"
 
 namespace kernel {
 

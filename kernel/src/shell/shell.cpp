@@ -1,19 +1,19 @@
-#include "kernel/shell.hpp"
+#include "kernel/shell/shell.hpp"
 
 #include <stddef.h>
 #include <stdint.h>
 
-#include "kernel/editor_dirty_range.hpp"
-#include "kernel/editor_view_layout.hpp"
+#include "kernel/text/editor_dirty_range.hpp"
+#include "kernel/text/editor_view_layout.hpp"
 #include "kernel/halt.hpp"
-#include "kernel/history.hpp"
-#include "kernel/input.hpp"
-#include "kernel/keyboard.hpp"
-#include "kernel/line_editor.hpp"
-#include "kernel/memory.hpp"
+#include "kernel/text/history.hpp"
+#include "kernel/input/input.hpp"
+#include "kernel/input/keyboard.hpp"
+#include "kernel/text/line_editor.hpp"
+#include "kernel/memory/memory.hpp"
 #include "kernel/mouse_cursor.hpp"
 #include "kernel/serial.hpp"
-#include "kernel/shell_command.hpp"
+#include "kernel/shell/shell_command.hpp"
 #include "kernel/string_view.hpp"
 #include "kernel/terminal.hpp"
 

@@ -1,4 +1,4 @@
-#include "kernel/font5x7.hpp"
+#include "kernel/text/font5x7.hpp"
 
 namespace {
 

@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include "kernel/keyboard.hpp"
+#include "kernel/input/keyboard.hpp"
 
 namespace kernel::keyboard {
 

@@ -1,4 +1,4 @@
-#include "kernel/pointer_state.hpp"
+#include "kernel/input/pointer_state.hpp"
 
 namespace {
 

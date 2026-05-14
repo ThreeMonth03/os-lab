@@ -2,8 +2,8 @@
 
 #include <stddef.h>
 
-#include "kernel/memory_map.hpp"
-#include "kernel/physical_frame_allocator.hpp"
+#include "kernel/memory/memory_map.hpp"
+#include "kernel/memory/physical_frame_allocator.hpp"
 
 namespace kernel::memory {
 

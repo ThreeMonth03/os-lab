@@ -1,7 +1,7 @@
-#include "kernel/input.hpp"
+#include "kernel/input/input.hpp"
 
 #include "kernel/fixed_queue.hpp"
-#include "kernel/mouse.hpp"
+#include "kernel/input/mouse.hpp"
 #include "kernel/placement_new.hpp"
 
 namespace {

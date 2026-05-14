@@ -1,4 +1,4 @@
-#include "kernel/line_editor.hpp"
+#include "kernel/text/line_editor.hpp"
 
 namespace kernel {
 

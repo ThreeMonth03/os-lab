@@ -3,7 +3,7 @@
 #include <stddef.h>
 
 #include "kernel/fixed_vector.hpp"
-#include "kernel/shell_limits.hpp"
+#include "kernel/shell/shell_limits.hpp"
 #include "kernel/string_view.hpp"
 
 namespace kernel {

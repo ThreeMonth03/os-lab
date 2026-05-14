@@ -1,8 +1,8 @@
-#include "kernel/keyboard.hpp"
+#include "kernel/input/keyboard.hpp"
 
 #include <stdint.h>
 
-#include "kernel/keyboard_decoder.hpp"
+#include "kernel/input/keyboard_decoder.hpp"
 #include "kernel/ps2_controller.hpp"
 
 namespace {

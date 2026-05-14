@@ -1,4 +1,4 @@
-#include "kernel/physical_frame_allocator.hpp"
+#include "kernel/memory/physical_frame_allocator.hpp"
 
 namespace {
 

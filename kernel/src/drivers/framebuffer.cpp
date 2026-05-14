@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include "kernel/display.hpp"
+#include "kernel/display/display.hpp"
 #include "kernel/limine_support.hpp"
 
 namespace {

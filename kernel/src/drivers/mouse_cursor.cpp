@@ -1,8 +1,8 @@
 #include "kernel/mouse_cursor.hpp"
 
-#include "kernel/display.hpp"
+#include "kernel/display/display.hpp"
 #include "kernel/limine_support.hpp"
-#include "kernel/pointer_state.hpp"
+#include "kernel/input/pointer_state.hpp"
 
 namespace {
 

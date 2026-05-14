@@ -2,22 +2,22 @@
 
 #include <gtest/gtest.h>
 
-#include "kernel/display.hpp"
-#include "kernel/editor_dirty_range.hpp"
-#include "kernel/editor_view_layout.hpp"
+#include "kernel/display/display.hpp"
+#include "kernel/text/editor_dirty_range.hpp"
+#include "kernel/text/editor_view_layout.hpp"
 #include "kernel/fixed_queue.hpp"
 #include "kernel/fixed_vector.hpp"
-#include "kernel/font5x7.hpp"
-#include "kernel/history.hpp"
-#include "kernel/keyboard_decoder.hpp"
-#include "kernel/line_editor.hpp"
-#include "kernel/memory_map.hpp"
-#include "kernel/mouse_packet_decoder.hpp"
-#include "kernel/physical_frame_allocator.hpp"
-#include "kernel/pointer_state.hpp"
-#include "kernel/shell_command.hpp"
+#include "kernel/text/font5x7.hpp"
+#include "kernel/text/history.hpp"
+#include "kernel/input/keyboard_decoder.hpp"
+#include "kernel/text/line_editor.hpp"
+#include "kernel/memory/memory_map.hpp"
+#include "kernel/input/mouse_packet_decoder.hpp"
+#include "kernel/memory/physical_frame_allocator.hpp"
+#include "kernel/input/pointer_state.hpp"
+#include "kernel/shell/shell_command.hpp"
 #include "kernel/string_view.hpp"
-#include "kernel/text_console.hpp"
+#include "kernel/text/text_console.hpp"
 
 namespace {
 

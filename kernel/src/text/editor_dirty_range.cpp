@@ -1,4 +1,4 @@
-#include "kernel/editor_dirty_range.hpp"
+#include "kernel/text/editor_dirty_range.hpp"
 
 namespace kernel {
 

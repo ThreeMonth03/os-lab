@@ -1,4 +1,4 @@
-#include "kernel/display.hpp"
+#include "kernel/display/display.hpp"
 
 namespace kernel::display {
 

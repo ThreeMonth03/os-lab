@@ -1,4 +1,4 @@
-#include "kernel/shell_command.hpp"
+#include "kernel/shell/shell_command.hpp"
 
 namespace {
 
