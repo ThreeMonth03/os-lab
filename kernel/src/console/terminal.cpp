@@ -37,6 +37,8 @@ public:
 
     MouseCursorGuard(const MouseCursorGuard &) = delete;
     MouseCursorGuard & operator=(const MouseCursorGuard &) = delete;
+    MouseCursorGuard(MouseCursorGuard &&) = delete;
+    MouseCursorGuard & operator=(MouseCursorGuard &&) = delete;
 };
 
 uint32_t pack_rgb(const limine_framebuffer & framebuffer, uint8_t red, uint8_t green, uint8_t blue)

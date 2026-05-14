@@ -15,12 +15,25 @@ public:
 
     FixedVector(const FixedVector & other) { copy_from(other); }
 
+    FixedVector(FixedVector && other) { move_from(other); }
+
     FixedVector & operator=(const FixedVector & other)
     {
         if (this != &other)
         {
             clear();
             copy_from(other);
+        }
+
+        return *this;
+    }
+
+    FixedVector & operator=(FixedVector && other)
+    {
+        if (this != &other)
+        {
+            clear();
+            move_from(other);
         }
 
         return *this;
@@ -49,6 +62,7 @@ public:
     [[nodiscard]] const T & back() const { return (*this)[size_ - 1]; }
 
     [[nodiscard]] bool push_back(const T & value) { return emplace_back(value) != nullptr; }
+    [[nodiscard]] bool push_back(T && value) { return emplace_back(static_cast<T &&>(value)) != nullptr; }
 
     template <typename... Args>
     [[nodiscard]] T * emplace_back(Args &&... args)
@@ -91,6 +105,15 @@ private:
         {
             (void)push_back(value);
         }
+    }
+
+    void move_from(FixedVector & other)
+    {
+        for (T & value : other)
+        {
+            (void)emplace_back(static_cast<T &&>(value));
+        }
+        other.clear();
     }
 
     [[nodiscard]] T * slot(size_t index)

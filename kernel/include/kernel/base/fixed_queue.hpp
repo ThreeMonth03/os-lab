@@ -15,6 +15,8 @@ public:
 
     FixedQueue(const FixedQueue &) = delete;
     FixedQueue & operator=(const FixedQueue &) = delete;
+    FixedQueue(FixedQueue &&) = delete;
+    FixedQueue & operator=(FixedQueue &&) = delete;
 
     ~FixedQueue() { clear(); }
 

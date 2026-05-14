@@ -5,6 +5,40 @@
 namespace
 {
 
+class MoveOnly
+{
+public:
+    explicit MoveOnly(int value)
+        : value_(value)
+    {
+    }
+
+    MoveOnly(const MoveOnly &) = delete;
+    MoveOnly & operator=(const MoveOnly &) = delete;
+
+    MoveOnly(MoveOnly && other)
+        : value_(other.value_)
+    {
+        other.value_ = -1;
+    }
+
+    MoveOnly & operator=(MoveOnly && other)
+    {
+        if (this != &other)
+        {
+            value_ = other.value_;
+            other.value_ = -1;
+        }
+
+        return *this;
+    }
+
+    [[nodiscard]] int value() const { return value_; }
+
+private:
+    int value_ = 0;
+};
+
 TEST(FixedVectorTest, StoresValuesWithoutHeap)
 {
     kernel::FixedVector<int, 3> values;
@@ -21,6 +55,30 @@ TEST(FixedVectorTest, StoresValuesWithoutHeap)
     EXPECT_EQ(values.size(), 2u);
     values.clear();
     EXPECT_TRUE(values.empty());
+}
+
+TEST(FixedVectorTest, MovesElementsWithoutHeap)
+{
+    kernel::FixedVector<MoveOnly, 3> values;
+    MoveOnly second(2);
+
+    ASSERT_NE(values.emplace_back(1), nullptr);
+    EXPECT_TRUE(values.push_back(static_cast<MoveOnly &&>(second)));
+
+    kernel::FixedVector<MoveOnly, 3> moved(static_cast<kernel::FixedVector<MoveOnly, 3> &&>(values));
+    EXPECT_TRUE(values.empty());
+    ASSERT_EQ(moved.size(), 2u);
+    EXPECT_EQ(moved[0].value(), 1);
+    EXPECT_EQ(moved[1].value(), 2);
+
+    kernel::FixedVector<MoveOnly, 3> assigned;
+    ASSERT_NE(assigned.emplace_back(9), nullptr);
+    assigned = static_cast<kernel::FixedVector<MoveOnly, 3> &&>(moved);
+
+    EXPECT_TRUE(moved.empty());
+    ASSERT_EQ(assigned.size(), 2u);
+    EXPECT_EQ(assigned[0].value(), 1);
+    EXPECT_EQ(assigned[1].value(), 2);
 }
 
 TEST(FixedQueueTest, PushesAndPopsInOrder)
