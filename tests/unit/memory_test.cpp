@@ -1,4 +1,7 @@
 #include <gtest/gtest.h>
+#include <stdint.h>
+
+#include "kernel/memory/heap_allocator.hpp"
 #include "kernel/memory/memory_map.hpp"
 #include "kernel/memory/physical_frame_allocator.hpp"
 
@@ -108,6 +111,77 @@ TEST(EarlyFrameAllocatorTest, ReportsExhaustionOnEmptyMap)
     EXPECT_FALSE(allocator.allocate(frame));
     EXPECT_EQ(allocator.stats().total_frames, 0u);
     EXPECT_EQ(allocator.stats().remaining_frames, 0u);
+}
+
+TEST(HeapAllocatorTest, AllocatesAlignedBlocksAndReportsStats)
+{
+    alignas(64) unsigned char storage[512] = {};
+    kernel::memory::HeapAllocator allocator;
+    allocator.reset(storage, sizeof(storage));
+
+    void * first = allocator.allocate(13, 16);
+    void * second = allocator.allocate(32, 64);
+
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(first) % 16, 0u);
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(second) % 64, 0u);
+
+    const kernel::memory::HeapAllocatorStats stats = allocator.stats();
+    EXPECT_TRUE(stats.initialized);
+    EXPECT_EQ(stats.allocated_bytes, 45u);
+    EXPECT_EQ(stats.allocation_count, 2u);
+    EXPECT_GT(stats.free_bytes, 0u);
+}
+
+TEST(HeapAllocatorTest, RejectsInvalidAlignmentAndExhaustion)
+{
+    alignas(16) unsigned char storage[256] = {};
+    kernel::memory::HeapAllocator allocator;
+    allocator.reset(storage, sizeof(storage));
+
+    EXPECT_NE(allocator.allocate(8, 0), nullptr);
+    EXPECT_EQ(allocator.allocate(8, 3), nullptr);
+    EXPECT_NE(allocator.allocate(64, 8), nullptr);
+    EXPECT_EQ(allocator.allocate(4096, 8), nullptr);
+}
+
+TEST(HeapAllocatorTest, FreesAndReusesBlocks)
+{
+    alignas(16) unsigned char storage[256] = {};
+    kernel::memory::HeapAllocator allocator;
+    allocator.reset(storage, sizeof(storage));
+
+    void * first = allocator.allocate(24, 8);
+    void * second = allocator.allocate(24, 8);
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+
+    EXPECT_TRUE(allocator.free(first));
+    void * reused = allocator.allocate(16, 8);
+    EXPECT_EQ(reused, first);
+    EXPECT_TRUE(allocator.free(second));
+    EXPECT_TRUE(allocator.free(reused));
+
+    const kernel::memory::HeapAllocatorStats stats = allocator.stats();
+    EXPECT_EQ(stats.allocation_count, 0u);
+    EXPECT_EQ(stats.allocated_bytes, 0u);
+    EXPECT_EQ(stats.free_block_count, 1u);
+    EXPECT_EQ(stats.free_bytes, stats.region_bytes);
+}
+
+TEST(HeapAllocatorTest, AddsAdjacentRegionAndCoalesces)
+{
+    alignas(16) unsigned char storage[512] = {};
+    kernel::memory::HeapAllocator allocator;
+    allocator.reset(storage, 256);
+
+    EXPECT_TRUE(allocator.add_region(storage + 256, 256));
+    const kernel::memory::HeapAllocatorStats stats = allocator.stats();
+
+    EXPECT_EQ(stats.region_bytes, 512u);
+    EXPECT_EQ(stats.free_block_count, 1u);
+    EXPECT_EQ(stats.free_bytes, 512u);
 }
 
 } // namespace

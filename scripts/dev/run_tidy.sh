@@ -30,6 +30,7 @@ mapfile -d '' sources < <(
         "${project_root}/kernel/src/input/keyboard_decoder.cpp" \
         "${project_root}/kernel/src/input/mouse_packet_decoder.cpp" \
         "${project_root}/kernel/src/input/pointer_state.cpp" \
+        "${project_root}/kernel/src/memory/heap_allocator.cpp" \
         "${project_root}/kernel/src/memory/memory_map.cpp" \
         "${project_root}/kernel/src/memory/physical_frame_allocator.cpp" \
         "${project_root}/kernel/src/shell/shell_command.cpp"
