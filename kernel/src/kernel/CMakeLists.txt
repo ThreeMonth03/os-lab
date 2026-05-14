@@ -2,6 +2,7 @@ add_library(os_lab_kernel_logic OBJECT
     display.cpp
     editor_dirty_range.cpp
     editor_view_layout.cpp
+    font5x7.cpp
     history.cpp
     input.cpp
     keyboard_decoder.cpp
