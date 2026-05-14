@@ -16,6 +16,18 @@ struct AllocationHeader
 
 static_assert(sizeof(AllocationHeader) % kMinimumAlignment == 0);
 
+[[nodiscard]] AllocationHeader * allocation_header_at(uintptr_t address)
+{
+    // Heap metadata is stored inside managed memory; integer addresses are expected here.
+    return reinterpret_cast<AllocationHeader *>(address); // NOLINT(performance-no-int-to-ptr)
+}
+
+[[nodiscard]] void * payload_at(uintptr_t address)
+{
+    // Heap payloads are returned from managed virtual memory addresses.
+    return reinterpret_cast<void *>(address); // NOLINT(performance-no-int-to-ptr)
+}
+
 } // namespace
 
 namespace kernel::memory
@@ -82,7 +94,7 @@ void * HeapAllocator::allocate(size_t bytes, size_t alignment)
 
     for (FreeBlock * block = free_head_; block != nullptr; block = block->next)
     {
-        const uintptr_t block_start = reinterpret_cast<uintptr_t>(block);
+        const auto block_start = reinterpret_cast<uintptr_t>(block);
         const uintptr_t payload =
             align_up(block_start + sizeof(AllocationHeader), alignment);
         const uintptr_t header_address = payload - sizeof(AllocationHeader);
@@ -105,7 +117,7 @@ void * HeapAllocator::allocate(size_t bytes, size_t alignment)
             remove_free_block(*block);
         }
 
-        auto * header = reinterpret_cast<AllocationHeader *>(header_address);
+        auto * header = allocation_header_at(header_address);
         header->magic = kAllocationMagic;
         header->block_start = block_start;
         header->block_size = allocation_size;
@@ -113,7 +125,7 @@ void * HeapAllocator::allocate(size_t bytes, size_t alignment)
 
         allocated_bytes_ += bytes;
         ++allocation_count_;
-        return reinterpret_cast<void *>(payload);
+        return payload_at(payload);
     }
 
     return nullptr;
@@ -130,8 +142,8 @@ bool HeapAllocator::free(void * memory)
         return false;
     }
 
-    const uintptr_t payload = reinterpret_cast<uintptr_t>(memory);
-    auto * header = reinterpret_cast<AllocationHeader *>(payload - sizeof(AllocationHeader));
+    const auto payload = reinterpret_cast<uintptr_t>(memory);
+    auto * header = allocation_header_at(payload - sizeof(AllocationHeader));
     if (header->magic != kAllocationMagic || header->block_size < sizeof(FreeBlock))
     {
         return false;
@@ -187,7 +199,7 @@ uintptr_t HeapAllocator::align_up(uintptr_t value, size_t alignment)
 bool HeapAllocator::usable_region(void * memory,
                                   size_t bytes,
                                   uintptr_t & start,
-                                  size_t & usable_bytes) const
+                                  size_t & usable_bytes)
 {
     start = 0;
     usable_bytes = 0;
@@ -196,7 +208,7 @@ bool HeapAllocator::usable_region(void * memory,
         return false;
     }
 
-    const uintptr_t raw_start = reinterpret_cast<uintptr_t>(memory);
+    const auto raw_start = reinterpret_cast<uintptr_t>(memory);
     const uintptr_t aligned_start = align_up(raw_start, kMinimumAlignment);
     const size_t prefix = aligned_start - raw_start;
     if (bytes <= prefix)
@@ -216,9 +228,15 @@ bool HeapAllocator::usable_region(void * memory,
     return true;
 }
 
+HeapAllocator::FreeBlock * HeapAllocator::free_block_at(uintptr_t address)
+{
+    // Free list nodes live inside the free heap blocks they describe.
+    return reinterpret_cast<FreeBlock *>(address); // NOLINT(performance-no-int-to-ptr)
+}
+
 void HeapAllocator::insert_free_block(uintptr_t address, size_t bytes)
 {
-    auto * block = reinterpret_cast<FreeBlock *>(address);
+    auto * block = free_block_at(address);
     block->size = bytes;
     block->previous = nullptr;
     block->next = nullptr;
@@ -276,7 +294,7 @@ void HeapAllocator::replace_free_block(FreeBlock & block, uintptr_t address, siz
 {
     FreeBlock * previous = block.previous;
     FreeBlock * next = block.next;
-    auto * replacement = reinterpret_cast<FreeBlock *>(address);
+    auto * replacement = free_block_at(address);
     replacement->size = bytes;
     replacement->previous = previous;
     replacement->next = next;

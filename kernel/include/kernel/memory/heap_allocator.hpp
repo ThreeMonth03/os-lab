@@ -38,14 +38,15 @@ private:
     [[nodiscard]] static bool is_power_of_two(size_t value);
     [[nodiscard]] static uintptr_t align_up(uintptr_t value, size_t alignment);
 
-    [[nodiscard]] bool usable_region(void * memory,
-                                     size_t bytes,
-                                     uintptr_t & start,
-                                     size_t & usable_bytes) const;
+    [[nodiscard]] static bool usable_region(void * memory,
+                                            size_t bytes,
+                                            uintptr_t & start,
+                                            size_t & usable_bytes);
+    [[nodiscard]] static FreeBlock * free_block_at(uintptr_t address);
     void insert_free_block(uintptr_t address, size_t bytes);
     void remove_free_block(FreeBlock & block);
     void replace_free_block(FreeBlock & block, uintptr_t address, size_t bytes);
-    void coalesce(FreeBlock & block);
+    static void coalesce(FreeBlock & block);
 
     FreeBlock * free_head_ = nullptr;
     size_t region_bytes_ = 0;
