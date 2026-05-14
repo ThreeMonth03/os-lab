@@ -7,6 +7,7 @@ GENERATOR ?= Ninja
 GENERATOR_BIN ?= ninja
 CMAKE ?= cmake
 CLANG_FORMAT ?= clang-format-19
+CLANG_TIDY ?= clang-tidy-19
 DOCKER_COMPOSE ?= $(shell if docker compose version >/dev/null 2>&1; then \
 	printf 'docker compose'; \
 elif command -v docker-compose >/dev/null 2>&1; then \
@@ -26,8 +27,8 @@ TIMER_BUILD_DIR := $(BUILD_DIR)/timer-smoke
 TIMER_KERNEL_ELF := $(TIMER_BUILD_DIR)/artifacts/kernel.elf
 TIMER_ISO_IMAGE := $(TIMER_BUILD_DIR)/os-lab.iso
 
-.PHONY: help deps demo gui test demo-exception test-exception demo-timer test-timer unit format shell clean ci
-.PHONY: _check-native-tools _check-clang-format _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _exception-configure _exception-kernel _exception-iso _run-exception _smoke-exception _timer-configure _timer-kernel _timer-iso _run-timer _smoke-timer _unit _format _format-check _docker-image _docker-iso _docker-exception-iso _docker-timer-iso
+.PHONY: help deps demo gui test demo-exception test-exception demo-timer test-timer unit format tidy shell clean ci
+.PHONY: _check-native-tools _check-clang-format _check-clang-tidy _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _exception-configure _exception-kernel _exception-iso _run-exception _smoke-exception _timer-configure _timer-kernel _timer-iso _run-timer _smoke-timer _unit _format _format-check _tidy _docker-image _docker-iso _docker-exception-iso _docker-timer-iso
 
 help:
 	@printf '%s\n' \
@@ -44,6 +45,7 @@ help:
 		'                 Build and verify the debug PIT timer smoke path' \
 		'  make unit      Run host-side unit tests' \
 		'  make format    Apply clang-format inside Docker' \
+		'  make tidy      Run clang-tidy on host-side pure logic' \
 		'  make shell     Open the development container' \
 		'  make clean     Remove generated files'
 
@@ -70,6 +72,9 @@ unit: _docker-image
 format: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _format
 
+tidy: _docker-image
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _tidy
+
 shell: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder bash
 
@@ -95,6 +100,17 @@ _check-clang-format:
 	@version="$$( $(CLANG_FORMAT) --version 2>/dev/null | sed -n 's/.*version \([0-9][0-9]*\).*/\1/p' )"; \
 	if [[ -z "$$version" || "$$version" -lt 19 ]]; then \
 		printf 'clang-format >= 19 is required for the project style; found: %s\n' "$$($(CLANG_FORMAT) --version)" >&2; \
+		exit 1; \
+	fi
+
+_check-clang-tidy:
+	@if ! command -v $(CLANG_TIDY) >/dev/null 2>&1; then \
+		printf 'Missing tool: %s\n' '$(CLANG_TIDY)' >&2; \
+		exit 1; \
+	fi
+	@version="$$( $(CLANG_TIDY) --version 2>/dev/null | sed -n 's/.*version \([0-9][0-9]*\).*/\1/p' )"; \
+	if [[ -z "$$version" || "$$version" -lt 19 ]]; then \
+		printf 'clang-tidy >= 19 is required; found: %s\n' "$$($(CLANG_TIDY) --version)" >&2; \
 		exit 1; \
 	fi
 
@@ -258,6 +274,23 @@ _format-check: _check-clang-format
 		\( -name '*.hpp' -o -name '*.cpp' \) -print0 | sort -z); \
 	if [[ $${#sources[@]} -gt 0 ]]; then \
 		$(CLANG_FORMAT) --dry-run --Werror "$${sources[@]}"; \
+	fi
+
+_tidy: _check-clang-tidy _unit
+	@mapfile -d '' sources < <( \
+		find kernel/src/text tests/unit -type f -name '*.cpp' -print0; \
+		printf '%s\0' \
+			kernel/src/display/display.cpp \
+			kernel/src/input/keyboard_decoder.cpp \
+			kernel/src/input/mouse_packet_decoder.cpp \
+			kernel/src/input/pointer_state.cpp \
+			kernel/src/memory/memory_map.cpp \
+			kernel/src/memory/physical_frame_allocator.cpp \
+			kernel/src/shell/shell_command.cpp; \
+	); \
+	if [[ $${#sources[@]} -gt 0 ]]; then \
+		$(CLANG_TIDY) -p $(UNIT_BUILD_DIR) --quiet "$${sources[@]}" \
+			2> >(grep -vE '^[0-9]+ warnings generated\.$$' >&2); \
 	fi
 
 _docker-image: _check-docker-compose

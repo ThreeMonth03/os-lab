@@ -5,6 +5,7 @@ RUN apt-get update \
         ca-certificates \
         clang \
         clang-format \
+        clang-tidy-19 \
         cmake \
         curl \
         g++ \

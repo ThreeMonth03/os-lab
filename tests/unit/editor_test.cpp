@@ -84,9 +84,9 @@ TEST(LineEditorTest, ReplacesCurrentLine)
     EXPECT_EQ(line.cursor(), 1u);
 
     char too_long[kernel::LineEditor::capacity + 1] = {};
-    for (size_t index = 0; index < kernel::LineEditor::capacity + 1; ++index)
+    for (char & character : too_long)
     {
-        too_long[index] = 'x';
+        character = 'x';
     }
 
     EXPECT_FALSE(line.replace(kernel::StringView(too_long, kernel::LineEditor::capacity + 1)));
@@ -175,9 +175,9 @@ TEST(HistoryTest, StoresFullLineEditorCapacityCommands)
     kernel::StringView command;
     char text[kernel::LineEditor::capacity] = {};
 
-    for (size_t index = 0; index < kernel::LineEditor::capacity; ++index)
+    for (char & character : text)
     {
-        text[index] = 'x';
+        character = 'x';
     }
 
     EXPECT_TRUE(history.push({text, kernel::LineEditor::capacity}));
