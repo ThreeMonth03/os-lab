@@ -3,6 +3,7 @@ add_library(os_lab_kernel_logic OBJECT
     history.cpp
     keyboard_decoder.cpp
     line_editor.cpp
+    mouse_packet_decoder.cpp
     shell_command.cpp
     text_console.cpp
 )

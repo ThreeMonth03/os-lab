@@ -5,6 +5,7 @@ add_library(os_lab_host_logic
     ${PROJECT_SOURCE_DIR}/kernel/src/kernel/history.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/kernel/keyboard_decoder.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/kernel/line_editor.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/kernel/mouse_packet_decoder.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/kernel/shell_command.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/kernel/text_console.cpp
 )
