@@ -4,6 +4,7 @@
 
 #include "kernel/display.hpp"
 #include "kernel/limine_support.hpp"
+#include "kernel/text_console.hpp"
 
 namespace {
 
@@ -21,10 +22,7 @@ struct Glyph {
 
 struct TerminalState {
     kernel::display::Surface surface;
-    uint64_t columns = 0;
-    uint64_t rows = 0;
-    uint64_t cursor_column = 0;
-    uint64_t cursor_row = 0;
+    kernel::TextConsole console;
     uint64_t visible_cursor_column = 0;
     uint64_t visible_cursor_row = 0;
     uint32_t foreground = 0;
@@ -210,7 +208,7 @@ void clear_cell(uint64_t column, uint64_t row) {
 }
 
 void draw_cursor(uint64_t column, uint64_t row, uint32_t color) {
-    if (column >= g_state.columns || row >= g_state.rows) {
+    if (column >= g_state.console.columns() || row >= g_state.console.rows()) {
         return;
     }
 
@@ -245,14 +243,21 @@ void draw_glyph(char value, uint64_t column, uint64_t row) {
 
 void scroll() { g_state.surface.scroll_up(kCellHeight, {g_state.background}); }
 
-void newline() {
-    g_state.cursor_column = 0;
-    if (g_state.cursor_row + 1 >= g_state.rows) {
-        scroll();
-        return;
+void apply_console_update(kernel::TextConsoleUpdate update) {
+    switch (update.action) {
+    case kernel::TextConsoleAction::DrawGlyph:
+        draw_glyph(update.glyph, update.cell.column, update.cell.row);
+        break;
+    case kernel::TextConsoleAction::ClearCell:
+        clear_cell(update.cell.column, update.cell.row);
+        break;
+    case kernel::TextConsoleAction::None:
+        break;
     }
 
-    ++g_state.cursor_row;
+    if (update.scroll) {
+        scroll();
+    }
 }
 
 } // namespace
@@ -274,10 +279,7 @@ bool init() {
 
     g_state.surface = kernel::display::Surface(framebuffer->address, framebuffer->width,
                                                framebuffer->height, framebuffer->pitch);
-    g_state.columns = framebuffer->width / kCellWidth;
-    g_state.rows = framebuffer->height / kCellHeight;
-    g_state.cursor_column = 0;
-    g_state.cursor_row = 0;
+    g_state.console.reset(framebuffer->width / kCellWidth, framebuffer->height / kCellHeight);
     g_state.foreground = pack_rgb(*framebuffer, 0xf5, 0xf5, 0xf5);
     g_state.background = pack_rgb(*framebuffer, 0x10, 0x14, 0x1c);
 
@@ -287,11 +289,11 @@ bool init() {
 
 bool ready() { return g_state.surface.ready(); }
 
-uint64_t columns() { return g_state.columns; }
+uint64_t columns() { return g_state.console.columns(); }
 
-uint64_t cursor_column() { return g_state.cursor_column; }
+uint64_t cursor_column() { return g_state.console.cursor_column(); }
 
-uint64_t cursor_row() { return g_state.cursor_row; }
+uint64_t cursor_row() { return g_state.console.cursor_row(); }
 
 void clear() {
     if (!ready()) {
@@ -300,16 +302,15 @@ void clear() {
 
     g_state.cursor_visible = false;
     fill_rect(0, 0, g_state.surface.width(), g_state.surface.height(), g_state.background);
-    g_state.cursor_column = 0;
-    g_state.cursor_row = 0;
+    g_state.console.clear();
 }
 
 void clear_row_from(uint64_t column, uint64_t row) {
-    if (!ready() || row >= g_state.rows) {
+    if (!ready() || row >= g_state.console.rows()) {
         return;
     }
 
-    while (column < g_state.columns) {
+    while (column < g_state.console.columns()) {
         clear_cell(column, row);
         ++column;
     }
@@ -320,15 +321,7 @@ void set_cursor(uint64_t column, uint64_t row) {
         return;
     }
 
-    if (g_state.columns > 0 && column >= g_state.columns) {
-        column = g_state.columns - 1;
-    }
-    if (g_state.rows > 0 && row >= g_state.rows) {
-        row = g_state.rows - 1;
-    }
-
-    g_state.cursor_column = column;
-    g_state.cursor_row = row;
+    g_state.console.set_cursor(column, row);
 }
 
 void show_cursor() {
@@ -337,9 +330,9 @@ void show_cursor() {
     }
 
     hide_cursor();
-    draw_cursor(g_state.cursor_column, g_state.cursor_row, g_state.foreground);
-    g_state.visible_cursor_column = g_state.cursor_column;
-    g_state.visible_cursor_row = g_state.cursor_row;
+    draw_cursor(g_state.console.cursor_column(), g_state.console.cursor_row(), g_state.foreground);
+    g_state.visible_cursor_column = g_state.console.cursor_column();
+    g_state.visible_cursor_row = g_state.console.cursor_row();
     g_state.cursor_visible = true;
 }
 
@@ -359,10 +352,10 @@ void write_char(char value) {
 
     switch (value) {
     case '\n':
-        newline();
+        apply_console_update(g_state.console.newline());
         return;
     case '\r':
-        g_state.cursor_column = 0;
+        g_state.console.carriage_return();
         return;
     case '\t':
         for (int index = 0; index < 4; ++index) {
@@ -370,21 +363,13 @@ void write_char(char value) {
         }
         return;
     case '\b':
-        if (g_state.cursor_column > 0) {
-            --g_state.cursor_column;
-            clear_cell(g_state.cursor_column, g_state.cursor_row);
-        }
+        apply_console_update(g_state.console.backspace());
         return;
     default:
         break;
     }
 
-    draw_glyph(value, g_state.cursor_column, g_state.cursor_row);
-
-    ++g_state.cursor_column;
-    if (g_state.cursor_column >= g_state.columns) {
-        newline();
-    }
+    apply_console_update(g_state.console.write_char(value));
 }
 
 void write_string(StringView value) {
