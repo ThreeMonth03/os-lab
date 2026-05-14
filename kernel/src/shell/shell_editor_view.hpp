@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "kernel/string_view.hpp"
+#include "kernel/base/string_view.hpp"
 #include "kernel/text/editor_dirty_range.hpp"
 #include "kernel/text/editor_view_layout.hpp"
 #include "kernel/text/history.hpp"

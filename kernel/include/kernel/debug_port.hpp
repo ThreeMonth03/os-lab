@@ -1,6 +1,6 @@
 #pragma once
 
-#include "kernel/string_view.hpp"
+#include "kernel/base/string_view.hpp"
 
 namespace kernel::debug_port {
 

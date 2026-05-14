@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "kernel/span.hpp"
+#include "kernel/base/span.hpp"
 
 namespace kernel::memory {
 

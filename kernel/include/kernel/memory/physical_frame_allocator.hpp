@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #include "kernel/memory/memory_map.hpp"
-#include "kernel/span.hpp"
+#include "kernel/base/span.hpp"
 
 namespace kernel::memory {
 

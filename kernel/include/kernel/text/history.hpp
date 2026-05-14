@@ -2,9 +2,9 @@
 
 #include <stddef.h>
 
-#include "kernel/fixed_vector.hpp"
+#include "kernel/base/fixed_vector.hpp"
 #include "kernel/shell/shell_limits.hpp"
-#include "kernel/string_view.hpp"
+#include "kernel/base/string_view.hpp"
 
 namespace kernel {
 

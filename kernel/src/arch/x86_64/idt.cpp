@@ -5,7 +5,7 @@
 
 #include "kernel/halt.hpp"
 #include "kernel/serial.hpp"
-#include "kernel/string_view.hpp"
+#include "kernel/base/string_view.hpp"
 #include "kernel/terminal.hpp"
 
 namespace {

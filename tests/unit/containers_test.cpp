@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "kernel/fixed_queue.hpp"
-#include "kernel/fixed_vector.hpp"
+#include "kernel/base/fixed_queue.hpp"
+#include "kernel/base/fixed_vector.hpp"
 
 namespace {
 

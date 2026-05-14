@@ -10,7 +10,7 @@
 #include "kernel/input/keyboard.hpp"
 #include "kernel/mouse_cursor.hpp"
 #include "kernel/serial.hpp"
-#include "kernel/string_view.hpp"
+#include "kernel/base/string_view.hpp"
 #include "kernel/terminal.hpp"
 #include "kernel/text/history.hpp"
 #include "kernel/text/line_editor.hpp"

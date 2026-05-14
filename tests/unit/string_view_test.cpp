@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "kernel/string_view.hpp"
+#include "kernel/base/string_view.hpp"
 #include "test_helpers.hpp"
 
 namespace {

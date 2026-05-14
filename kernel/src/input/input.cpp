@@ -1,8 +1,8 @@
 #include "kernel/input/input.hpp"
 
-#include "kernel/fixed_queue.hpp"
+#include "kernel/base/fixed_queue.hpp"
 #include "kernel/input/mouse.hpp"
-#include "kernel/placement_new.hpp"
+#include "kernel/base/placement_new.hpp"
 
 namespace {
 

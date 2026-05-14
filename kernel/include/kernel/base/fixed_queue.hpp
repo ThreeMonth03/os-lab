@@ -2,7 +2,7 @@
 
 #include <stddef.h>
 
-#include "kernel/placement_new.hpp"
+#include "kernel/base/placement_new.hpp"
 
 namespace kernel {
 
