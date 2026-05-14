@@ -8,6 +8,12 @@ enum class Key {
     Enter,
     Backspace,
     Shift,
+    Control,
+    Alt,
+    CapsLock,
+    LeftArrow,
+    RightArrow,
+    Delete,
 };
 
 struct KeyEvent {
@@ -15,6 +21,10 @@ struct KeyEvent {
     char character = '\0';
     bool pressed = false;
     bool shift = false;
+    bool control = false;
+    bool alt = false;
+    bool caps_lock = false;
+    bool extended = false;
 };
 
 [[nodiscard]] bool poll_key(KeyEvent& event);

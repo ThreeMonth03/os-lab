@@ -12,9 +12,18 @@ constexpr uint8_t kExtendedPrefix = 0xe0;
 constexpr uint8_t kPausePrefix = 0xe1;
 constexpr uint8_t kLeftShift = 0x2a;
 constexpr uint8_t kRightShift = 0x36;
+constexpr uint8_t kControl = 0x1d;
+constexpr uint8_t kAlt = 0x38;
+constexpr uint8_t kCapsLock = 0x3a;
 
 bool g_left_shift_pressed = false;
 bool g_right_shift_pressed = false;
+bool g_left_control_pressed = false;
+bool g_right_control_pressed = false;
+bool g_left_alt_pressed = false;
+bool g_right_alt_pressed = false;
+bool g_caps_lock_enabled = false;
+bool g_extended_scancode = false;
 
 inline uint8_t inb(uint16_t port) {
     uint8_t value = 0;
@@ -25,8 +34,19 @@ inline uint8_t inb(uint16_t port) {
 bool output_ready() { return (inb(kStatusPort) & kStatusOutputReady) != 0; }
 
 bool shift_active() { return g_left_shift_pressed || g_right_shift_pressed; }
+bool control_active() { return g_left_control_pressed || g_right_control_pressed; }
+bool alt_active() { return g_left_alt_pressed || g_right_alt_pressed; }
 
-char decode_character(uint8_t scancode, bool shift) {
+char letter(char lowercase, bool shift, bool caps_lock) {
+    const bool uppercase = shift != caps_lock;
+    if (uppercase) {
+        return static_cast<char>(lowercase - 'a' + 'A');
+    }
+
+    return lowercase;
+}
+
+char decode_character(uint8_t scancode, bool shift, bool caps_lock) {
     switch (scancode) {
     case 0x02:
         return shift ? '!' : '1';
@@ -53,47 +73,47 @@ char decode_character(uint8_t scancode, bool shift) {
     case 0x0d:
         return shift ? '+' : '=';
     case 0x10:
-        return shift ? 'Q' : 'q';
+        return letter('q', shift, caps_lock);
     case 0x11:
-        return shift ? 'W' : 'w';
+        return letter('w', shift, caps_lock);
     case 0x12:
-        return shift ? 'E' : 'e';
+        return letter('e', shift, caps_lock);
     case 0x13:
-        return shift ? 'R' : 'r';
+        return letter('r', shift, caps_lock);
     case 0x14:
-        return shift ? 'T' : 't';
+        return letter('t', shift, caps_lock);
     case 0x15:
-        return shift ? 'Y' : 'y';
+        return letter('y', shift, caps_lock);
     case 0x16:
-        return shift ? 'U' : 'u';
+        return letter('u', shift, caps_lock);
     case 0x17:
-        return shift ? 'I' : 'i';
+        return letter('i', shift, caps_lock);
     case 0x18:
-        return shift ? 'O' : 'o';
+        return letter('o', shift, caps_lock);
     case 0x19:
-        return shift ? 'P' : 'p';
+        return letter('p', shift, caps_lock);
     case 0x1a:
         return shift ? '{' : '[';
     case 0x1b:
         return shift ? '}' : ']';
     case 0x1e:
-        return shift ? 'A' : 'a';
+        return letter('a', shift, caps_lock);
     case 0x1f:
-        return shift ? 'S' : 's';
+        return letter('s', shift, caps_lock);
     case 0x20:
-        return shift ? 'D' : 'd';
+        return letter('d', shift, caps_lock);
     case 0x21:
-        return shift ? 'F' : 'f';
+        return letter('f', shift, caps_lock);
     case 0x22:
-        return shift ? 'G' : 'g';
+        return letter('g', shift, caps_lock);
     case 0x23:
-        return shift ? 'H' : 'h';
+        return letter('h', shift, caps_lock);
     case 0x24:
-        return shift ? 'J' : 'j';
+        return letter('j', shift, caps_lock);
     case 0x25:
-        return shift ? 'K' : 'k';
+        return letter('k', shift, caps_lock);
     case 0x26:
-        return shift ? 'L' : 'l';
+        return letter('l', shift, caps_lock);
     case 0x27:
         return shift ? ':' : ';';
     case 0x28:
@@ -103,19 +123,19 @@ char decode_character(uint8_t scancode, bool shift) {
     case 0x2b:
         return shift ? '|' : '\\';
     case 0x2c:
-        return shift ? 'Z' : 'z';
+        return letter('z', shift, caps_lock);
     case 0x2d:
-        return shift ? 'X' : 'x';
+        return letter('x', shift, caps_lock);
     case 0x2e:
-        return shift ? 'C' : 'c';
+        return letter('c', shift, caps_lock);
     case 0x2f:
-        return shift ? 'V' : 'v';
+        return letter('v', shift, caps_lock);
     case 0x30:
-        return shift ? 'B' : 'b';
+        return letter('b', shift, caps_lock);
     case 0x31:
-        return shift ? 'N' : 'n';
+        return letter('n', shift, caps_lock);
     case 0x32:
-        return shift ? 'M' : 'm';
+        return letter('m', shift, caps_lock);
     case 0x33:
         return shift ? '<' : ',';
     case 0x34:
@@ -129,7 +149,24 @@ char decode_character(uint8_t scancode, bool shift) {
     }
 }
 
-kernel::keyboard::Key key_for_scancode(uint8_t scancode) {
+kernel::keyboard::Key key_for_scancode(uint8_t scancode, bool extended) {
+    if (extended) {
+        switch (scancode) {
+        case 0x4b:
+            return kernel::keyboard::Key::LeftArrow;
+        case 0x4d:
+            return kernel::keyboard::Key::RightArrow;
+        case 0x53:
+            return kernel::keyboard::Key::Delete;
+        case kControl:
+            return kernel::keyboard::Key::Control;
+        case kAlt:
+            return kernel::keyboard::Key::Alt;
+        default:
+            return kernel::keyboard::Key::Unknown;
+        }
+    }
+
     switch (scancode) {
     case 0x0e:
         return kernel::keyboard::Key::Backspace;
@@ -138,9 +175,40 @@ kernel::keyboard::Key key_for_scancode(uint8_t scancode) {
     case kLeftShift:
     case kRightShift:
         return kernel::keyboard::Key::Shift;
+    case kControl:
+        return kernel::keyboard::Key::Control;
+    case kAlt:
+        return kernel::keyboard::Key::Alt;
+    case kCapsLock:
+        return kernel::keyboard::Key::CapsLock;
     default:
         return kernel::keyboard::Key::Unknown;
     }
+}
+
+void update_modifier_state(uint8_t scancode, bool extended, bool pressed) {
+    if (!extended && scancode == kLeftShift) {
+        g_left_shift_pressed = pressed;
+    } else if (!extended && scancode == kRightShift) {
+        g_right_shift_pressed = pressed;
+    } else if (!extended && scancode == kControl) {
+        g_left_control_pressed = pressed;
+    } else if (extended && scancode == kControl) {
+        g_right_control_pressed = pressed;
+    } else if (!extended && scancode == kAlt) {
+        g_left_alt_pressed = pressed;
+    } else if (extended && scancode == kAlt) {
+        g_right_alt_pressed = pressed;
+    } else if (!extended && scancode == kCapsLock && pressed) {
+        g_caps_lock_enabled = !g_caps_lock_enabled;
+    }
+}
+
+void fill_modifiers(kernel::keyboard::KeyEvent& event) {
+    event.shift = shift_active();
+    event.control = control_active();
+    event.alt = alt_active();
+    event.caps_lock = g_caps_lock_enabled;
 }
 
 } // namespace
@@ -154,30 +222,38 @@ bool poll_key(KeyEvent& event) {
         return false;
     }
 
-    const uint8_t raw_scancode = inb(kDataPort);
-    if (raw_scancode == kExtendedPrefix || raw_scancode == kPausePrefix) {
+    uint8_t raw_scancode = inb(kDataPort);
+    if (raw_scancode == kExtendedPrefix) {
+        g_extended_scancode = true;
         return false;
     }
+
+    if (raw_scancode == kPausePrefix) {
+        g_extended_scancode = false;
+        return false;
+    }
+
+    const bool extended = g_extended_scancode;
+    g_extended_scancode = false;
 
     const bool pressed = (raw_scancode & kReleaseMask) == 0;
     const uint8_t scancode = raw_scancode & ~kReleaseMask;
 
-    if (scancode == kLeftShift) {
-        g_left_shift_pressed = pressed;
-    } else if (scancode == kRightShift) {
-        g_right_shift_pressed = pressed;
-    }
+    update_modifier_state(scancode, extended, pressed);
 
     event.pressed = pressed;
-    event.shift = shift_active();
-    event.key = key_for_scancode(scancode);
+    event.extended = extended;
+    fill_modifiers(event);
+    event.key = key_for_scancode(scancode, extended);
 
     if (!pressed) {
-        return event.key == Key::Shift;
+        return event.key == Key::Shift || event.key == Key::Control || event.key == Key::Alt ||
+               event.key == Key::CapsLock;
     }
 
-    const char character = decode_character(scancode, event.shift);
-    if (character != '\0') {
+    const char character =
+        extended ? '\0' : decode_character(scancode, event.shift, event.caps_lock);
+    if (character != '\0' && !event.control && !event.alt) {
         event.key = Key::Character;
         event.character = character;
     }
