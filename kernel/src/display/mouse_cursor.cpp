@@ -6,6 +6,8 @@
 
 namespace {
 
+namespace display = kernel::display;
+
 constexpr uint64_t kCursorWidth = 10;
 constexpr uint64_t kCursorHeight = 16;
 
@@ -16,7 +18,7 @@ constexpr char kCursorBitmap[kCursorHeight][kCursorWidth + 1] = {
 };
 
 struct CursorState {
-    kernel::display::Surface surface;
+    display::Surface surface;
     kernel::PointerState pointer;
     uint64_t saved_width = 0;
     uint64_t saved_height = 0;
@@ -93,8 +95,8 @@ bool init() {
         return false;
     }
 
-    g_state.surface = kernel::display::Surface(framebuffer->address, framebuffer->width,
-                                               framebuffer->height, framebuffer->pitch);
+    g_state.surface = display::Surface(framebuffer->address, framebuffer->width,
+                                       framebuffer->height, framebuffer->pitch);
     g_state.pointer.reset(framebuffer->width, framebuffer->height, kCursorWidth, kCursorHeight);
     g_state.outline = pack_rgb(*framebuffer, 0x00, 0x00, 0x00);
     g_state.fill = pack_rgb(*framebuffer, 0xff, 0xff, 0xff);

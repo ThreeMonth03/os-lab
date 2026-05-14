@@ -77,6 +77,8 @@ endfunction()
 
 add_subdirectory(src/arch/x86_64)
 add_subdirectory(src/boot)
+add_subdirectory(src/console)
+add_subdirectory(src/debug)
 add_subdirectory(src/display)
 add_subdirectory(src/drivers)
 add_subdirectory(src/input)
@@ -89,6 +91,8 @@ add_subdirectory(src/text)
 add_executable(kernel
     $<TARGET_OBJECTS:os_lab_kernel_arch_x86_64>
     $<TARGET_OBJECTS:os_lab_kernel_boot>
+    $<TARGET_OBJECTS:os_lab_kernel_console>
+    $<TARGET_OBJECTS:os_lab_kernel_debug>
     $<TARGET_OBJECTS:os_lab_kernel_display>
     $<TARGET_OBJECTS:os_lab_kernel_drivers>
     $<TARGET_OBJECTS:os_lab_kernel_input>

@@ -17,6 +17,10 @@
 
 namespace {
 
+namespace mouse_cursor = kernel::display::mouse_cursor;
+namespace serial = kernel::drivers::serial;
+namespace terminal = kernel::console::terminal;
+
 char lowercase(char value) {
     if (value >= 'A' && value <= 'Z') {
         return static_cast<char>(value - 'A' + 'a');
@@ -41,10 +45,10 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
         break;
     }
     case 'c':
-        kernel::console::terminal::hide_cursor();
+        terminal::hide_cursor();
         view.move_to_line_end(line, caps_lock);
-        kernel::console::terminal::write_char('\n');
-        kernel::console::terminal::write_line("cancelled");
+        terminal::write_char('\n');
+        terminal::write_line("cancelled");
         line.clear();
         history.reset_browse();
         view.write_new_prompt_and_line(line, caps_lock);
@@ -57,8 +61,8 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
         break;
     }
     case 'l':
-        kernel::console::terminal::hide_cursor();
-        kernel::console::terminal::clear();
+        terminal::hide_cursor();
+        terminal::clear();
         view.write_new_prompt_and_line(line, caps_lock);
         break;
     case 'u':
@@ -142,9 +146,9 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
         break;
     }
     case kernel::keyboard::Key::Enter:
-        kernel::console::terminal::hide_cursor();
+        terminal::hide_cursor();
         view.move_to_line_end(line, caps_lock);
-        kernel::console::terminal::write_char('\n');
+        terminal::write_char('\n');
         if (!line.empty()) {
             (void)history.push(line.view());
         }
@@ -166,7 +170,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
 
 void handle_mouse_move_event(const kernel::input::MouseMoveEvent& event) {
     if (!event.x_overflow && !event.y_overflow) {
-        kernel::display::mouse_cursor::move_by(event.delta_x, event.delta_y);
+        mouse_cursor::move_by(event.delta_x, event.delta_y);
     }
 }
 
@@ -195,11 +199,11 @@ namespace kernel::shell {
     EditorView view;
     bool caps_lock = false;
 
-    kernel::console::terminal::write_line("");
-    kernel::console::terminal::write_line("interactive input ready");
+    terminal::write_line("");
+    terminal::write_line("interactive input ready");
     execute_command("help");
     view.write_new_prompt_and_line(line, caps_lock);
-    kernel::drivers::serial::write_line("os-lab: interactive terminal ready");
+    serial::write_line("os-lab: interactive terminal ready");
 
     while (true) {
         input::Event event;

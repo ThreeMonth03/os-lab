@@ -11,34 +11,37 @@
 
 namespace {
 
+namespace serial = kernel::drivers::serial;
+namespace terminal = kernel::console::terminal;
+
 void write_help() {
-    kernel::console::terminal::write_line("commands:");
-    kernel::console::terminal::write_line("  help  - show this list");
-    kernel::console::terminal::write_line("  clear - clear the screen");
-    kernel::console::terminal::write_line("  about - show kernel info");
-    kernel::console::terminal::write_line("  input - show input stats");
-    kernel::console::terminal::write_line("  mem   - show memory stats");
-    kernel::console::terminal::write_line("  halt  - stop the cpu");
+    terminal::write_line("commands:");
+    terminal::write_line("  help  - show this list");
+    terminal::write_line("  clear - clear the screen");
+    terminal::write_line("  about - show kernel info");
+    terminal::write_line("  input - show input stats");
+    terminal::write_line("  mem   - show memory stats");
+    terminal::write_line("  halt  - stop the cpu");
 }
 
 void write_about() {
-    kernel::console::terminal::write_line("os-lab early shell");
-    kernel::console::terminal::write_line("freestanding c++23 kernel");
-    kernel::console::terminal::write_line("no filesystem or heap yet");
+    terminal::write_line("os-lab early shell");
+    terminal::write_line("freestanding c++23 kernel");
+    terminal::write_line("no filesystem or heap yet");
 }
 
 void write_stat(kernel::StringView name, uint64_t value) {
-    kernel::console::terminal::write_string("  ");
-    kernel::console::terminal::write_string(name);
-    kernel::console::terminal::write_string(": ");
-    kernel::console::terminal::write_decimal(value);
-    kernel::console::terminal::write_char('\n');
+    terminal::write_string("  ");
+    terminal::write_string(name);
+    terminal::write_string(": ");
+    terminal::write_decimal(value);
+    terminal::write_char('\n');
 }
 
 void write_input_stats() {
     const kernel::input::Stats stats = kernel::input::stats();
 
-    kernel::console::terminal::write_line("input stats:");
+    terminal::write_line("input stats:");
     write_stat("key events", stats.key_events);
     write_stat("mouse move events", stats.mouse_move_events);
     write_stat("dropped events", stats.dropped_events);
@@ -50,11 +53,11 @@ void write_input_stats() {
 void write_memory_stats() {
     const kernel::memory::Stats stats = kernel::memory::stats();
     if (!stats.initialized) {
-        kernel::console::terminal::write_line("memory stats unavailable");
+        terminal::write_line("memory stats unavailable");
         return;
     }
 
-    kernel::console::terminal::write_line("memory stats:");
+    terminal::write_line("memory stats:");
     write_stat("regions", stats.map.region_count);
     write_stat("usable KiB", stats.map.usable_bytes / 1024);
     write_stat("bootloader reclaimable KiB", stats.map.bootloader_reclaimable_bytes / 1024);
@@ -63,8 +66,8 @@ void write_memory_stats() {
     write_stat("total frames", stats.frames.total_frames);
     write_stat("allocated frames", stats.frames.allocated_frames);
     write_stat("remaining frames", stats.frames.remaining_frames);
-    kernel::console::terminal::write_string("  truncated: ");
-    kernel::console::terminal::write_line(stats.truncated ? "yes" : "no");
+    terminal::write_string("  truncated: ");
+    terminal::write_line(stats.truncated ? "yes" : "no");
 }
 
 } // namespace
@@ -81,7 +84,7 @@ void execute_command(StringView command) {
         write_help();
         break;
     case ShellCommandKind::Clear:
-        kernel::console::terminal::clear();
+        terminal::clear();
         break;
     case ShellCommandKind::About:
         write_about();
@@ -93,12 +96,12 @@ void execute_command(StringView command) {
         write_memory_stats();
         break;
     case ShellCommandKind::Halt:
-        kernel::console::terminal::write_line("halting");
-        kernel::drivers::serial::write_line("os-lab: halt command requested");
+        terminal::write_line("halting");
+        serial::write_line("os-lab: halt command requested");
         halt_forever();
     case ShellCommandKind::Unknown:
-        kernel::console::terminal::write_string("unknown command: ");
-        kernel::console::terminal::write_line(parsed.text);
+        terminal::write_string("unknown command: ");
+        terminal::write_line(parsed.text);
         break;
     }
 }

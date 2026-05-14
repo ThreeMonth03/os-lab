@@ -10,12 +10,15 @@
 
 namespace {
 
-constexpr uint64_t kCellWidth = kernel::display::TerminalRenderer::kCellWidth;
-constexpr uint64_t kCellHeight = kernel::display::TerminalRenderer::kCellHeight;
+namespace display = kernel::display;
+namespace mouse_cursor = kernel::display::mouse_cursor;
+
+constexpr uint64_t kCellWidth = display::TerminalRenderer::kCellWidth;
+constexpr uint64_t kCellHeight = display::TerminalRenderer::kCellHeight;
 
 struct TerminalState {
-    kernel::display::Surface surface;
-    kernel::display::TerminalRenderer renderer;
+    display::Surface surface;
+    display::TerminalRenderer renderer;
     kernel::TextConsole console;
     uint64_t visible_cursor_column = 0;
     uint64_t visible_cursor_row = 0;
@@ -26,8 +29,8 @@ TerminalState g_state;
 
 class MouseCursorGuard {
   public:
-    MouseCursorGuard() { kernel::display::mouse_cursor::hide(); }
-    ~MouseCursorGuard() { kernel::display::mouse_cursor::show(); }
+    MouseCursorGuard() { mouse_cursor::hide(); }
+    ~MouseCursorGuard() { mouse_cursor::show(); }
 
     MouseCursorGuard(const MouseCursorGuard&) = delete;
     MouseCursorGuard& operator=(const MouseCursorGuard&) = delete;
@@ -82,11 +85,11 @@ bool init() {
         return false;
     }
 
-    g_state.surface = kernel::display::Surface(framebuffer->address, framebuffer->width,
-                                               framebuffer->height, framebuffer->pitch);
+    g_state.surface = display::Surface(framebuffer->address, framebuffer->width,
+                                       framebuffer->height, framebuffer->pitch);
     g_state.console.reset(framebuffer->width / kCellWidth, framebuffer->height / kCellHeight);
-    const kernel::display::Color foreground{pack_rgb(*framebuffer, 0xf5, 0xf5, 0xf5)};
-    const kernel::display::Color background{pack_rgb(*framebuffer, 0x10, 0x14, 0x1c)};
+    const display::Color foreground{pack_rgb(*framebuffer, 0xf5, 0xf5, 0xf5)};
+    const display::Color background{pack_rgb(*framebuffer, 0x10, 0x14, 0x1c)};
     g_state.renderer.reset(g_state.surface, foreground, background);
 
     clear();
