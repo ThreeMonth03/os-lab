@@ -16,6 +16,7 @@ set(OS_LAB_HOST_LOGIC_MEMORY_SOURCES
     ${PROJECT_SOURCE_DIR}/kernel/src/memory/heap_allocator.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/memory/memory_map.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/memory/physical_frame_allocator.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/memory/slab_cache.cpp
 )
 
 set(OS_LAB_HOST_LOGIC_SHELL_SOURCES
