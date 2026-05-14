@@ -4,9 +4,9 @@
 
 #include "kernel/halt.hpp"
 #include "kernel/history.hpp"
+#include "kernel/input.hpp"
 #include "kernel/keyboard.hpp"
 #include "kernel/line_editor.hpp"
-#include "kernel/mouse.hpp"
 #include "kernel/mouse_cursor.hpp"
 #include "kernel/serial.hpp"
 #include "kernel/shell_command.hpp"
@@ -246,21 +246,24 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
     }
 }
 
-bool handle_mouse_events() {
-    bool handled = false;
-    for (int event_count = 0; event_count < 16; ++event_count) {
-        kernel::mouse::MouseEvent event;
-        if (!kernel::mouse::poll(event)) {
-            break;
-        }
-
-        handled = true;
-        if (!event.x_overflow && !event.y_overflow) {
-            kernel::mouse_cursor::move_by(event.delta_x, event.delta_y);
-        }
+void handle_mouse_move_event(const kernel::input::MouseMoveEvent& event) {
+    if (!event.x_overflow && !event.y_overflow) {
+        kernel::mouse_cursor::move_by(event.delta_x, event.delta_y);
     }
+}
 
-    return handled;
+void handle_input_event(const kernel::input::Event& event, kernel::LineEditor& line,
+                        LinePosition& position, bool& caps_lock, kernel::History& history) {
+    switch (event.kind) {
+    case kernel::input::EventKind::Key:
+        handle_key_event(event.key, line, position, caps_lock, history);
+        break;
+    case kernel::input::EventKind::MouseMove:
+        handle_mouse_move_event(event.mouse_move);
+        break;
+    case kernel::input::EventKind::None:
+        break;
+    }
 }
 
 } // namespace
@@ -280,17 +283,10 @@ namespace kernel::shell {
     serial::write_line("os-lab: interactive terminal ready");
 
     while (true) {
-        bool handled = false;
-
-        keyboard::KeyEvent event;
-        if (keyboard::poll_key(event)) {
-            handle_key_event(event, line, position, caps_lock, history);
-            handled = true;
-        }
-        if (handle_mouse_events()) {
-            handled = true;
-        }
-        if (!handled) {
+        input::Event event;
+        if (input::poll(event)) {
+            handle_input_event(event, line, position, caps_lock, history);
+        } else {
             asm volatile("pause");
         }
     }
