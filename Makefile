@@ -202,35 +202,13 @@ _unit:
 	cd $(UNIT_BUILD_DIR) && ctest --output-on-failure
 
 _format: _check-clang-format
-	@mapfile -d '' sources < <(find kernel/include/kernel kernel/src tests -type f \
-		\( -name '*.hpp' -o -name '*.cpp' \) -print0 | sort -z); \
-	if [[ $${#sources[@]} -gt 0 ]]; then \
-		$(CLANG_FORMAT) -i "$${sources[@]}"; \
-	fi
+	./scripts/format_sources.sh apply "$(CLANG_FORMAT)"
 
 _format-check: _check-clang-format
-	@mapfile -d '' sources < <(find kernel/include/kernel kernel/src tests -type f \
-		\( -name '*.hpp' -o -name '*.cpp' \) -print0 | sort -z); \
-	if [[ $${#sources[@]} -gt 0 ]]; then \
-		$(CLANG_FORMAT) --dry-run --Werror "$${sources[@]}"; \
-	fi
+	./scripts/format_sources.sh check "$(CLANG_FORMAT)"
 
 _tidy: _check-clang-tidy _unit
-	@mapfile -d '' sources < <( \
-		find kernel/src/text tests/unit -type f -name '*.cpp' -print0; \
-		printf '%s\0' \
-			kernel/src/display/display.cpp \
-			kernel/src/input/keyboard_decoder.cpp \
-			kernel/src/input/mouse_packet_decoder.cpp \
-			kernel/src/input/pointer_state.cpp \
-			kernel/src/memory/memory_map.cpp \
-			kernel/src/memory/physical_frame_allocator.cpp \
-			kernel/src/shell/shell_command.cpp; \
-	); \
-	if [[ $${#sources[@]} -gt 0 ]]; then \
-		$(CLANG_TIDY) -p $(UNIT_BUILD_DIR) --quiet "$${sources[@]}" \
-			2> >(grep -vE '^[0-9]+ warnings generated\.$$' >&2); \
-	fi
+	./scripts/run_tidy.sh "$(UNIT_BUILD_DIR)" "$(CLANG_TIDY)"
 
 _docker-image: _check-docker-compose
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) build builder
