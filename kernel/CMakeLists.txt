@@ -77,17 +77,26 @@ endfunction()
 
 add_subdirectory(src/arch/x86_64)
 add_subdirectory(src/boot)
+add_subdirectory(src/display)
 add_subdirectory(src/drivers)
+add_subdirectory(src/input)
 add_subdirectory(src/kernel)
+add_subdirectory(src/memory)
 add_subdirectory(src/runtime)
+add_subdirectory(src/shell)
+add_subdirectory(src/text)
 
 add_executable(kernel
     $<TARGET_OBJECTS:os_lab_kernel_arch_x86_64>
     $<TARGET_OBJECTS:os_lab_kernel_boot>
+    $<TARGET_OBJECTS:os_lab_kernel_display>
     $<TARGET_OBJECTS:os_lab_kernel_drivers>
-    $<TARGET_OBJECTS:os_lab_kernel_logic>
+    $<TARGET_OBJECTS:os_lab_kernel_input>
     $<TARGET_OBJECTS:os_lab_kernel_core>
+    $<TARGET_OBJECTS:os_lab_kernel_memory>
     $<TARGET_OBJECTS:os_lab_kernel_runtime>
+    $<TARGET_OBJECTS:os_lab_kernel_shell>
+    $<TARGET_OBJECTS:os_lab_kernel_text>
 )
 target_link_libraries(kernel PRIVATE
     os_lab_kernel_compile_settings
