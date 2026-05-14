@@ -22,9 +22,12 @@ EXCEPTION_SMOKE ?= invalid_opcode
 EXCEPTION_BUILD_DIR := $(BUILD_DIR)/exception-smoke/$(EXCEPTION_SMOKE)
 EXCEPTION_KERNEL_ELF := $(EXCEPTION_BUILD_DIR)/artifacts/kernel.elf
 EXCEPTION_ISO_IMAGE := $(EXCEPTION_BUILD_DIR)/os-lab.iso
+TIMER_BUILD_DIR := $(BUILD_DIR)/timer-smoke
+TIMER_KERNEL_ELF := $(TIMER_BUILD_DIR)/artifacts/kernel.elf
+TIMER_ISO_IMAGE := $(TIMER_BUILD_DIR)/os-lab.iso
 
-.PHONY: help deps demo gui test demo-exception test-exception unit format shell clean ci
-.PHONY: _check-native-tools _check-clang-format _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _exception-configure _exception-kernel _exception-iso _run-exception _smoke-exception _unit _format _format-check _docker-image _docker-iso _docker-exception-iso
+.PHONY: help deps demo gui test demo-exception test-exception demo-timer test-timer unit format shell clean ci
+.PHONY: _check-native-tools _check-clang-format _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _exception-configure _exception-kernel _exception-iso _run-exception _smoke-exception _timer-configure _timer-kernel _timer-iso _run-timer _smoke-timer _unit _format _format-check _docker-image _docker-iso _docker-exception-iso _docker-timer-iso
 
 help:
 	@printf '%s\n' \
@@ -37,6 +40,8 @@ help:
 		'                 Build a debug exception ISO and show the exception dump' \
 		'  make test-exception EXCEPTION_SMOKE=invalid_opcode' \
 		'                 Build and verify a debug exception dump' \
+		'  make test-timer' \
+		'                 Build and verify the debug PIT timer smoke path' \
 		'  make unit      Run host-side unit tests' \
 		'  make format    Apply clang-format inside Docker' \
 		'  make shell     Open the development container' \
@@ -54,6 +59,10 @@ test: _docker-iso _smoke
 demo-exception: _docker-exception-iso _run-exception
 
 test-exception: _docker-exception-iso _smoke-exception
+
+demo-timer: _docker-timer-iso _run-timer
+
+test-timer: _docker-timer-iso _smoke-timer
 
 unit: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _unit
@@ -115,6 +124,19 @@ _exception-kernel: _exception-configure
 _exception-iso: _exception-kernel
 	./scripts/create_iso.sh $(EXCEPTION_KERNEL_ELF) $(EXCEPTION_ISO_IMAGE)
 
+_timer-configure: _check-native-tools
+	$(CMAKE) -S $(PROJECT_ROOT) -B $(TIMER_BUILD_DIR) -G $(GENERATOR) \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+		-DOS_LAB_TIMER_SMOKE=ON
+
+_timer-kernel: _timer-configure
+	$(CMAKE) --build $(TIMER_BUILD_DIR) --target kernel
+
+_timer-iso: _timer-kernel
+	./scripts/create_iso.sh $(TIMER_KERNEL_ELF) $(TIMER_ISO_IMAGE)
+
 _run:
 	@if [[ ! -f "$(ISO_IMAGE)" ]]; then $(MAKE) _iso; fi
 	./scripts/run_qemu.sh $(ISO_IMAGE)
@@ -128,6 +150,13 @@ _run-exception:
 	@set -euo pipefail; \
 	status=0; \
 	timeout 15s ./scripts/run_qemu.sh "$(EXCEPTION_ISO_IMAGE)" || status=$$?; \
+	if [[ $$status -ne 0 && $$status -ne 124 ]]; then exit "$$status"; fi
+
+_run-timer:
+	@if [[ ! -f "$(TIMER_ISO_IMAGE)" ]]; then $(MAKE) _timer-iso; fi
+	@set -euo pipefail; \
+	status=0; \
+	timeout 15s ./scripts/run_qemu.sh "$(TIMER_ISO_IMAGE)" || status=$$?; \
 	if [[ $$status -ne 0 && $$status -ne 124 ]]; then exit "$$status"; fi
 
 _smoke:
@@ -187,6 +216,22 @@ _smoke-exception:
 	if [[ "$(EXCEPTION_SMOKE)" == "page_fault" ]]; then grep -q "cr2:" "$$log_file"; fi; \
 	printf 'Exception smoke passed: %s\n' "$$expected"
 
+_smoke-timer:
+	@if [[ ! -f "$(TIMER_ISO_IMAGE)" ]]; then $(MAKE) _timer-iso; fi
+	@set -euo pipefail; \
+	log_file=$$(mktemp); \
+	trap 'rm -f "$$log_file"' EXIT; \
+	set +e; \
+	timeout 15s ./scripts/run_qemu.sh "$(TIMER_ISO_IMAGE)" | tee "$$log_file"; \
+	status=$$?; \
+	set -e; \
+	if [[ $$status -ne 0 && $$status -ne 124 ]]; then exit "$$status"; fi; \
+	grep -q "os-lab: PIT timer configured at 100 Hz" "$$log_file"; \
+	grep -q "os-lab: hardware interrupts enabled" "$$log_file"; \
+	grep -q "os-lab: timer smoke waiting for PIT ticks" "$$log_file"; \
+	grep -q "os-lab: timer smoke passed ticks=" "$$log_file"; \
+	printf 'Timer smoke passed\n'
+
 _unit:
 	$(CMAKE) -S $(PROJECT_ROOT) -B $(UNIT_BUILD_DIR) -G $(GENERATOR) \
 		-DCMAKE_BUILD_TYPE=Debug \
@@ -218,3 +263,6 @@ _docker-iso: _docker-image
 
 _docker-exception-iso: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _exception-iso EXCEPTION_SMOKE=$(EXCEPTION_SMOKE)
+
+_docker-timer-iso: _docker-image
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _timer-iso

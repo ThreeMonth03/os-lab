@@ -70,6 +70,8 @@ make demo-exception EXCEPTION_SMOKE=page_fault
                # Build a debug-only exception ISO and print the exception dump
 make test-exception EXCEPTION_SMOKE=invalid_opcode
                # Verify a debug-only exception dump
+make test-timer
+               # Verify the debug-only PIT timer smoke path
 make format    # Apply clang-format inside Docker
 make shell     # Open the development container
 make clean     # Remove generated files

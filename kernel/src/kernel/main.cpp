@@ -10,6 +10,7 @@
 #include "kernel/string_view.hpp"
 #include "kernel/terminal.hpp"
 #include "kernel/timer.hpp"
+#include "kernel/timer_smoke.hpp"
 
 namespace {
 
@@ -100,6 +101,7 @@ extern "C" [[noreturn]] void kernel_main() {
     kernel::timer::init();
     kernel::arch::x86_64::enable_interrupts();
     kernel::serial::write_line("os-lab: hardware interrupts enabled");
+    kernel::run_timer_smoke();
 
     kernel::shell::run();
 }

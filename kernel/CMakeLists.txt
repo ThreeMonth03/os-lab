@@ -6,6 +6,7 @@ set(OS_LAB_EXCEPTION_SMOKE "none" CACHE STRING
     "Debug-only exception smoke trigger: none, invalid_opcode, page_fault, divide_error")
 set_property(CACHE OS_LAB_EXCEPTION_SMOKE PROPERTY STRINGS
     none invalid_opcode page_fault divide_error)
+option(OS_LAB_TIMER_SMOKE "Debug-only PIT timer smoke trigger" OFF)
 
 set(OS_LAB_EXCEPTION_SMOKE_VALUE 0)
 if(OS_LAB_EXCEPTION_SMOKE STREQUAL "none")
@@ -19,6 +20,11 @@ elseif(OS_LAB_EXCEPTION_SMOKE STREQUAL "divide_error")
 else()
     message(FATAL_ERROR
         "OS_LAB_EXCEPTION_SMOKE must be one of: none, invalid_opcode, page_fault, divide_error")
+endif()
+
+set(OS_LAB_TIMER_SMOKE_VALUE 0)
+if(OS_LAB_TIMER_SMOKE)
+    set(OS_LAB_TIMER_SMOKE_VALUE 1)
 endif()
 
 add_library(os_lab_kernel_compile_settings INTERFACE)
@@ -51,6 +57,7 @@ target_compile_options(os_lab_kernel_compile_settings INTERFACE
 )
 target_compile_definitions(os_lab_kernel_compile_settings INTERFACE
     OS_LAB_EXCEPTION_SMOKE=${OS_LAB_EXCEPTION_SMOKE_VALUE}
+    OS_LAB_TIMER_SMOKE=${OS_LAB_TIMER_SMOKE_VALUE}
 )
 
 add_library(os_lab_kernel_link_settings INTERFACE)
