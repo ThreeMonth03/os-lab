@@ -7,6 +7,7 @@
 #include "kernel/keyboard.hpp"
 #include "kernel/line_editor.hpp"
 #include "kernel/serial.hpp"
+#include "kernel/shell_command.hpp"
 #include "kernel/string_view.hpp"
 #include "kernel/terminal.hpp"
 
@@ -104,23 +105,28 @@ void write_about() {
 }
 
 void handle_line(kernel::StringView command) {
-    if (command.empty()) {
-        return;
-    }
+    const kernel::ShellCommand parsed = kernel::parse_shell_command(command);
 
-    if (command == "help") {
+    switch (parsed.kind) {
+    case kernel::ShellCommandKind::Empty:
+        return;
+    case kernel::ShellCommandKind::Help:
         write_help();
-    } else if (command == "clear") {
+        break;
+    case kernel::ShellCommandKind::Clear:
         kernel::terminal::clear();
-    } else if (command == "about") {
+        break;
+    case kernel::ShellCommandKind::About:
         write_about();
-    } else if (command == "halt") {
+        break;
+    case kernel::ShellCommandKind::Halt:
         kernel::terminal::write_line("halting");
         kernel::serial::write_line("os-lab: halt command requested");
         kernel::halt_forever();
-    } else {
+    case kernel::ShellCommandKind::Unknown:
         kernel::terminal::write_string("unknown command: ");
-        kernel::terminal::write_line(command);
+        kernel::terminal::write_line(parsed.text);
+        break;
     }
 }
 

@@ -2,6 +2,7 @@ add_library(os_lab_kernel_logic OBJECT
     history.cpp
     keyboard_decoder.cpp
     line_editor.cpp
+    shell_command.cpp
 )
 os_lab_configure_kernel_object(os_lab_kernel_logic)
 
