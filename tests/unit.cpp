@@ -13,6 +13,7 @@
 #include "kernel/line_editor.hpp"
 #include "kernel/memory_map.hpp"
 #include "kernel/mouse_packet_decoder.hpp"
+#include "kernel/physical_frame_allocator.hpp"
 #include "kernel/pointer_state.hpp"
 #include "kernel/shell_command.hpp"
 #include "kernel/string_view.hpp"
@@ -339,6 +340,68 @@ TEST(MemoryMapViewTest, HandlesEmptyMap) {
     EXPECT_EQ(stats.region_count, 0u);
     EXPECT_EQ(stats.total_bytes, 0u);
     EXPECT_EQ(stats.usable_bytes, 0u);
+}
+
+TEST(EarlyFrameAllocatorTest, CountsAlignedFrames) {
+    const kernel::memory::MemoryRegion aligned{0x1000, 0x3000,
+                                               kernel::memory::MemoryRegionKind::Usable};
+    const kernel::memory::MemoryRegion unaligned{0x1800, 0x3800,
+                                                 kernel::memory::MemoryRegionKind::Usable};
+    const kernel::memory::MemoryRegion reserved{0x1000, 0x3000,
+                                                kernel::memory::MemoryRegionKind::Reserved};
+
+    EXPECT_EQ(kernel::memory::usable_frame_count(aligned), 3u);
+    EXPECT_EQ(kernel::memory::usable_frame_count(unaligned), 3u);
+    EXPECT_EQ(kernel::memory::usable_frame_count(reserved), 0u);
+}
+
+TEST(EarlyFrameAllocatorTest, AllocatesAcrossUsableRegionsAndSkipsReserved) {
+    const kernel::memory::MemoryRegion regions[] = {
+        {0x1000, 0x2000, kernel::memory::MemoryRegionKind::Usable},
+        {0x3000, 0x4000, kernel::memory::MemoryRegionKind::Reserved},
+        {0x7000, 0x1000, kernel::memory::MemoryRegionKind::Framebuffer},
+        {0x8000, 0x2000, kernel::memory::MemoryRegionKind::Usable},
+    };
+    kernel::memory::EarlyFrameAllocator allocator{kernel::memory::MemoryMapView(regions)};
+    kernel::memory::PhysicalFrame frame;
+
+    EXPECT_EQ(allocator.stats().total_frames, 4u);
+    EXPECT_TRUE(allocator.allocate(frame));
+    EXPECT_EQ(frame.address, 0x1000u);
+    EXPECT_TRUE(allocator.allocate(frame));
+    EXPECT_EQ(frame.address, 0x2000u);
+    EXPECT_TRUE(allocator.allocate(frame));
+    EXPECT_EQ(frame.address, 0x8000u);
+    EXPECT_TRUE(allocator.allocate(frame));
+    EXPECT_EQ(frame.address, 0x9000u);
+    EXPECT_FALSE(allocator.allocate(frame));
+    EXPECT_EQ(allocator.stats().allocated_frames, 4u);
+    EXPECT_EQ(allocator.stats().remaining_frames, 0u);
+}
+
+TEST(EarlyFrameAllocatorTest, AlignsAllocationsAndSkipsPhysicalZero) {
+    const kernel::memory::MemoryRegion regions[] = {
+        {0x0000, 0x2000, kernel::memory::MemoryRegionKind::Usable},
+        {0x2800, 0x1800, kernel::memory::MemoryRegionKind::Usable},
+    };
+    kernel::memory::EarlyFrameAllocator allocator{kernel::memory::MemoryMapView(regions)};
+    kernel::memory::PhysicalFrame frame;
+
+    EXPECT_EQ(allocator.stats().total_frames, 2u);
+    EXPECT_TRUE(allocator.allocate(frame));
+    EXPECT_EQ(frame.address, 0x1000u);
+    EXPECT_TRUE(allocator.allocate(frame));
+    EXPECT_EQ(frame.address, 0x3000u);
+    EXPECT_FALSE(allocator.allocate(frame));
+}
+
+TEST(EarlyFrameAllocatorTest, ReportsExhaustionOnEmptyMap) {
+    kernel::memory::EarlyFrameAllocator allocator;
+    kernel::memory::PhysicalFrame frame;
+
+    EXPECT_FALSE(allocator.allocate(frame));
+    EXPECT_EQ(allocator.stats().total_frames, 0u);
+    EXPECT_EQ(allocator.stats().remaining_frames, 0u);
 }
 
 void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t width,

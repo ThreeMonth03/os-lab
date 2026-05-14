@@ -9,6 +9,7 @@ add_library(os_lab_kernel_logic OBJECT
     line_editor.cpp
     memory_map.cpp
     mouse_packet_decoder.cpp
+    physical_frame_allocator.cpp
     pointer_state.cpp
     shell_command.cpp
     text_console.cpp
