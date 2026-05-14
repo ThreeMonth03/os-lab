@@ -66,10 +66,17 @@ Useful targets:
 make demo      # Build in Docker, then boot headless
 make gui       # Build in Docker, then boot with a QEMU window
 make test      # Build in Docker, then run the smoke test
+make demo-exception EXCEPTION_SMOKE=page_fault
+               # Build a debug-only exception ISO and print the exception dump
+make test-exception EXCEPTION_SMOKE=invalid_opcode
+               # Verify a debug-only exception dump
 make format    # Apply clang-format inside Docker
 make shell     # Open the development container
 make clean     # Remove generated files
 ```
+
+`EXCEPTION_SMOKE` accepts `invalid_opcode`, `page_fault`, or `divide_error`.
+Normal `make demo` and `make gui` always build with the trigger disabled.
 
 ## Native Toolchain
 
@@ -105,7 +112,7 @@ make _run
 
 ## Next steps
 
-- Add an IDT and structured fault handling
+- Expand IDT coverage and add interrupt/timer support
 - Bring up a physical memory manager from the Limine memory map
 - Expand the early shell and move keyboard input to interrupts
 - Add a raw disk image target for USB boot on real hardware

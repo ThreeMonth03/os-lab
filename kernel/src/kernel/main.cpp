@@ -1,3 +1,4 @@
+#include "kernel/arch/x86_64/exception_smoke.hpp"
 #include "kernel/fixed_vector.hpp"
 #include "kernel/limine_support.hpp"
 #include "kernel/mouse.hpp"
@@ -56,6 +57,8 @@ extern "C" [[noreturn]] void kernel_main() {
         kernel::terminal::write_line("serial debug enabled");
         kernel::terminal::write_line("");
     }
+
+    kernel::arch::x86_64::run_exception_smoke();
 
     run_utility_smoke();
 

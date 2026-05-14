@@ -2,6 +2,25 @@ if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     message(FATAL_ERROR "The freestanding kernel target requires clang/clang++.")
 endif()
 
+set(OS_LAB_EXCEPTION_SMOKE "none" CACHE STRING
+    "Debug-only exception smoke trigger: none, invalid_opcode, page_fault, divide_error")
+set_property(CACHE OS_LAB_EXCEPTION_SMOKE PROPERTY STRINGS
+    none invalid_opcode page_fault divide_error)
+
+set(OS_LAB_EXCEPTION_SMOKE_VALUE 0)
+if(OS_LAB_EXCEPTION_SMOKE STREQUAL "none")
+    set(OS_LAB_EXCEPTION_SMOKE_VALUE 0)
+elseif(OS_LAB_EXCEPTION_SMOKE STREQUAL "invalid_opcode")
+    set(OS_LAB_EXCEPTION_SMOKE_VALUE 1)
+elseif(OS_LAB_EXCEPTION_SMOKE STREQUAL "page_fault")
+    set(OS_LAB_EXCEPTION_SMOKE_VALUE 2)
+elseif(OS_LAB_EXCEPTION_SMOKE STREQUAL "divide_error")
+    set(OS_LAB_EXCEPTION_SMOKE_VALUE 3)
+else()
+    message(FATAL_ERROR
+        "OS_LAB_EXCEPTION_SMOKE must be one of: none, invalid_opcode, page_fault, divide_error")
+endif()
+
 add_library(os_lab_kernel_compile_settings INTERFACE)
 target_compile_features(os_lab_kernel_compile_settings INTERFACE cxx_std_23)
 target_include_directories(os_lab_kernel_compile_settings INTERFACE
@@ -29,6 +48,9 @@ target_compile_options(os_lab_kernel_compile_settings INTERFACE
     -Wall
     -Wextra
     -Wpedantic
+)
+target_compile_definitions(os_lab_kernel_compile_settings INTERFACE
+    OS_LAB_EXCEPTION_SMOKE=${OS_LAB_EXCEPTION_SMOKE_VALUE}
 )
 
 add_library(os_lab_kernel_link_settings INTERFACE)
