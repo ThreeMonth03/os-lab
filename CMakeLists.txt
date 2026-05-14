@@ -18,7 +18,9 @@ add_executable(kernel
     kernel/src/drivers/keyboard.cpp
     kernel/src/drivers/serial.cpp
     kernel/src/drivers/terminal.cpp
+    kernel/src/kernel/line_editor.cpp
     kernel/src/kernel/main.cpp
+    kernel/src/kernel/shell.cpp
     kernel/src/runtime/constructors.cpp
     kernel/src/runtime/memory.cpp
 )
