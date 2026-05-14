@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "kernel/halt.hpp"
+#include "kernel/core/halt.hpp"
 #include "kernel/drivers/serial.hpp"
 #include "kernel/base/string_view.hpp"
 #include "kernel/console/terminal.hpp"

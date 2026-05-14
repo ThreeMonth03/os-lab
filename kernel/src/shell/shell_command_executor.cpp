@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include "kernel/halt.hpp"
+#include "kernel/core/halt.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/memory/memory.hpp"
 #include "kernel/drivers/serial.hpp"

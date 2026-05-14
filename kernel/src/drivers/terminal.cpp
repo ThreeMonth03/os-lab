@@ -4,7 +4,7 @@
 
 #include "kernel/display/display.hpp"
 #include "kernel/display/terminal_renderer.hpp"
-#include "kernel/limine_support.hpp"
+#include "kernel/boot/limine_support.hpp"
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/text/text_console.hpp"
 

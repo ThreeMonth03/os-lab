@@ -1,7 +1,7 @@
 #include "kernel/arch/x86_64/exception_smoke.hpp"
 #include "kernel/arch/x86_64/irq.hpp"
 #include "kernel/base/fixed_vector.hpp"
-#include "kernel/limine_support.hpp"
+#include "kernel/boot/limine_support.hpp"
 #include "kernel/memory/memory.hpp"
 #include "kernel/input/mouse.hpp"
 #include "kernel/display/mouse_cursor.hpp"
@@ -10,8 +10,8 @@
 #include "kernel/base/span.hpp"
 #include "kernel/base/string_view.hpp"
 #include "kernel/console/terminal.hpp"
-#include "kernel/timer.hpp"
-#include "kernel/timer_smoke.hpp"
+#include "kernel/time/timer.hpp"
+#include "kernel/debug/timer_smoke.hpp"
 
 namespace {
 

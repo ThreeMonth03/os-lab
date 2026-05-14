@@ -1,9 +1,9 @@
-#include "kernel/timer_smoke.hpp"
+#include "kernel/debug/timer_smoke.hpp"
 
-#include "kernel/halt.hpp"
+#include "kernel/core/halt.hpp"
 #include "kernel/drivers/serial.hpp"
 #include "kernel/console/terminal.hpp"
-#include "kernel/timer.hpp"
+#include "kernel/time/timer.hpp"
 
 #ifndef OS_LAB_TIMER_SMOKE
 #define OS_LAB_TIMER_SMOKE 0

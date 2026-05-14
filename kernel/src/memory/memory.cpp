@@ -2,7 +2,7 @@
 
 #include <limine.h>
 
-#include "kernel/limine_support.hpp"
+#include "kernel/boot/limine_support.hpp"
 
 namespace {
 

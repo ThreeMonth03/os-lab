@@ -1,7 +1,7 @@
 #include "kernel/display/mouse_cursor.hpp"
 
 #include "kernel/display/display.hpp"
-#include "kernel/limine_support.hpp"
+#include "kernel/boot/limine_support.hpp"
 #include "kernel/input/pointer_state.hpp"
 
 namespace {

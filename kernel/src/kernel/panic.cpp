@@ -1,6 +1,6 @@
-#include "kernel/panic.hpp"
+#include "kernel/core/panic.hpp"
 
-#include "kernel/halt.hpp"
+#include "kernel/core/halt.hpp"
 #include "kernel/drivers/serial.hpp"
 #include "kernel/console/terminal.hpp"
 
