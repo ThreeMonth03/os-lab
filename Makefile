@@ -6,11 +6,7 @@ BUILD_DIR ?= $(PROJECT_ROOT)/build
 GENERATOR ?= Ninja
 GENERATOR_BIN ?= ninja
 CMAKE ?= cmake
-CLANG_FORMAT ?= $(shell if command -v clang-format-19 >/dev/null 2>&1; then \
-	printf 'clang-format-19'; \
-else \
-	printf 'clang-format'; \
-fi)
+CLANG_FORMAT ?= clang-format-19
 DOCKER_COMPOSE ?= $(shell if docker compose version >/dev/null 2>&1; then \
 	printf 'docker compose'; \
 elif command -v docker-compose >/dev/null 2>&1; then \
