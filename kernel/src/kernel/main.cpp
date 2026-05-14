@@ -2,6 +2,7 @@
 #include "kernel/arch/x86_64/irq.hpp"
 #include "kernel/fixed_vector.hpp"
 #include "kernel/limine_support.hpp"
+#include "kernel/memory.hpp"
 #include "kernel/mouse.hpp"
 #include "kernel/mouse_cursor.hpp"
 #include "kernel/serial.hpp"
@@ -49,6 +50,34 @@ void run_utility_smoke() {
     kernel::serial::write_line("os-lab: no-heap utilities ready");
 }
 
+void write_memory_summary(bool ready) {
+    if (!ready) {
+        kernel::serial::write_line("os-lab: memory map unavailable");
+        kernel::terminal::write_line("memory map unavailable");
+        return;
+    }
+
+    const kernel::memory::Stats stats = kernel::memory::stats();
+    const uint64_t usable_kib = stats.map.usable_bytes / 1024;
+
+    kernel::serial::write_string("os-lab: memory map regions = ");
+    kernel::serial::write_decimal(stats.map.region_count);
+    kernel::serial::write_string("\n");
+    kernel::serial::write_string("os-lab: memory usable KiB = ");
+    kernel::serial::write_decimal(usable_kib);
+    kernel::serial::write_string("\n");
+    kernel::serial::write_string("os-lab: frame allocator frames = ");
+    kernel::serial::write_decimal(stats.frames.total_frames);
+    kernel::serial::write_string("\n");
+    if (stats.truncated) {
+        kernel::serial::write_line("os-lab: memory map truncated");
+    }
+
+    kernel::terminal::write_string("memory usable = ");
+    kernel::terminal::write_decimal(usable_kib);
+    kernel::terminal::write_line(" KiB");
+}
+
 } // namespace
 
 extern "C" [[noreturn]] void kernel_main() {
@@ -64,6 +93,7 @@ extern "C" [[noreturn]] void kernel_main() {
     kernel::arch::x86_64::run_exception_smoke();
 
     run_utility_smoke();
+    write_memory_summary(kernel::memory::init());
 
     if (const auto* info = kernel::boot::bootloader_info(); info != nullptr) {
         kernel::serial::write_string("os-lab: bootloader = ");

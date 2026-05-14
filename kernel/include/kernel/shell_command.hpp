@@ -10,6 +10,7 @@ enum class ShellCommandKind {
     Clear,
     About,
     Input,
+    Mem,
     Halt,
     Unknown,
 };

@@ -44,6 +44,9 @@ kernel::ShellCommandKind command_kind(kernel::StringView name) {
     if (name == "input") {
         return kernel::ShellCommandKind::Input;
     }
+    if (name == "mem") {
+        return kernel::ShellCommandKind::Mem;
+    }
     if (name == "halt") {
         return kernel::ShellCommandKind::Halt;
     }

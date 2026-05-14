@@ -10,6 +10,7 @@
 #include "kernel/input.hpp"
 #include "kernel/keyboard.hpp"
 #include "kernel/line_editor.hpp"
+#include "kernel/memory.hpp"
 #include "kernel/mouse_cursor.hpp"
 #include "kernel/serial.hpp"
 #include "kernel/shell_command.hpp"
@@ -195,6 +196,7 @@ void write_help() {
     kernel::terminal::write_line("  clear - clear the screen");
     kernel::terminal::write_line("  about - show kernel info");
     kernel::terminal::write_line("  input - show input stats");
+    kernel::terminal::write_line("  mem   - show memory stats");
     kernel::terminal::write_line("  halt  - stop the cpu");
 }
 
@@ -243,6 +245,26 @@ void write_input_stats() {
     write_stat("queue capacity", stats.queue_capacity);
 }
 
+void write_memory_stats() {
+    const kernel::memory::Stats stats = kernel::memory::stats();
+    if (!stats.initialized) {
+        kernel::terminal::write_line("memory stats unavailable");
+        return;
+    }
+
+    kernel::terminal::write_line("memory stats:");
+    write_stat("regions", stats.map.region_count);
+    write_stat("usable KiB", stats.map.usable_bytes / 1024);
+    write_stat("bootloader reclaimable KiB", stats.map.bootloader_reclaimable_bytes / 1024);
+    write_stat("framebuffer KiB", stats.map.framebuffer_bytes / 1024);
+    write_stat("frame size", kernel::memory::kFrameSize);
+    write_stat("total frames", stats.frames.total_frames);
+    write_stat("allocated frames", stats.frames.allocated_frames);
+    write_stat("remaining frames", stats.frames.remaining_frames);
+    kernel::terminal::write_string("  truncated: ");
+    kernel::terminal::write_line(stats.truncated ? "yes" : "no");
+}
+
 void handle_line(kernel::StringView command) {
     const kernel::ShellCommand parsed = kernel::parse_shell_command(command);
 
@@ -260,6 +282,9 @@ void handle_line(kernel::StringView command) {
         break;
     case kernel::ShellCommandKind::Input:
         write_input_stats();
+        break;
+    case kernel::ShellCommandKind::Mem:
+        write_memory_stats();
         break;
     case kernel::ShellCommandKind::Halt:
         kernel::terminal::write_line("halting");

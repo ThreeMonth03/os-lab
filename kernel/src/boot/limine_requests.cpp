@@ -38,6 +38,13 @@ __attribute__((used, section(".limine_requests"),
     .response = nullptr,
 };
 
+__attribute__((used, section(".limine_requests"),
+               aligned(8))) volatile limine_memmap_request memory_map_request = {
+    .id = LIMINE_MEMMAP_REQUEST_ID,
+    .revision = 0,
+    .response = nullptr,
+};
+
 __attribute__((used, section(".limine_requests_end"),
                aligned(8))) volatile uint64_t requests_end_marker[] = LIMINE_REQUESTS_END_MARKER;
 
@@ -62,5 +69,7 @@ const limine_bootloader_info_response* bootloader_info() {
 }
 
 const limine_framebuffer_response* framebuffer() { return framebuffer_request.response; }
+
+const limine_memmap_response* memory_map() { return memory_map_request.response; }
 
 } // namespace kernel::boot
