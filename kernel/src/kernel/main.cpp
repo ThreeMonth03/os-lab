@@ -1,4 +1,5 @@
 #include "kernel/fixed_vector.hpp"
+#include "kernel/halt.hpp"
 #include "kernel/keyboard.hpp"
 #include "kernel/limine_support.hpp"
 #include "kernel/serial.hpp"
@@ -51,13 +52,41 @@ void write_prompt() { kernel::terminal::write_string(kPrompt); }
 
 kernel::StringView line_view(const LineBuffer& line) { return {line.data(), line.size()}; }
 
+void write_help() {
+    kernel::terminal::write_line("commands:");
+    kernel::terminal::write_line("  help  - show this list");
+    kernel::terminal::write_line("  clear - clear the screen");
+    kernel::terminal::write_line("  about - show kernel info");
+    kernel::terminal::write_line("  halt  - stop the cpu");
+}
+
+void write_about() {
+    kernel::terminal::write_line("os-lab early shell");
+    kernel::terminal::write_line("freestanding c++23 kernel");
+    kernel::terminal::write_line("no filesystem or heap yet");
+}
+
 void handle_line(const LineBuffer& line) {
     if (line.empty()) {
         return;
     }
 
-    kernel::terminal::write_string("received: ");
-    kernel::terminal::write_line(line_view(line));
+    const kernel::StringView command = line_view(line);
+
+    if (command == "help") {
+        write_help();
+    } else if (command == "clear") {
+        kernel::terminal::clear();
+    } else if (command == "about") {
+        write_about();
+    } else if (command == "halt") {
+        kernel::terminal::write_line("halting");
+        kernel::serial::write_line("os-lab: halt command requested");
+        kernel::halt_forever();
+    } else {
+        kernel::terminal::write_string("unknown command: ");
+        kernel::terminal::write_line(command);
+    }
 }
 
 void handle_key_event(const kernel::keyboard::KeyEvent& event, LineBuffer& line) {
@@ -93,6 +122,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, LineBuffer& line)
 
     kernel::terminal::write_line("");
     kernel::terminal::write_line("interactive input ready");
+    write_help();
     write_prompt();
     kernel::serial::write_line("os-lab: interactive terminal ready");
 

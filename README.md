@@ -43,6 +43,8 @@ To see the QEMU window and framebuffer terminal:
 make gui
 ```
 
+The early shell supports `help`, `clear`, `about`, and `halt`.
+
 In headless mode, quit QEMU with `Ctrl+A`, then `X`.
 
 ## Daily Workflow
