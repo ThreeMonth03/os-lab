@@ -31,6 +31,7 @@ TEST(ShellCommandTest, TrimsKnownCommands)
     expect_command(" input ", kernel::ShellCommandKind::Input, "input", "input");
     expect_command(" mem ", kernel::ShellCommandKind::Mem, "mem", "mem");
     expect_command(" heap ", kernel::ShellCommandKind::Heap, "heap", "heap");
+    expect_command(" slab ", kernel::ShellCommandKind::Slab, "slab", "slab");
     expect_command(" halt ", kernel::ShellCommandKind::Halt, "halt", "halt");
 }
 
@@ -49,6 +50,7 @@ TEST(ShellCommandTest, TreatsKnownCommandsWithArgumentsAsUnknown)
     expect_command("input now", kernel::ShellCommandKind::Unknown, "input now", "input");
     expect_command("mem now", kernel::ShellCommandKind::Unknown, "mem now", "mem");
     expect_command("heap now", kernel::ShellCommandKind::Unknown, "heap now", "heap");
+    expect_command("slab now", kernel::ShellCommandKind::Unknown, "slab now", "slab");
     expect_command("halt now", kernel::ShellCommandKind::Unknown, "halt now", "halt");
 }
 

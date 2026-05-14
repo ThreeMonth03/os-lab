@@ -5,6 +5,7 @@
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/memory/memory.hpp"
 #include "kernel/memory/heap.hpp"
+#include "kernel/memory/slab.hpp"
 #include "kernel/debug/heap_smoke.hpp"
 #include "kernel/debug/paging_smoke.hpp"
 #include "kernel/input/mouse.hpp"
@@ -112,6 +113,18 @@ void init_kernel_heap()
     }
 }
 
+void init_kernel_slab()
+{
+    if (kernel::memory::slab::init())
+    {
+        kernel::drivers::serial::write_line("os-lab: kernel slab cache ready");
+    }
+    else
+    {
+        kernel::drivers::serial::write_line("os-lab: kernel slab cache unavailable");
+    }
+}
+
 void write_terminal_banner()
 {
     kernel::console::terminal::write_line("os-lab terminal");
@@ -206,6 +219,7 @@ extern "C" [[noreturn]] void kernel_main()
     run_utility_smoke();
     write_memory_summary(init_memory_and_paging());
     init_kernel_heap();
+    init_kernel_slab();
     kernel::debug::run_heap_smoke();
     kernel::debug::run_paging_smoke();
     write_bootloader_info();

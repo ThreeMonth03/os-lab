@@ -6,6 +6,7 @@
 #include "kernel/input/input.hpp"
 #include "kernel/memory/heap.hpp"
 #include "kernel/memory/memory.hpp"
+#include "kernel/memory/slab.hpp"
 #include "kernel/drivers/serial.hpp"
 #include "kernel/shell/shell_command.hpp"
 #include "kernel/console/terminal.hpp"
@@ -25,6 +26,7 @@ void write_help()
     terminal::write_line("  input - show input stats");
     terminal::write_line("  mem   - show memory stats");
     terminal::write_line("  heap  - show heap stats");
+    terminal::write_line("  slab  - show slab cache stats");
     terminal::write_line("  halt  - stop the cpu");
 }
 
@@ -97,6 +99,32 @@ kernel::StringView heap_validation_error_name(kernel::memory::HeapValidationErro
     return "unknown";
 }
 
+kernel::StringView slab_validation_error_name(kernel::memory::SlabValidationError error)
+{
+    switch (error)
+    {
+    case kernel::memory::SlabValidationError::None:
+        return "none";
+    case kernel::memory::SlabValidationError::InvalidConfig:
+        return "invalid config";
+    case kernel::memory::SlabValidationError::SlabHeaderCorrupt:
+        return "slab header corrupt";
+    case kernel::memory::SlabValidationError::SlabOutOfRange:
+        return "slab out of range";
+    case kernel::memory::SlabValidationError::SlabOverlap:
+        return "slab overlap";
+    case kernel::memory::SlabValidationError::FreeListOutOfSlab:
+        return "free list out of slab";
+    case kernel::memory::SlabValidationError::FreeListDuplicate:
+        return "free list duplicate";
+    case kernel::memory::SlabValidationError::FreeStatsMismatch:
+        return "free stats mismatch";
+    case kernel::memory::SlabValidationError::StatsMismatch:
+        return "stats mismatch";
+    }
+    return "unknown";
+}
+
 void write_input_stats()
 {
     const kernel::input::Stats stats = kernel::input::stats();
@@ -160,6 +188,32 @@ void write_heap_stats()
     write_stat("failed allocations", stats.failed_allocations);
 }
 
+void write_slab_stats()
+{
+    const kernel::memory::slab::Stats stats = kernel::memory::slab::stats();
+    const kernel::memory::SlabValidationResult validation = kernel::memory::slab::validate();
+    if (!stats.initialized)
+    {
+        terminal::write_line("slab stats unavailable");
+        return;
+    }
+
+    terminal::write_line("slab stats:");
+    write_bool_stat("initialized", stats.initialized);
+    write_bool_stat("valid", validation.valid);
+    terminal::write_string("  validation error: ");
+    terminal::write_line(slab_validation_error_name(validation.error));
+    write_stat("object size", stats.cache.object_size);
+    write_stat("alignment", stats.cache.alignment);
+    write_stat("slab count", stats.cache.slab_count);
+    write_stat("committed bytes", stats.cache.committed_bytes);
+    write_stat("object capacity", stats.cache.object_capacity);
+    write_stat("allocated objects", stats.cache.allocated_objects);
+    write_stat("free objects", stats.cache.free_objects);
+    write_stat("failed allocations", stats.cache.failed_allocations);
+    write_stat("failed backing allocations", stats.failed_backing_allocations);
+}
+
 } // namespace
 
 namespace kernel::shell
@@ -190,6 +244,9 @@ void execute_command(StringView command)
         break;
     case ShellCommandKind::Heap:
         write_heap_stats();
+        break;
+    case ShellCommandKind::Slab:
+        write_slab_stats();
         break;
     case ShellCommandKind::Halt:
         terminal::write_line("halting");

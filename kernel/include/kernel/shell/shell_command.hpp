@@ -14,6 +14,7 @@ enum class ShellCommandKind
     Input,
     Mem,
     Heap,
+    Slab,
     Halt,
     Unknown,
 };

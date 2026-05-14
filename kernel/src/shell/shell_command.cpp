@@ -65,6 +65,10 @@ kernel::ShellCommandKind command_kind(kernel::StringView name)
     {
         return kernel::ShellCommandKind::Heap;
     }
+    if (name == "slab")
+    {
+        return kernel::ShellCommandKind::Slab;
+    }
     if (name == "halt")
     {
         return kernel::ShellCommandKind::Halt;
