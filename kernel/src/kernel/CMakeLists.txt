@@ -1,5 +1,6 @@
 add_library(os_lab_kernel_logic OBJECT
     display.cpp
+    editor_dirty_range.cpp
     editor_view_layout.cpp
     history.cpp
     input.cpp

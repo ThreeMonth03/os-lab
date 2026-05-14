@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "kernel/display.hpp"
+#include "kernel/editor_dirty_range.hpp"
 #include "kernel/editor_view_layout.hpp"
 #include "kernel/fixed_queue.hpp"
 #include "kernel/fixed_vector.hpp"
@@ -439,6 +440,66 @@ TEST(EditorViewLayoutTest, HandlesZeroColumns) {
     EXPECT_FALSE(layout.ready());
     expect_editor_cell(layout.position_for(10), 0, 0);
     EXPECT_EQ(layout.visual_rows(10), 1u);
+}
+
+void expect_dirty_range(kernel::EditorDirtyRange actual, kernel::EditorDirtyKind kind, size_t start,
+                        size_t old_end, size_t new_end) {
+    EXPECT_EQ(actual.kind, kind);
+    EXPECT_EQ(actual.start, start);
+    EXPECT_EQ(actual.old_end, old_end);
+    EXPECT_EQ(actual.new_end, new_end);
+}
+
+TEST(EditorDirtyRangeTest, AppendAtEndRedrawsOnlyNewCharacter) {
+    const kernel::EditorDirtyRange dirty =
+        kernel::editor_dirty_range(kernel::EditorEditKind::Insert, {5, 5, 2}, {6, 6, 2});
+
+    expect_dirty_range(dirty, kernel::EditorDirtyKind::Partial, 5, 5, 6);
+}
+
+TEST(EditorDirtyRangeTest, InsertInMiddleRedrawsFromInsertionPoint) {
+    const kernel::EditorDirtyRange dirty =
+        kernel::editor_dirty_range(kernel::EditorEditKind::Insert, {2, 5, 2}, {3, 6, 2});
+
+    expect_dirty_range(dirty, kernel::EditorDirtyKind::Partial, 2, 5, 6);
+}
+
+TEST(EditorDirtyRangeTest, BackspaceRedrawsFromRemovedCharacter) {
+    const kernel::EditorDirtyRange dirty =
+        kernel::editor_dirty_range(kernel::EditorEditKind::Backspace, {3, 5, 2}, {2, 4, 2});
+
+    expect_dirty_range(dirty, kernel::EditorDirtyKind::Partial, 2, 5, 4);
+}
+
+TEST(EditorDirtyRangeTest, DeleteRedrawsFromCursor) {
+    const kernel::EditorDirtyRange dirty =
+        kernel::editor_dirty_range(kernel::EditorEditKind::DeleteForward, {2, 5, 2}, {2, 4, 2});
+
+    expect_dirty_range(dirty, kernel::EditorDirtyKind::Partial, 2, 5, 4);
+}
+
+TEST(EditorDirtyRangeTest, CursorMoveDoesNotRedrawText) {
+    const kernel::EditorDirtyRange dirty =
+        kernel::editor_dirty_range(kernel::EditorEditKind::CursorMove, {4, 5, 2}, {3, 5, 2});
+
+    expect_dirty_range(dirty, kernel::EditorDirtyKind::CursorOnly, 3, 5, 5);
+}
+
+TEST(EditorDirtyRangeTest, PromptWidthChangeRequiresFullRedraw) {
+    const kernel::EditorDirtyRange dirty =
+        kernel::editor_dirty_range(kernel::EditorEditKind::Insert, {5, 5, 2}, {6, 6, 9});
+
+    expect_dirty_range(dirty, kernel::EditorDirtyKind::Full, 0, 0, 0);
+}
+
+TEST(EditorDirtyRangeTest, MultilineRangeCanCrossVisualRows) {
+    const kernel::EditorViewLayout layout(10, 0, 2);
+    const kernel::EditorDirtyRange dirty =
+        kernel::editor_dirty_range(kernel::EditorEditKind::Insert, {7, 9, 2}, {8, 10, 2});
+
+    expect_dirty_range(dirty, kernel::EditorDirtyKind::Partial, 7, 9, 10);
+    expect_editor_cell(layout.position_for(dirty.start), 9, 0);
+    expect_editor_cell(layout.position_for(dirty.new_end), 2, 1);
 }
 
 void expect_command(kernel::StringView input, kernel::ShellCommandKind kind,
