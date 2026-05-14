@@ -1,6 +1,5 @@
 add_library(os_lab_kernel_drivers OBJECT
     debug_port.cpp
-    framebuffer.cpp
     keyboard.cpp
     mouse.cpp
     mouse_cursor.cpp
