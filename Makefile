@@ -182,76 +182,15 @@ _run-timer:
 
 _smoke:
 	@if [[ ! -f "$(ISO_IMAGE)" ]]; then $(MAKE) _iso; fi
-	@set -euo pipefail; \
-	if ! command -v qemu-system-x86_64 >/dev/null 2>&1; then \
-		printf 'Smoke test requires native Linux qemu-system-x86_64 in PATH\n' >&2; \
-		exit 1; \
-	fi; \
-	log_file=$$(mktemp); \
-	debug_file=$$(mktemp); \
-	trap 'rm -f "$$log_file" "$$debug_file"' EXIT; \
-	set +e; \
-	timeout 15s qemu-system-x86_64 \
-		-M q35 \
-		-m 256M \
-		-boot d \
-		-cdrom "$(ISO_IMAGE)" \
-		-serial stdio \
-		-debugcon "file:$$debug_file" \
-		-display none \
-		-no-reboot \
-		-no-shutdown | tee "$$log_file"; \
-	status=$$?; \
-	set -e; \
-	if [[ $$status -ne 0 && $$status -ne 124 ]]; then exit "$$status"; fi; \
-	cat "$$debug_file" >> "$$log_file"; \
-	grep -q "os-lab: reached _start" "$$log_file"; \
-	grep -q "os-lab: entering kernel_main" "$$log_file"; \
-	printf 'Smoke test passed\n'
+	./scripts/smoke_demo.sh $(ISO_IMAGE)
 
 _smoke-exception:
 	@if [[ ! -f "$(EXCEPTION_ISO_IMAGE)" ]]; then $(MAKE) _exception-iso EXCEPTION_SMOKE=$(EXCEPTION_SMOKE); fi
-	@set -euo pipefail; \
-	case "$(EXCEPTION_SMOKE)" in \
-		invalid_opcode) expected='invalid opcode' ;; \
-		page_fault) expected='page fault' ;; \
-		divide_error) expected='divide error' ;; \
-		*) printf 'Invalid EXCEPTION_SMOKE: %s\n' "$(EXCEPTION_SMOKE)" >&2; \
-		   printf 'Use one of: invalid_opcode, page_fault, divide_error\n' >&2; exit 1 ;; \
-	esac; \
-	log_file=$$(mktemp); \
-	trap 'rm -f "$$log_file"' EXIT; \
-	set +e; \
-	timeout 15s ./scripts/run_qemu.sh "$(EXCEPTION_ISO_IMAGE)" | tee "$$log_file"; \
-	status=$$?; \
-	set -e; \
-	if [[ $$status -ne 0 && $$status -ne 124 ]]; then exit "$$status"; fi; \
-	grep -q "os-lab: triggering exception smoke: $$expected" "$$log_file"; \
-	grep -q "kernel exception" "$$log_file"; \
-	grep -q "name: $$expected" "$$log_file"; \
-	grep -q "vector:" "$$log_file"; \
-	grep -q "error code:" "$$log_file"; \
-	grep -q "rip:" "$$log_file"; \
-	grep -q "rsp:" "$$log_file"; \
-	grep -q "rflags:" "$$log_file"; \
-	if [[ "$(EXCEPTION_SMOKE)" == "page_fault" ]]; then grep -q "cr2:" "$$log_file"; fi; \
-	printf 'Exception smoke passed: %s\n' "$$expected"
+	./scripts/smoke_exception.sh $(EXCEPTION_ISO_IMAGE) $(EXCEPTION_SMOKE)
 
 _smoke-timer:
 	@if [[ ! -f "$(TIMER_ISO_IMAGE)" ]]; then $(MAKE) _timer-iso; fi
-	@set -euo pipefail; \
-	log_file=$$(mktemp); \
-	trap 'rm -f "$$log_file"' EXIT; \
-	set +e; \
-	timeout 15s ./scripts/run_qemu.sh "$(TIMER_ISO_IMAGE)" | tee "$$log_file"; \
-	status=$$?; \
-	set -e; \
-	if [[ $$status -ne 0 && $$status -ne 124 ]]; then exit "$$status"; fi; \
-	grep -q "os-lab: PIT timer configured at 100 Hz" "$$log_file"; \
-	grep -q "os-lab: hardware interrupts enabled" "$$log_file"; \
-	grep -q "os-lab: timer smoke waiting for PIT ticks" "$$log_file"; \
-	grep -q "os-lab: timer smoke passed ticks=" "$$log_file"; \
-	printf 'Timer smoke passed\n'
+	./scripts/smoke_timer.sh $(TIMER_ISO_IMAGE)
 
 _unit:
 	$(CMAKE) -S $(PROJECT_ROOT) -B $(UNIT_BUILD_DIR) -G $(GENERATOR) \
