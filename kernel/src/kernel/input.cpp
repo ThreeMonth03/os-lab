@@ -13,6 +13,9 @@ using EventQueue = kernel::FixedQueue<kernel::input::Event, kEventQueueCapacity>
 
 alignas(EventQueue) unsigned char g_event_queue_storage[sizeof(EventQueue)] = {};
 bool g_event_queue_initialized = false;
+uint64_t g_key_events = 0;
+uint64_t g_mouse_move_events = 0;
+uint64_t g_dropped_events = 0;
 
 EventQueue& event_queue() {
     auto* queue = reinterpret_cast<EventQueue*>(g_event_queue_storage);
@@ -27,6 +30,7 @@ EventQueue& event_queue() {
 bool push_event(const kernel::input::Event& event) {
     EventQueue& events = event_queue();
     if (events.full()) {
+        ++g_dropped_events;
         return false;
     }
 
@@ -42,6 +46,7 @@ bool poll_keyboard() {
     kernel::input::Event event;
     event.kind = kernel::input::EventKind::Key;
     event.key = key;
+    ++g_key_events;
     return push_event(event);
 }
 
@@ -60,6 +65,7 @@ bool poll_mouse() {
     event.mouse_move.middle_button = mouse.middle_button;
     event.mouse_move.x_overflow = mouse.x_overflow;
     event.mouse_move.y_overflow = mouse.y_overflow;
+    ++g_mouse_move_events;
     return push_event(event);
 }
 
@@ -87,6 +93,12 @@ bool poll(Event& event) {
 
     pump();
     return events.pop(event);
+}
+
+Stats stats() {
+    EventQueue& events = event_queue();
+    return {g_key_events,  g_mouse_move_events, g_dropped_events,
+            events.size(), events.capacity(),   events.available()};
 }
 
 } // namespace kernel::input

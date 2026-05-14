@@ -28,7 +28,17 @@ struct Event {
     MouseMoveEvent mouse_move = {};
 };
 
+struct Stats {
+    uint64_t key_events = 0;
+    uint64_t mouse_move_events = 0;
+    uint64_t dropped_events = 0;
+    uint64_t queued_events = 0;
+    uint64_t queue_capacity = 0;
+    uint64_t queue_available = 0;
+};
+
 void pump();
 [[nodiscard]] bool poll(Event& event);
+[[nodiscard]] Stats stats();
 
 } // namespace kernel::input

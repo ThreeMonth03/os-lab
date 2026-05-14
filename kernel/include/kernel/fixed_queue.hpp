@@ -17,6 +17,7 @@ template <typename T, size_t Capacity> class FixedQueue {
 
     [[nodiscard]] size_t size() const { return size_; }
     [[nodiscard]] constexpr size_t capacity() const { return Capacity; }
+    [[nodiscard]] size_t available() const { return Capacity - size_; }
     [[nodiscard]] bool empty() const { return size_ == 0; }
     [[nodiscard]] bool full() const { return size_ == Capacity; }
 

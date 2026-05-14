@@ -184,15 +184,20 @@ TEST(FixedQueueTest, ReportsFullAndRejectsNewest) {
     kernel::FixedQueue<int, 2> values;
     int value = 0;
 
+    EXPECT_EQ(values.available(), 2u);
     EXPECT_TRUE(values.push(1));
+    EXPECT_EQ(values.available(), 1u);
     EXPECT_TRUE(values.push(2));
     EXPECT_TRUE(values.full());
+    EXPECT_EQ(values.available(), 0u);
     EXPECT_FALSE(values.push(3));
 
     EXPECT_TRUE(values.pop(value));
     EXPECT_EQ(value, 1);
+    EXPECT_EQ(values.available(), 1u);
     EXPECT_TRUE(values.pop(value));
     EXPECT_EQ(value, 2);
+    EXPECT_EQ(values.available(), 2u);
 }
 
 TEST(FixedQueueTest, WrapsAround) {
@@ -224,6 +229,7 @@ TEST(FixedQueueTest, ClearEmptiesQueue) {
     values.clear();
     EXPECT_TRUE(values.empty());
     EXPECT_FALSE(values.full());
+    EXPECT_EQ(values.available(), values.capacity());
 }
 
 void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t width,
