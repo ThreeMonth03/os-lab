@@ -4,10 +4,12 @@
 #include "kernel/shell/shell_limits.hpp"
 #include "kernel/base/string_view.hpp"
 
-namespace kernel {
+namespace kernel
+{
 
-class LineEditor {
-  public:
+class LineEditor
+{
+public:
     static constexpr size_t capacity = kShellLineCapacity;
     static constexpr size_t tab_width = 4;
 
@@ -30,7 +32,7 @@ class LineEditor {
     [[nodiscard]] bool move_to_end();
     void clear();
 
-  private:
+private:
     FixedVector<char, capacity> buffer_;
     size_t cursor_ = 0;
 };

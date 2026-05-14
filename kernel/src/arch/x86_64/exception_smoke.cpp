@@ -8,31 +8,37 @@
 #define OS_LAB_EXCEPTION_SMOKE 0
 #endif
 
-namespace {
+namespace
+{
 
-[[maybe_unused]] void write_trigger(kernel::StringView name) {
+[[maybe_unused]] void write_trigger(kernel::StringView name)
+{
     kernel::drivers::serial::write_string("os-lab: triggering exception smoke: ");
     kernel::drivers::serial::write_line(name);
 
-    if (kernel::console::terminal::ready()) {
+    if (kernel::console::terminal::ready())
+    {
         kernel::console::terminal::write_string("triggering exception smoke: ");
         kernel::console::terminal::write_line(name);
     }
 }
 
-[[maybe_unused, noreturn]] void trigger_invalid_opcode() {
+[[maybe_unused, noreturn]] void trigger_invalid_opcode()
+{
     write_trigger("invalid opcode");
     asm volatile("ud2");
     kernel::halt_forever();
 }
 
-[[maybe_unused, noreturn]] void trigger_page_fault() {
+[[maybe_unused, noreturn]] void trigger_page_fault()
+{
     write_trigger("page fault");
     asm volatile("xorq %%rax, %%rax; movq (%%rax), %%rax" ::: "rax", "memory");
     kernel::halt_forever();
 }
 
-[[maybe_unused, noreturn]] void trigger_divide_error() {
+[[maybe_unused, noreturn]] void trigger_divide_error()
+{
     write_trigger("divide error");
     asm volatile("xorq %%rdx, %%rdx; movq $1, %%rax; xorq %%rcx, %%rcx; divq %%rcx"
                  :
@@ -43,9 +49,11 @@ namespace {
 
 } // namespace
 
-namespace kernel::arch::x86_64 {
+namespace kernel::arch::x86_64
+{
 
-void run_exception_smoke() {
+void run_exception_smoke()
+{
 #if OS_LAB_EXCEPTION_SMOKE == 1
     trigger_invalid_opcode();
 #elif OS_LAB_EXCEPTION_SMOKE == 2

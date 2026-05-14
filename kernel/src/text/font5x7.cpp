@@ -1,6 +1,7 @@
 #include "kernel/text/font5x7.hpp"
 
-namespace {
+namespace
+{
 
 using kernel::Glyph5x7;
 
@@ -111,21 +112,25 @@ uint8_t code_unit(char value) { return static_cast<uint8_t>(value); }
 
 } // namespace
 
-namespace kernel {
+namespace kernel
+{
 
-bool Font5x7::has_glyph(char value) {
+bool Font5x7::has_glyph(char value)
+{
     const uint8_t code = code_unit(value);
     return code >= first_printable && code <= last_printable;
 }
 
-const Glyph5x7& Font5x7::glyph_for(char value) {
-    if (!has_glyph(value)) {
+const Glyph5x7 & Font5x7::glyph_for(char value)
+{
+    if (!has_glyph(value))
+    {
         return kFallbackGlyph;
     }
 
     return kPrintableGlyphs[code_unit(value) - first_printable];
 }
 
-const Glyph5x7& Font5x7::fallback_glyph() { return kFallbackGlyph; }
+const Glyph5x7 & Font5x7::fallback_glyph() { return kFallbackGlyph; }
 
 } // namespace kernel

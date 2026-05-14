@@ -1,6 +1,7 @@
 #pragma once
 
-namespace kernel::runtime {
+namespace kernel::runtime
+{
 
 void run_constructors();
 

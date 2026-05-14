@@ -8,9 +8,11 @@
 #include "kernel/base/string_view.hpp"
 #include "kernel/console/terminal.hpp"
 
-namespace {
+namespace
+{
 
-struct [[gnu::packed]] IdtEntry {
+struct [[gnu::packed]] IdtEntry
+{
     uint16_t offset_low = 0;
     uint16_t selector = 0;
     uint8_t ist = 0;
@@ -20,12 +22,14 @@ struct [[gnu::packed]] IdtEntry {
     uint32_t reserved = 0;
 };
 
-struct [[gnu::packed]] Idtr {
+struct [[gnu::packed]] Idtr
+{
     uint16_t limit = 0;
     uint64_t base = 0;
 };
 
-struct ExceptionFrame {
+struct ExceptionFrame
+{
     uint64_t rax;
     uint64_t rbx;
     uint64_t rcx;
@@ -59,16 +63,19 @@ extern "C" void kernel_x86_64_exception_6();
 extern "C" void kernel_x86_64_exception_13();
 extern "C" void kernel_x86_64_exception_14();
 
-[[nodiscard]] uint16_t current_code_selector() {
+[[nodiscard]] uint16_t current_code_selector()
+{
     uint16_t selector = 0;
     asm volatile("movw %%cs, %0" : "=rm"(selector));
     return selector;
 }
 
-void load_idt(const Idtr& idtr) { asm volatile("lidt %0" : : "m"(idtr) : "memory"); }
+void load_idt(const Idtr & idtr) { asm volatile("lidt %0" : : "m"(idtr) : "memory"); }
 
-kernel::StringView exception_name(uint64_t vector) {
-    switch (vector) {
+kernel::StringView exception_name(uint64_t vector)
+{
+    switch (vector)
+    {
     case 0:
         return "divide error";
     case 6:
@@ -82,35 +89,44 @@ kernel::StringView exception_name(uint64_t vector) {
     }
 }
 
-void write_both(kernel::StringView value) {
+void write_both(kernel::StringView value)
+{
     kernel::drivers::serial::write_string(value);
-    if (kernel::console::terminal::ready()) {
+    if (kernel::console::terminal::ready())
+    {
         kernel::console::terminal::write_string(value);
     }
 }
 
-void write_both_line(kernel::StringView value) {
+void write_both_line(kernel::StringView value)
+{
     kernel::drivers::serial::write_line(value);
-    if (kernel::console::terminal::ready()) {
+    if (kernel::console::terminal::ready())
+    {
         kernel::console::terminal::write_line(value);
     }
 }
 
-void write_both_decimal(uint64_t value) {
+void write_both_decimal(uint64_t value)
+{
     kernel::drivers::serial::write_decimal(value);
-    if (kernel::console::terminal::ready()) {
+    if (kernel::console::terminal::ready())
+    {
         kernel::console::terminal::write_decimal(value);
     }
 }
 
-void write_both_hex(uint64_t value) {
+void write_both_hex(uint64_t value)
+{
     kernel::drivers::serial::write_hex(value);
-    if (kernel::console::terminal::ready()) {
+    if (kernel::console::terminal::ready())
+    {
         kernel::console::terminal::write_hex(value);
     }
 }
 
-void write_decimal_field(kernel::StringView name, uint64_t value) {
+void write_decimal_field(kernel::StringView name, uint64_t value)
+{
     write_both("  ");
     write_both(name);
     write_both(": ");
@@ -118,7 +134,8 @@ void write_decimal_field(kernel::StringView name, uint64_t value) {
     write_both_line("");
 }
 
-void write_hex_field(kernel::StringView name, uint64_t value) {
+void write_hex_field(kernel::StringView name, uint64_t value)
+{
     write_both("  ");
     write_both(name);
     write_both(": ");
@@ -126,19 +143,22 @@ void write_hex_field(kernel::StringView name, uint64_t value) {
     write_both_line("");
 }
 
-[[nodiscard]] uint64_t read_cr2() {
+[[nodiscard]] uint64_t read_cr2()
+{
     uint64_t value = 0;
     asm volatile("mov %%cr2, %0" : "=r"(value));
     return value;
 }
 
-[[nodiscard]] uint64_t interrupted_rsp(const ExceptionFrame* frame) {
+[[nodiscard]] uint64_t interrupted_rsp(const ExceptionFrame * frame)
+{
     return reinterpret_cast<uint64_t>(frame) + sizeof(ExceptionFrame);
 }
 
 } // namespace
 
-extern "C" [[noreturn]] void kernel_x86_64_exception_dispatch(const ExceptionFrame* frame) {
+extern "C" [[noreturn]] void kernel_x86_64_exception_dispatch(const ExceptionFrame * frame)
+{
     write_both_line("");
     write_both_line("kernel exception");
     write_both("  name: ");
@@ -150,7 +170,8 @@ extern "C" [[noreturn]] void kernel_x86_64_exception_dispatch(const ExceptionFra
     write_hex_field("rflags", frame->rflags);
     write_hex_field("cs", frame->cs);
 
-    if (frame->vector == 14) {
+    if (frame->vector == 14)
+    {
         write_hex_field("cr2", read_cr2());
     }
 
@@ -158,9 +179,11 @@ extern "C" [[noreturn]] void kernel_x86_64_exception_dispatch(const ExceptionFra
     kernel::halt_forever();
 }
 
-namespace kernel::arch::x86_64 {
+namespace kernel::arch::x86_64
+{
 
-void set_interrupt_gate(uint8_t vector, void (*handler)()) {
+void set_interrupt_gate(uint8_t vector, void (*handler)())
+{
     const auto address = reinterpret_cast<uint64_t>(handler);
 
     g_idt[vector].offset_low = static_cast<uint16_t>(address & 0xffff);
@@ -172,7 +195,8 @@ void set_interrupt_gate(uint8_t vector, void (*handler)()) {
     g_idt[vector].reserved = 0;
 }
 
-void init_exceptions() {
+void init_exceptions()
+{
     set_interrupt_gate(0, kernel_x86_64_exception_0);
     set_interrupt_gate(6, kernel_x86_64_exception_6);
     set_interrupt_gate(13, kernel_x86_64_exception_13);

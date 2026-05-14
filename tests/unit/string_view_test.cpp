@@ -2,11 +2,13 @@
 #include "kernel/base/string_view.hpp"
 #include "test_helpers.hpp"
 
-namespace {
+namespace
+{
 
 using os_lab::test::expect_text;
 
-TEST(StringViewTest, SupportsBasicViewOperations) {
+TEST(StringViewTest, SupportsBasicViewOperations)
+{
     const kernel::StringView text = "kernel";
 
     EXPECT_EQ(text.size(), 6u);

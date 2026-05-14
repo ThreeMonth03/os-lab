@@ -1,6 +1,7 @@
 #include "kernel/input/mouse_packet_decoder.hpp"
 
-namespace {
+namespace
+{
 
 constexpr uint8_t kAlwaysSet = 0x08;
 constexpr uint8_t kLeftButton = 0x01;
@@ -11,9 +12,11 @@ constexpr uint8_t kYSign = 0x20;
 constexpr uint8_t kXOverflow = 0x40;
 constexpr uint8_t kYOverflow = 0x80;
 
-int16_t sign_extend(uint8_t value, bool negative) {
+int16_t sign_extend(uint8_t value, bool negative)
+{
     uint16_t extended = value;
-    if (negative) {
+    if (negative)
+    {
         extended = static_cast<uint16_t>(extended | 0xff00u);
     }
 
@@ -22,18 +25,22 @@ int16_t sign_extend(uint8_t value, bool negative) {
 
 } // namespace
 
-namespace kernel::mouse {
+namespace kernel::mouse
+{
 
-bool MousePacketDecoder::decode(uint8_t byte, MousePacket& packet) {
+bool MousePacketDecoder::decode(uint8_t byte, MousePacket & packet)
+{
     packet = {};
 
-    if (index_ == 0 && (byte & kAlwaysSet) == 0) {
+    if (index_ == 0 && (byte & kAlwaysSet) == 0)
+    {
         return false;
     }
 
     bytes_[index_] = byte;
     ++index_;
-    if (index_ < 3) {
+    if (index_ < 3)
+    {
         return false;
     }
 
@@ -50,7 +57,8 @@ bool MousePacketDecoder::decode(uint8_t byte, MousePacket& packet) {
     return true;
 }
 
-void MousePacketDecoder::reset() {
+void MousePacketDecoder::reset()
+{
     bytes_[0] = 0;
     bytes_[1] = 0;
     bytes_[2] = 0;

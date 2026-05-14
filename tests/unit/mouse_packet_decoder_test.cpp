@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 #include "kernel/input/mouse_packet_decoder.hpp"
 
-namespace {
+namespace
+{
 
-TEST(MousePacketDecoderTest, DecodesMovementAndButtons) {
+TEST(MousePacketDecoderTest, DecodesMovementAndButtons)
+{
     kernel::mouse::MousePacketDecoder decoder;
     kernel::mouse::MousePacket packet;
 
@@ -20,7 +22,8 @@ TEST(MousePacketDecoderTest, DecodesMovementAndButtons) {
     EXPECT_FALSE(packet.y_overflow);
 }
 
-TEST(MousePacketDecoderTest, DecodesNegativeMovement) {
+TEST(MousePacketDecoderTest, DecodesNegativeMovement)
+{
     kernel::mouse::MousePacketDecoder decoder;
     kernel::mouse::MousePacket packet;
 
@@ -32,7 +35,8 @@ TEST(MousePacketDecoderTest, DecodesNegativeMovement) {
     EXPECT_EQ(packet.delta_y, -3);
 }
 
-TEST(MousePacketDecoderTest, TracksOverflowBits) {
+TEST(MousePacketDecoderTest, TracksOverflowBits)
+{
     kernel::mouse::MousePacketDecoder decoder;
     kernel::mouse::MousePacket packet;
 
@@ -44,7 +48,8 @@ TEST(MousePacketDecoderTest, TracksOverflowBits) {
     EXPECT_TRUE(packet.y_overflow);
 }
 
-TEST(MousePacketDecoderTest, ResynchronizesOnInvalidFirstByte) {
+TEST(MousePacketDecoderTest, ResynchronizesOnInvalidFirstByte)
+{
     kernel::mouse::MousePacketDecoder decoder;
     kernel::mouse::MousePacket packet;
 

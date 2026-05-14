@@ -6,16 +6,19 @@
 #include "kernel/shell/shell_limits.hpp"
 #include "kernel/base/string_view.hpp"
 
-namespace kernel {
+namespace kernel
+{
 
-enum class HistoryResult {
+enum class HistoryResult
+{
     None,
     Command,
     Blank,
 };
 
-class History {
-  public:
+class History
+{
+public:
     static constexpr size_t capacity = kShellHistoryCapacity;
     static constexpr size_t entry_capacity = kShellLineCapacity;
 
@@ -23,12 +26,13 @@ class History {
     [[nodiscard]] size_t size() const { return count_; }
 
     [[nodiscard]] bool push(StringView command);
-    [[nodiscard]] HistoryResult previous(StringView& command);
-    [[nodiscard]] HistoryResult next(StringView& command);
+    [[nodiscard]] HistoryResult previous(StringView & command);
+    [[nodiscard]] HistoryResult next(StringView & command);
     void reset_browse();
 
-  private:
-    struct Entry {
+private:
+    struct Entry
+    {
         [[nodiscard]] bool assign(StringView value);
         [[nodiscard]] StringView view() const { return {characters.data(), characters.size()}; }
 

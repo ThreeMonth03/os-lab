@@ -6,7 +6,8 @@
 #include "kernel/arch/x86_64/pic.hpp"
 #include "kernel/drivers/serial.hpp"
 
-namespace {
+namespace
+{
 
 constexpr uint16_t kPitChannel0 = 0x40;
 constexpr uint16_t kPitCommand = 0x43;
@@ -17,9 +18,11 @@ volatile uint64_t g_ticks = 0;
 
 } // namespace
 
-namespace kernel::time::timer {
+namespace kernel::time::timer
+{
 
-void init() {
+void init()
+{
     g_ticks = 0;
 
     const uint16_t divisor = static_cast<uint16_t>(kPitBaseFrequency / frequency_hz);

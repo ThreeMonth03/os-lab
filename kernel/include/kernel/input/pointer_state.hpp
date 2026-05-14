@@ -2,10 +2,12 @@
 
 #include <stdint.h>
 
-namespace kernel {
+namespace kernel
+{
 
-class PointerState {
-  public:
+class PointerState
+{
+public:
     PointerState() = default;
     PointerState(uint64_t width, uint64_t height, uint64_t pointer_width, uint64_t pointer_height);
 
@@ -19,7 +21,7 @@ class PointerState {
     [[nodiscard]] uint64_t pointer_width() const { return pointer_width_; }
     [[nodiscard]] uint64_t pointer_height() const { return pointer_height_; }
 
-  private:
+private:
     [[nodiscard]] uint64_t clamp_x(int64_t value) const;
     [[nodiscard]] uint64_t clamp_y(int64_t value) const;
 

@@ -2,7 +2,8 @@
 
 #include <stdint.h>
 
-namespace kernel::arch::x86_64::pic {
+namespace kernel::arch::x86_64::pic
+{
 
 inline constexpr uint8_t irq_count = 16;
 inline constexpr uint8_t vector_base = 32;

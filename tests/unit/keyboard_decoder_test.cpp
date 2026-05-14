@@ -2,35 +2,40 @@
 #include <gtest/gtest.h>
 #include "kernel/input/keyboard_decoder.hpp"
 
-namespace {
+namespace
+{
 
-kernel::keyboard::KeyEvent expect_key(kernel::keyboard::KeyboardDecoder& decoder,
-                                      uint8_t raw_scancode) {
+kernel::keyboard::KeyEvent expect_key(kernel::keyboard::KeyboardDecoder & decoder,
+                                      uint8_t raw_scancode)
+{
     kernel::keyboard::KeyEvent event;
     EXPECT_TRUE(decoder.decode(raw_scancode, event));
     return event;
 }
 
-void expect_no_key(kernel::keyboard::KeyboardDecoder& decoder, uint8_t raw_scancode) {
+void expect_no_key(kernel::keyboard::KeyboardDecoder & decoder, uint8_t raw_scancode)
+{
     kernel::keyboard::KeyEvent event;
     EXPECT_FALSE(decoder.decode(raw_scancode, event));
 }
 
-kernel::keyboard::KeyEvent expect_extended_key(kernel::keyboard::KeyboardDecoder& decoder,
-                                               uint8_t scancode) {
+kernel::keyboard::KeyEvent expect_extended_key(kernel::keyboard::KeyboardDecoder & decoder,
+                                               uint8_t scancode)
+{
     expect_no_key(decoder, 0xe0);
     return expect_key(decoder, scancode);
 }
 
-void expect_character_key(kernel::keyboard::KeyboardDecoder& decoder, uint8_t scancode,
-                          char expected) {
+void expect_character_key(kernel::keyboard::KeyboardDecoder & decoder, uint8_t scancode, char expected)
+{
     const kernel::keyboard::KeyEvent event = expect_key(decoder, scancode);
     EXPECT_EQ(event.key, kernel::keyboard::Key::Character);
     EXPECT_EQ(event.character, expected);
     EXPECT_TRUE(event.pressed);
 }
 
-TEST(KeyboardDecoderTest, DecodesLowercaseAndShiftUppercase) {
+TEST(KeyboardDecoderTest, DecodesLowercaseAndShiftUppercase)
+{
     kernel::keyboard::KeyboardDecoder decoder;
 
     kernel::keyboard::KeyEvent event = expect_key(decoder, 0x1e);
@@ -56,7 +61,8 @@ TEST(KeyboardDecoderTest, DecodesLowercaseAndShiftUppercase) {
     EXPECT_FALSE(event.shift);
 }
 
-TEST(KeyboardDecoderTest, DecodesRightShiftUppercaseAndRelease) {
+TEST(KeyboardDecoderTest, DecodesRightShiftUppercaseAndRelease)
+{
     kernel::keyboard::KeyboardDecoder decoder;
 
     kernel::keyboard::KeyEvent event = expect_key(decoder, 0x36);
@@ -80,7 +86,8 @@ TEST(KeyboardDecoderTest, DecodesRightShiftUppercaseAndRelease) {
     EXPECT_FALSE(event.shift);
 }
 
-TEST(KeyboardDecoderTest, DecodesCapsLockWithShiftXorBehavior) {
+TEST(KeyboardDecoderTest, DecodesCapsLockWithShiftXorBehavior)
+{
     kernel::keyboard::KeyboardDecoder decoder;
 
     kernel::keyboard::KeyEvent event = expect_key(decoder, 0x3a);
@@ -105,7 +112,8 @@ TEST(KeyboardDecoderTest, DecodesCapsLockWithShiftXorBehavior) {
     EXPECT_TRUE(event.caps_lock);
 }
 
-TEST(KeyboardDecoderTest, TracksControlAndAltState) {
+TEST(KeyboardDecoderTest, TracksControlAndAltState)
+{
     kernel::keyboard::KeyboardDecoder decoder;
 
     kernel::keyboard::KeyEvent event = expect_key(decoder, 0x1d);
@@ -135,7 +143,8 @@ TEST(KeyboardDecoderTest, TracksControlAndAltState) {
     EXPECT_FALSE(event.pressed);
 }
 
-TEST(KeyboardDecoderTest, DecodesExtendedNavigationKeys) {
+TEST(KeyboardDecoderTest, DecodesExtendedNavigationKeys)
+{
     kernel::keyboard::KeyboardDecoder decoder;
 
     kernel::keyboard::KeyEvent event = expect_extended_key(decoder, 0x4b);
@@ -160,7 +169,8 @@ TEST(KeyboardDecoderTest, DecodesExtendedNavigationKeys) {
     EXPECT_TRUE(event.extended);
 }
 
-TEST(KeyboardDecoderTest, DoesNotEmitCharactersForKeyRelease) {
+TEST(KeyboardDecoderTest, DoesNotEmitCharactersForKeyRelease)
+{
     kernel::keyboard::KeyboardDecoder decoder;
 
     expect_no_key(decoder, 0x9e);
@@ -175,7 +185,8 @@ TEST(KeyboardDecoderTest, DoesNotEmitCharactersForKeyRelease) {
     EXPECT_EQ(event.character, '\0');
 }
 
-TEST(KeyboardDecoderTest, DecodesTabPressOnly) {
+TEST(KeyboardDecoderTest, DecodesTabPressOnly)
+{
     kernel::keyboard::KeyboardDecoder decoder;
 
     kernel::keyboard::KeyEvent event = expect_key(decoder, 0x0f);
@@ -186,7 +197,8 @@ TEST(KeyboardDecoderTest, DecodesTabPressOnly) {
     expect_no_key(decoder, 0x8f);
 }
 
-TEST(KeyboardDecoderTest, DecodesPunctuationAndShiftedPunctuation) {
+TEST(KeyboardDecoderTest, DecodesPunctuationAndShiftedPunctuation)
+{
     kernel::keyboard::KeyboardDecoder decoder;
 
     expect_character_key(decoder, 0x2b, '\\');

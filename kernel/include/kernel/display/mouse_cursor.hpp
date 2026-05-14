@@ -2,7 +2,8 @@
 
 #include <stdint.h>
 
-namespace kernel::display::mouse_cursor {
+namespace kernel::display::mouse_cursor
+{
 
 [[nodiscard]] bool init();
 [[nodiscard]] bool ready();

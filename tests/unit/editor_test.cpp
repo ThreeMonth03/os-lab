@@ -7,24 +7,27 @@
 #include "kernel/text/line_editor.hpp"
 #include "test_helpers.hpp"
 
-namespace {
+namespace
+{
 
 using os_lab::test::expect_text;
 
-void expect_editor_cell(kernel::EditorViewCell actual, uint64_t column, uint64_t row) {
+void expect_editor_cell(kernel::EditorViewCell actual, uint64_t column, uint64_t row)
+{
     EXPECT_EQ(actual.column, column);
     EXPECT_EQ(actual.row, row);
 }
 
-void expect_dirty_range(kernel::EditorDirtyRange actual, kernel::EditorDirtyKind kind, size_t start,
-                        size_t old_end, size_t new_end) {
+void expect_dirty_range(kernel::EditorDirtyRange actual, kernel::EditorDirtyKind kind, size_t start, size_t old_end, size_t new_end)
+{
     EXPECT_EQ(actual.kind, kind);
     EXPECT_EQ(actual.start, start);
     EXPECT_EQ(actual.old_end, old_end);
     EXPECT_EQ(actual.new_end, new_end);
 }
 
-TEST(LineEditorTest, InsertsMovesCursorAndDeletes) {
+TEST(LineEditorTest, InsertsMovesCursorAndDeletes)
+{
     kernel::LineEditor line;
 
     EXPECT_TRUE(line.empty());
@@ -67,7 +70,8 @@ TEST(LineEditorTest, InsertsMovesCursorAndDeletes) {
     EXPECT_EQ(line.cursor(), 0u);
 }
 
-TEST(LineEditorTest, ReplacesCurrentLine) {
+TEST(LineEditorTest, ReplacesCurrentLine)
+{
     kernel::LineEditor line;
 
     EXPECT_TRUE(line.replace("hello"));
@@ -80,7 +84,8 @@ TEST(LineEditorTest, ReplacesCurrentLine) {
     EXPECT_EQ(line.cursor(), 1u);
 
     char too_long[kernel::LineEditor::capacity + 1] = {};
-    for (size_t index = 0; index < kernel::LineEditor::capacity + 1; ++index) {
+    for (size_t index = 0; index < kernel::LineEditor::capacity + 1; ++index)
+    {
         too_long[index] = 'x';
     }
 
@@ -88,14 +93,16 @@ TEST(LineEditorTest, ReplacesCurrentLine) {
     expect_text(line.view(), "z");
 }
 
-TEST(LineEditorTest, ComputesTabStopSpacing) {
+TEST(LineEditorTest, ComputesTabStopSpacing)
+{
     EXPECT_EQ(kernel::LineEditor::spaces_to_next_tab_stop(0), 4u);
     EXPECT_EQ(kernel::LineEditor::spaces_to_next_tab_stop(1), 3u);
     EXPECT_EQ(kernel::LineEditor::spaces_to_next_tab_stop(3), 1u);
     EXPECT_EQ(kernel::LineEditor::spaces_to_next_tab_stop(4), 4u);
 }
 
-TEST(LineEditorTest, InsertsSpacesAtCursor) {
+TEST(LineEditorTest, InsertsSpacesAtCursor)
+{
     kernel::LineEditor line;
 
     EXPECT_TRUE(line.insert('a'));
@@ -107,7 +114,8 @@ TEST(LineEditorTest, InsertsSpacesAtCursor) {
     EXPECT_EQ(line.cursor(), 4u);
 }
 
-TEST(HistoryTest, BrowsesCommandsAndReturnsBlankAtNewest) {
+TEST(HistoryTest, BrowsesCommandsAndReturnsBlankAtNewest)
+{
     kernel::History history;
     kernel::StringView command;
 
@@ -139,11 +147,13 @@ TEST(HistoryTest, BrowsesCommandsAndReturnsBlankAtNewest) {
     EXPECT_EQ(history.next(command), kernel::HistoryResult::None);
 }
 
-TEST(HistoryTest, KeepsFixedCapacity) {
+TEST(HistoryTest, KeepsFixedCapacity)
+{
     kernel::History history;
     kernel::StringView command;
 
-    for (size_t index = 0; index < kernel::History::capacity + 1; ++index) {
+    for (size_t index = 0; index < kernel::History::capacity + 1; ++index)
+    {
         const char value[1] = {static_cast<char>('0' + index)};
         EXPECT_TRUE(history.push({value, 1}));
     }
@@ -152,18 +162,21 @@ TEST(HistoryTest, KeepsFixedCapacity) {
     EXPECT_EQ(history.previous(command), kernel::HistoryResult::Command);
     expect_text(command, "8");
 
-    for (size_t index = 1; index < kernel::History::capacity; ++index) {
+    for (size_t index = 1; index < kernel::History::capacity; ++index)
+    {
         EXPECT_EQ(history.previous(command), kernel::HistoryResult::Command);
     }
     expect_text(command, "1");
 }
 
-TEST(HistoryTest, StoresFullLineEditorCapacityCommands) {
+TEST(HistoryTest, StoresFullLineEditorCapacityCommands)
+{
     kernel::History history;
     kernel::StringView command;
     char text[kernel::LineEditor::capacity] = {};
 
-    for (size_t index = 0; index < kernel::LineEditor::capacity; ++index) {
+    for (size_t index = 0; index < kernel::LineEditor::capacity; ++index)
+    {
         text[index] = 'x';
     }
 
@@ -172,7 +185,8 @@ TEST(HistoryTest, StoresFullLineEditorCapacityCommands) {
     EXPECT_EQ(command.size(), kernel::LineEditor::capacity);
 }
 
-TEST(EditorViewLayoutTest, MapsCursorWithinFirstVisualRow) {
+TEST(EditorViewLayoutTest, MapsCursorWithinFirstVisualRow)
+{
     const kernel::EditorViewLayout layout(10, 0, 2);
 
     expect_editor_cell(layout.position_for(0), 2, 0);
@@ -180,7 +194,8 @@ TEST(EditorViewLayoutTest, MapsCursorWithinFirstVisualRow) {
     EXPECT_EQ(layout.visual_rows(7), 1u);
 }
 
-TEST(EditorViewLayoutTest, WrapsCursorAfterRowEnd) {
+TEST(EditorViewLayoutTest, WrapsCursorAfterRowEnd)
+{
     const kernel::EditorViewLayout layout(10, 0, 2);
 
     expect_editor_cell(layout.position_for(8), 0, 1);
@@ -189,7 +204,8 @@ TEST(EditorViewLayoutTest, WrapsCursorAfterRowEnd) {
     EXPECT_EQ(layout.visual_rows(18), 3u);
 }
 
-TEST(EditorViewLayoutTest, AccountsForPromptColumnOffset) {
+TEST(EditorViewLayoutTest, AccountsForPromptColumnOffset)
+{
     const kernel::EditorViewLayout layout(10, 5, 2);
 
     expect_editor_cell(layout.position_for(0), 7, 0);
@@ -198,7 +214,8 @@ TEST(EditorViewLayoutTest, AccountsForPromptColumnOffset) {
     EXPECT_EQ(layout.visual_rows(3), 2u);
 }
 
-TEST(EditorViewLayoutTest, SupportsLongPrompt) {
+TEST(EditorViewLayoutTest, SupportsLongPrompt)
+{
     const kernel::EditorViewLayout layout(12, 0, 9);
 
     expect_editor_cell(layout.position_for(0), 9, 0);
@@ -206,7 +223,8 @@ TEST(EditorViewLayoutTest, SupportsLongPrompt) {
     expect_editor_cell(layout.position_for(15), 0, 2);
 }
 
-TEST(EditorViewLayoutTest, HandlesZeroColumns) {
+TEST(EditorViewLayoutTest, HandlesZeroColumns)
+{
     const kernel::EditorViewLayout layout(0, 4, 2);
 
     EXPECT_FALSE(layout.ready());
@@ -214,49 +232,56 @@ TEST(EditorViewLayoutTest, HandlesZeroColumns) {
     EXPECT_EQ(layout.visual_rows(10), 1u);
 }
 
-TEST(EditorDirtyRangeTest, AppendAtEndRedrawsOnlyNewCharacter) {
+TEST(EditorDirtyRangeTest, AppendAtEndRedrawsOnlyNewCharacter)
+{
     const kernel::EditorDirtyRange dirty =
         kernel::editor_dirty_range(kernel::EditorEditKind::Insert, {5, 5, 2}, {6, 6, 2});
 
     expect_dirty_range(dirty, kernel::EditorDirtyKind::Partial, 5, 5, 6);
 }
 
-TEST(EditorDirtyRangeTest, InsertInMiddleRedrawsFromInsertionPoint) {
+TEST(EditorDirtyRangeTest, InsertInMiddleRedrawsFromInsertionPoint)
+{
     const kernel::EditorDirtyRange dirty =
         kernel::editor_dirty_range(kernel::EditorEditKind::Insert, {2, 5, 2}, {3, 6, 2});
 
     expect_dirty_range(dirty, kernel::EditorDirtyKind::Partial, 2, 5, 6);
 }
 
-TEST(EditorDirtyRangeTest, BackspaceRedrawsFromRemovedCharacter) {
+TEST(EditorDirtyRangeTest, BackspaceRedrawsFromRemovedCharacter)
+{
     const kernel::EditorDirtyRange dirty =
         kernel::editor_dirty_range(kernel::EditorEditKind::Backspace, {3, 5, 2}, {2, 4, 2});
 
     expect_dirty_range(dirty, kernel::EditorDirtyKind::Partial, 2, 5, 4);
 }
 
-TEST(EditorDirtyRangeTest, DeleteRedrawsFromCursor) {
+TEST(EditorDirtyRangeTest, DeleteRedrawsFromCursor)
+{
     const kernel::EditorDirtyRange dirty =
         kernel::editor_dirty_range(kernel::EditorEditKind::DeleteForward, {2, 5, 2}, {2, 4, 2});
 
     expect_dirty_range(dirty, kernel::EditorDirtyKind::Partial, 2, 5, 4);
 }
 
-TEST(EditorDirtyRangeTest, CursorMoveDoesNotRedrawText) {
+TEST(EditorDirtyRangeTest, CursorMoveDoesNotRedrawText)
+{
     const kernel::EditorDirtyRange dirty =
         kernel::editor_dirty_range(kernel::EditorEditKind::CursorMove, {4, 5, 2}, {3, 5, 2});
 
     expect_dirty_range(dirty, kernel::EditorDirtyKind::CursorOnly, 3, 5, 5);
 }
 
-TEST(EditorDirtyRangeTest, PromptWidthChangeRequiresFullRedraw) {
+TEST(EditorDirtyRangeTest, PromptWidthChangeRequiresFullRedraw)
+{
     const kernel::EditorDirtyRange dirty =
         kernel::editor_dirty_range(kernel::EditorEditKind::Insert, {5, 5, 2}, {6, 6, 9});
 
     expect_dirty_range(dirty, kernel::EditorDirtyKind::Full, 0, 0, 0);
 }
 
-TEST(EditorDirtyRangeTest, MultilineRangeCanCrossVisualRows) {
+TEST(EditorDirtyRangeTest, MultilineRangeCanCrossVisualRows)
+{
     const kernel::EditorViewLayout layout(10, 0, 2);
     const kernel::EditorDirtyRange dirty =
         kernel::editor_dirty_range(kernel::EditorEditKind::Insert, {7, 9, 2}, {8, 10, 2});

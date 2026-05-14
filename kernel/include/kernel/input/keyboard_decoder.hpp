@@ -4,14 +4,16 @@
 
 #include "kernel/input/keyboard.hpp"
 
-namespace kernel::keyboard {
+namespace kernel::keyboard
+{
 
-class KeyboardDecoder {
-  public:
-    [[nodiscard]] bool decode(uint8_t raw_scancode, KeyEvent& event);
+class KeyboardDecoder
+{
+public:
+    [[nodiscard]] bool decode(uint8_t raw_scancode, KeyEvent & event);
     void reset();
 
-  private:
+private:
     bool left_shift_pressed_ = false;
     bool right_shift_pressed_ = false;
     bool left_control_pressed_ = false;

@@ -1,8 +1,10 @@
 #pragma once
 
-namespace kernel::keyboard {
+namespace kernel::keyboard
+{
 
-enum class Key {
+enum class Key
+{
     Unknown,
     Character,
     Tab,
@@ -19,7 +21,8 @@ enum class Key {
     Delete,
 };
 
-struct KeyEvent {
+struct KeyEvent
+{
     Key key = Key::Unknown;
     char character = '\0';
     bool pressed = false;
@@ -30,6 +33,6 @@ struct KeyEvent {
     bool extended = false;
 };
 
-[[nodiscard]] bool poll_key(KeyEvent& event);
+[[nodiscard]] bool poll_key(KeyEvent & event);
 
 } // namespace kernel::keyboard

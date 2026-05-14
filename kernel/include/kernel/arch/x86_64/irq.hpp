@@ -1,6 +1,7 @@
 #pragma once
 
-namespace kernel::arch::x86_64 {
+namespace kernel::arch::x86_64
+{
 
 void init_irqs();
 void enable_interrupts();

@@ -4,7 +4,8 @@
 #include "kernel/input/mouse.hpp"
 #include "kernel/base/placement_new.hpp"
 
-namespace {
+namespace
+{
 
 constexpr size_t kEventQueueCapacity = 32;
 constexpr int kMaxPollsPerPump = 16;
@@ -17,9 +18,11 @@ uint64_t g_key_events = 0;
 uint64_t g_mouse_move_events = 0;
 uint64_t g_dropped_events = 0;
 
-EventQueue& event_queue() {
-    auto* queue = reinterpret_cast<EventQueue*>(g_event_queue_storage);
-    if (!g_event_queue_initialized) {
+EventQueue & event_queue()
+{
+    auto * queue = reinterpret_cast<EventQueue *>(g_event_queue_storage);
+    if (!g_event_queue_initialized)
+    {
         new (queue) EventQueue();
         g_event_queue_initialized = true;
     }
@@ -27,9 +30,11 @@ EventQueue& event_queue() {
     return *queue;
 }
 
-bool push_event(const kernel::input::Event& event) {
-    EventQueue& events = event_queue();
-    if (events.full()) {
+bool push_event(const kernel::input::Event & event)
+{
+    EventQueue & events = event_queue();
+    if (events.full())
+    {
         ++g_dropped_events;
         return false;
     }
@@ -37,9 +42,11 @@ bool push_event(const kernel::input::Event& event) {
     return events.push(event);
 }
 
-bool poll_keyboard() {
+bool poll_keyboard()
+{
     kernel::keyboard::KeyEvent key;
-    if (!kernel::keyboard::poll_key(key)) {
+    if (!kernel::keyboard::poll_key(key))
+    {
         return false;
     }
 
@@ -50,9 +57,11 @@ bool poll_keyboard() {
     return push_event(event);
 }
 
-bool poll_mouse() {
+bool poll_mouse()
+{
     kernel::mouse::MouseEvent mouse;
-    if (!kernel::mouse::poll(mouse)) {
+    if (!kernel::mouse::poll(mouse))
+    {
         return false;
     }
 
@@ -71,23 +80,29 @@ bool poll_mouse() {
 
 } // namespace
 
-namespace kernel::input {
+namespace kernel::input
+{
 
-void pump() {
-    EventQueue& events = event_queue();
-    for (int poll_count = 0; poll_count < kMaxPollsPerPump && !events.full(); ++poll_count) {
+void pump()
+{
+    EventQueue & events = event_queue();
+    for (int poll_count = 0; poll_count < kMaxPollsPerPump && !events.full(); ++poll_count)
+    {
         const bool pushed_key = poll_keyboard();
         const bool pushed_mouse = poll_mouse();
-        if (!pushed_key && !pushed_mouse) {
+        if (!pushed_key && !pushed_mouse)
+        {
             return;
         }
     }
 }
 
-bool poll(Event& event) {
+bool poll(Event & event)
+{
     event = {};
-    EventQueue& events = event_queue();
-    if (events.pop(event)) {
+    EventQueue & events = event_queue();
+    if (events.pop(event))
+    {
         return true;
     }
 
@@ -95,10 +110,10 @@ bool poll(Event& event) {
     return events.pop(event);
 }
 
-Stats stats() {
-    EventQueue& events = event_queue();
-    return {g_key_events,  g_mouse_move_events, g_dropped_events,
-            events.size(), events.capacity(),   events.available()};
+Stats stats()
+{
+    EventQueue & events = event_queue();
+    return {g_key_events, g_mouse_move_events, g_dropped_events, events.size(), events.capacity(), events.available()};
 }
 
 } // namespace kernel::input

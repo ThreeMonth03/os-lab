@@ -1,16 +1,19 @@
 #include <gtest/gtest.h>
 #include "kernel/input/pointer_state.hpp"
 
-namespace {
+namespace
+{
 
-TEST(PointerStateTest, InitializesAtCenteredPosition) {
+TEST(PointerStateTest, InitializesAtCenteredPosition)
+{
     const kernel::PointerState pointer(100, 80, 10, 16);
 
     EXPECT_EQ(pointer.x(), 45u);
     EXPECT_EQ(pointer.y(), 32u);
 }
 
-TEST(PointerStateTest, AppliesMouseDeltasWithInvertedY) {
+TEST(PointerStateTest, AppliesMouseDeltasWithInvertedY)
+{
     kernel::PointerState pointer(100, 80, 10, 16);
 
     pointer.move_by(5, 7);
@@ -19,7 +22,8 @@ TEST(PointerStateTest, AppliesMouseDeltasWithInvertedY) {
     EXPECT_EQ(pointer.y(), 25u);
 }
 
-TEST(PointerStateTest, ClampsToBounds) {
+TEST(PointerStateTest, ClampsToBounds)
+{
     kernel::PointerState pointer(100, 80, 10, 16);
 
     pointer.move_by(-200, 200);
@@ -31,7 +35,8 @@ TEST(PointerStateTest, ClampsToBounds) {
     EXPECT_EQ(pointer.y(), 64u);
 }
 
-TEST(PointerStateTest, HandlesPointerLargerThanBounds) {
+TEST(PointerStateTest, HandlesPointerLargerThanBounds)
+{
     kernel::PointerState pointer(8, 8, 10, 16);
 
     pointer.move_by(10, -10);

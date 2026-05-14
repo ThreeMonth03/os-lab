@@ -1,6 +1,7 @@
 #pragma once
 
-namespace kernel::shell {
+namespace kernel::shell
+{
 
 [[noreturn]] void run();
 

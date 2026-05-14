@@ -2,9 +2,11 @@
 
 #include <stdint.h>
 
-namespace kernel::mouse {
+namespace kernel::mouse
+{
 
-struct MouseEvent {
+struct MouseEvent
+{
     int16_t delta_x = 0;
     int16_t delta_y = 0;
     bool left_button = false;
@@ -16,6 +18,6 @@ struct MouseEvent {
 
 [[nodiscard]] bool init();
 [[nodiscard]] bool ready();
-[[nodiscard]] bool poll(MouseEvent& event);
+[[nodiscard]] bool poll(MouseEvent & event);
 
 } // namespace kernel::mouse

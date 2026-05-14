@@ -6,7 +6,11 @@ BUILD_DIR ?= $(PROJECT_ROOT)/build
 GENERATOR ?= Ninja
 GENERATOR_BIN ?= ninja
 CMAKE ?= cmake
-CLANG_FORMAT ?= clang-format
+CLANG_FORMAT ?= $(shell if command -v clang-format-19 >/dev/null 2>&1; then \
+	printf 'clang-format-19'; \
+else \
+	printf 'clang-format'; \
+fi)
 DOCKER_COMPOSE ?= $(shell if docker compose version >/dev/null 2>&1; then \
 	printf 'docker compose'; \
 elif command -v docker-compose >/dev/null 2>&1; then \
@@ -90,6 +94,11 @@ _check-native-tools:
 _check-clang-format:
 	@if ! command -v $(CLANG_FORMAT) >/dev/null 2>&1; then \
 		printf 'Missing tool: %s\n' '$(CLANG_FORMAT)' >&2; \
+		exit 1; \
+	fi
+	@version="$$( $(CLANG_FORMAT) --version 2>/dev/null | sed -n 's/.*version \([0-9][0-9]*\).*/\1/p' )"; \
+	if [[ -z "$$version" || "$$version" -lt 19 ]]; then \
+		printf 'clang-format >= 19 is required for the project style; found: %s\n' "$$($(CLANG_FORMAT) --version)" >&2; \
 		exit 1; \
 	fi
 

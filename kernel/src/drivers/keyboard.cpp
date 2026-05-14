@@ -5,19 +5,23 @@
 #include "kernel/input/keyboard_decoder.hpp"
 #include "kernel/drivers/ps2_controller.hpp"
 
-namespace {
+namespace
+{
 
 kernel::keyboard::KeyboardDecoder g_decoder;
 
 } // namespace
 
-namespace kernel::keyboard {
+namespace kernel::keyboard
+{
 
-bool poll_key(KeyEvent& event) {
+bool poll_key(KeyEvent & event)
+{
     event = {};
 
     uint8_t raw_scancode = 0;
-    if (!kernel::drivers::ps2::read_keyboard_data(raw_scancode)) {
+    if (!kernel::drivers::ps2::read_keyboard_data(raw_scancode))
+    {
         return false;
     }
 

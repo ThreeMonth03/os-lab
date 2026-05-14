@@ -4,39 +4,49 @@
 #include "kernel/drivers/serial.hpp"
 #include "kernel/console/terminal.hpp"
 
-namespace {
+namespace
+{
 
-void write_both(kernel::StringView value) {
+void write_both(kernel::StringView value)
+{
     kernel::drivers::serial::write_string(value);
-    if (kernel::console::terminal::ready()) {
+    if (kernel::console::terminal::ready())
+    {
         kernel::console::terminal::write_string(value);
     }
 }
 
-void write_both_line(kernel::StringView value) {
+void write_both_line(kernel::StringView value)
+{
     kernel::drivers::serial::write_line(value);
-    if (kernel::console::terminal::ready()) {
+    if (kernel::console::terminal::ready())
+    {
         kernel::console::terminal::write_line(value);
     }
 }
 
-void write_both_decimal(uint64_t value) {
+void write_both_decimal(uint64_t value)
+{
     kernel::drivers::serial::write_decimal(value);
-    if (kernel::console::terminal::ready()) {
+    if (kernel::console::terminal::ready())
+    {
         kernel::console::terminal::write_decimal(value);
     }
 }
 
-[[noreturn]] void finish_panic() {
+[[noreturn]] void finish_panic()
+{
     write_both_line("kernel halted");
     kernel::halt_forever();
 }
 
 } // namespace
 
-namespace kernel {
+namespace kernel
+{
 
-[[noreturn]] void panic(StringView message) {
+[[noreturn]] void panic(StringView message)
+{
     write_both_line("");
     write_both_line("kernel panic");
     write_both("message: ");
@@ -44,7 +54,8 @@ namespace kernel {
     finish_panic();
 }
 
-[[noreturn]] void panic_assert(StringView condition, StringView file, int line) {
+[[noreturn]] void panic_assert(StringView condition, StringView file, int line)
+{
     write_both_line("");
     write_both_line("kernel assertion failed");
     write_both("condition: ");

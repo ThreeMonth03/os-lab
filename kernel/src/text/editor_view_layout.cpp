@@ -1,12 +1,19 @@
 #include "kernel/text/editor_view_layout.hpp"
 
-namespace kernel {
+namespace kernel
+{
 
 EditorViewLayout::EditorViewLayout(uint64_t columns, uint64_t prompt_column, uint64_t prompt_width)
-    : columns_(columns), prompt_column_(prompt_column), prompt_width_(prompt_width) {}
+    : columns_(columns)
+    , prompt_column_(prompt_column)
+    , prompt_width_(prompt_width)
+{
+}
 
-EditorViewCell EditorViewLayout::position_for(size_t text_index) const {
-    if (!ready()) {
+EditorViewCell EditorViewLayout::position_for(size_t text_index) const
+{
+    if (!ready())
+    {
         return {};
     }
 
@@ -14,8 +21,10 @@ EditorViewCell EditorViewLayout::position_for(size_t text_index) const {
     return {offset % columns_, offset / columns_};
 }
 
-uint64_t EditorViewLayout::visual_rows(size_t text_length) const {
-    if (!ready()) {
+uint64_t EditorViewLayout::visual_rows(size_t text_length) const
+{
+    if (!ready())
+    {
         return 1;
     }
 

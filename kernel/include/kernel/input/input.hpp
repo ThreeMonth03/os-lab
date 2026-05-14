@@ -4,15 +4,18 @@
 
 #include "kernel/input/keyboard.hpp"
 
-namespace kernel::input {
+namespace kernel::input
+{
 
-enum class EventKind {
+enum class EventKind
+{
     None,
     Key,
     MouseMove,
 };
 
-struct MouseMoveEvent {
+struct MouseMoveEvent
+{
     int16_t delta_x = 0;
     int16_t delta_y = 0;
     bool left_button = false;
@@ -22,13 +25,15 @@ struct MouseMoveEvent {
     bool y_overflow = false;
 };
 
-struct Event {
+struct Event
+{
     EventKind kind = EventKind::None;
     keyboard::KeyEvent key = {};
     MouseMoveEvent mouse_move = {};
 };
 
-struct Stats {
+struct Stats
+{
     uint64_t key_events = 0;
     uint64_t mouse_move_events = 0;
     uint64_t dropped_events = 0;
@@ -38,7 +43,7 @@ struct Stats {
 };
 
 void pump();
-[[nodiscard]] bool poll(Event& event);
+[[nodiscard]] bool poll(Event & event);
 [[nodiscard]] Stats stats();
 
 } // namespace kernel::input

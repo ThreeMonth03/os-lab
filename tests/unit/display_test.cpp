@@ -2,24 +2,27 @@
 #include <gtest/gtest.h>
 #include "kernel/display/display.hpp"
 
-namespace {
+namespace
+{
 
-void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t width,
-                 uint64_t height) {
+void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t width, uint64_t height)
+{
     EXPECT_EQ(actual.x, x);
     EXPECT_EQ(actual.y, y);
     EXPECT_EQ(actual.width, width);
     EXPECT_EQ(actual.height, height);
 }
 
-TEST(DisplayTest, ClipsRectToSurfaceBounds) {
+TEST(DisplayTest, ClipsRectToSurfaceBounds)
+{
     expect_rect(kernel::display::clip_rect({1, 2, 3, 4}, 10, 10), 1, 2, 3, 4);
     expect_rect(kernel::display::clip_rect({8, 7, 5, 6}, 10, 10), 8, 7, 2, 3);
     expect_rect(kernel::display::clip_rect({10, 0, 1, 1}, 10, 10), 10, 0, 0, 0);
     expect_rect(kernel::display::clip_rect({0, 10, 1, 1}, 10, 10), 0, 10, 0, 0);
 }
 
-TEST(DisplayTest, PutPixelAndFillRectAreClipped) {
+TEST(DisplayTest, PutPixelAndFillRectAreClipped)
+{
     uint32_t pixels[12] = {};
     kernel::display::Surface surface(pixels, 4, 3, 4 * sizeof(uint32_t));
 
@@ -37,9 +40,21 @@ TEST(DisplayTest, PutPixelAndFillRectAreClipped) {
     EXPECT_EQ(pixels[0], 0u);
 }
 
-TEST(DisplayTest, ScrollUpMovesPixelsAndClearsBottomRows) {
+TEST(DisplayTest, ScrollUpMovesPixelsAndClearsBottomRows)
+{
     uint32_t pixels[12] = {
-        10, 11, 12, 13, 20, 21, 22, 23, 30, 31, 32, 33,
+        10,
+        11,
+        12,
+        13,
+        20,
+        21,
+        22,
+        23,
+        30,
+        31,
+        32,
+        33,
     };
     kernel::display::Surface surface(pixels, 4, 3, 4 * sizeof(uint32_t));
 

@@ -7,12 +7,14 @@
 #include "kernel/drivers/serial.hpp"
 #include "kernel/time/timer.hpp"
 
-namespace {
+namespace
+{
 
 constexpr uint32_t kIa32ApicBase = 0x1b;
 constexpr uint64_t kApicGlobalEnable = 1ull << 11;
 
-struct IrqFrame {
+struct IrqFrame
+{
     uint64_t rax;
     uint64_t rbx;
     uint64_t rcx;
@@ -55,51 +57,70 @@ extern "C" void kernel_x86_64_irq_47();
 using Handler = void (*)();
 
 constexpr Handler kIrqHandlers[] = {
-    kernel_x86_64_irq_32, kernel_x86_64_irq_33, kernel_x86_64_irq_34, kernel_x86_64_irq_35,
-    kernel_x86_64_irq_36, kernel_x86_64_irq_37, kernel_x86_64_irq_38, kernel_x86_64_irq_39,
-    kernel_x86_64_irq_40, kernel_x86_64_irq_41, kernel_x86_64_irq_42, kernel_x86_64_irq_43,
-    kernel_x86_64_irq_44, kernel_x86_64_irq_45, kernel_x86_64_irq_46, kernel_x86_64_irq_47,
+    kernel_x86_64_irq_32,
+    kernel_x86_64_irq_33,
+    kernel_x86_64_irq_34,
+    kernel_x86_64_irq_35,
+    kernel_x86_64_irq_36,
+    kernel_x86_64_irq_37,
+    kernel_x86_64_irq_38,
+    kernel_x86_64_irq_39,
+    kernel_x86_64_irq_40,
+    kernel_x86_64_irq_41,
+    kernel_x86_64_irq_42,
+    kernel_x86_64_irq_43,
+    kernel_x86_64_irq_44,
+    kernel_x86_64_irq_45,
+    kernel_x86_64_irq_46,
+    kernel_x86_64_irq_47,
 };
 
 static_assert(sizeof(kIrqHandlers) / sizeof(kIrqHandlers[0]) ==
               kernel::arch::x86_64::pic::irq_count);
 
-[[nodiscard]] uint64_t read_msr(uint32_t msr) {
+[[nodiscard]] uint64_t read_msr(uint32_t msr)
+{
     uint32_t low = 0;
     uint32_t high = 0;
     asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
     return (static_cast<uint64_t>(high) << 32) | low;
 }
 
-void write_msr(uint32_t msr, uint64_t value) {
+void write_msr(uint32_t msr, uint64_t value)
+{
     asm volatile("wrmsr"
                  :
-                 : "c"(msr), "a"(static_cast<uint32_t>(value & 0xffffffff)),
-                   "d"(static_cast<uint32_t>(value >> 32)));
+                 : "c"(msr), "a"(static_cast<uint32_t>(value & 0xffffffff)), "d"(static_cast<uint32_t>(value >> 32)));
 }
 
-void disable_local_apic_for_pic() {
+void disable_local_apic_for_pic()
+{
     const uint64_t apic_base = read_msr(kIa32ApicBase);
     write_msr(kIa32ApicBase, apic_base & ~kApicGlobalEnable);
 }
 
 } // namespace
 
-extern "C" void kernel_x86_64_irq_dispatch(const IrqFrame* frame) {
+extern "C" void kernel_x86_64_irq_dispatch(const IrqFrame * frame)
+{
     const uint8_t irq_line =
         static_cast<uint8_t>(frame->vector - kernel::arch::x86_64::pic::vector_base);
 
-    if (irq_line == 0) {
+    if (irq_line == 0)
+    {
         kernel::time::timer::handle_tick();
     }
 
     kernel::arch::x86_64::pic::send_eoi(irq_line);
 }
 
-namespace kernel::arch::x86_64 {
+namespace kernel::arch::x86_64
+{
 
-void init_irqs() {
-    for (uint8_t index = 0; index < pic::irq_count; ++index) {
+void init_irqs()
+{
+    for (uint8_t index = 0; index < pic::irq_count; ++index)
+    {
         set_interrupt_gate(static_cast<uint8_t>(pic::vector_base + index), kIrqHandlers[index]);
     }
 
@@ -115,11 +136,11 @@ void disable_interrupts() { asm volatile("cli" ::: "memory"); }
 
 } // namespace kernel::arch::x86_64
 
-#define IRQ_STUB(vector)                                                                           \
-    ".global kernel_x86_64_irq_" #vector "\n"                                                      \
-    "kernel_x86_64_irq_" #vector ":\n"                                                             \
-    "    pushq $0\n"                                                                               \
-    "    pushq $" #vector "\n"                                                                     \
+#define IRQ_STUB(vector)                      \
+    ".global kernel_x86_64_irq_" #vector "\n" \
+    "kernel_x86_64_irq_" #vector ":\n"        \
+    "    pushq $0\n"                          \
+    "    pushq $" #vector "\n"                \
     "    jmp kernel_x86_64_irq_common\n"
 
 asm(R"(

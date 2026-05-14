@@ -2,9 +2,11 @@
 #include "kernel/base/fixed_queue.hpp"
 #include "kernel/base/fixed_vector.hpp"
 
-namespace {
+namespace
+{
 
-TEST(FixedVectorTest, StoresValuesWithoutHeap) {
+TEST(FixedVectorTest, StoresValuesWithoutHeap)
+{
     kernel::FixedVector<int, 3> values;
 
     EXPECT_TRUE(values.empty());
@@ -21,7 +23,8 @@ TEST(FixedVectorTest, StoresValuesWithoutHeap) {
     EXPECT_TRUE(values.empty());
 }
 
-TEST(FixedQueueTest, PushesAndPopsInOrder) {
+TEST(FixedQueueTest, PushesAndPopsInOrder)
+{
     kernel::FixedQueue<int, 3> values;
     int value = 0;
 
@@ -38,7 +41,8 @@ TEST(FixedQueueTest, PushesAndPopsInOrder) {
     EXPECT_TRUE(values.empty());
 }
 
-TEST(FixedQueueTest, ReportsFullAndRejectsNewest) {
+TEST(FixedQueueTest, ReportsFullAndRejectsNewest)
+{
     kernel::FixedQueue<int, 2> values;
     int value = 0;
 
@@ -58,7 +62,8 @@ TEST(FixedQueueTest, ReportsFullAndRejectsNewest) {
     EXPECT_EQ(values.available(), 2u);
 }
 
-TEST(FixedQueueTest, WrapsAround) {
+TEST(FixedQueueTest, WrapsAround)
+{
     kernel::FixedQueue<int, 3> values;
     int value = 0;
 
@@ -79,7 +84,8 @@ TEST(FixedQueueTest, WrapsAround) {
     EXPECT_TRUE(values.empty());
 }
 
-TEST(FixedQueueTest, ClearEmptiesQueue) {
+TEST(FixedQueueTest, ClearEmptiesQueue)
+{
     kernel::FixedQueue<int, 2> values;
 
     EXPECT_TRUE(values.push(1));

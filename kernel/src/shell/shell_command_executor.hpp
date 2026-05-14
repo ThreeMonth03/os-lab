@@ -2,7 +2,8 @@
 
 #include "kernel/base/string_view.hpp"
 
-namespace kernel::shell {
+namespace kernel::shell
+{
 
 void execute_command(StringView command);
 

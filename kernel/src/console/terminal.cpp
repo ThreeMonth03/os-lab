@@ -8,7 +8,8 @@
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/text/text_console.hpp"
 
-namespace {
+namespace
+{
 
 namespace display = kernel::display;
 namespace mouse_cursor = kernel::display::mouse_cursor;
@@ -16,7 +17,8 @@ namespace mouse_cursor = kernel::display::mouse_cursor;
 constexpr uint64_t kCellWidth = display::TerminalRenderer::kCellWidth;
 constexpr uint64_t kCellHeight = display::TerminalRenderer::kCellHeight;
 
-struct TerminalState {
+struct TerminalState
+{
     display::Surface surface;
     display::TerminalRenderer renderer;
     kernel::TextConsole console;
@@ -27,23 +29,27 @@ struct TerminalState {
 
 TerminalState g_state;
 
-class MouseCursorGuard {
-  public:
+class MouseCursorGuard
+{
+public:
     MouseCursorGuard() { mouse_cursor::hide(); }
     ~MouseCursorGuard() { mouse_cursor::show(); }
 
-    MouseCursorGuard(const MouseCursorGuard&) = delete;
-    MouseCursorGuard& operator=(const MouseCursorGuard&) = delete;
+    MouseCursorGuard(const MouseCursorGuard &) = delete;
+    MouseCursorGuard & operator=(const MouseCursorGuard &) = delete;
 };
 
-uint32_t pack_rgb(const limine_framebuffer& framebuffer, uint8_t red, uint8_t green, uint8_t blue) {
+uint32_t pack_rgb(const limine_framebuffer & framebuffer, uint8_t red, uint8_t green, uint8_t blue)
+{
     return (static_cast<uint32_t>(red) << framebuffer.red_mask_shift) |
            (static_cast<uint32_t>(green) << framebuffer.green_mask_shift) |
            (static_cast<uint32_t>(blue) << framebuffer.blue_mask_shift);
 }
 
-void hide_text_cursor() {
-    if (!g_state.cursor_visible) {
+void hide_text_cursor()
+{
+    if (!g_state.cursor_visible)
+    {
         return;
     }
 
@@ -51,8 +57,10 @@ void hide_text_cursor() {
     g_state.cursor_visible = false;
 }
 
-void apply_console_update(kernel::TextConsoleUpdate update) {
-    switch (update.action) {
+void apply_console_update(kernel::TextConsoleUpdate update)
+{
+    switch (update.action)
+    {
     case kernel::TextConsoleAction::DrawGlyph:
         g_state.renderer.draw_glyph(update.glyph, update.cell.column, update.cell.row);
         break;
@@ -63,30 +71,34 @@ void apply_console_update(kernel::TextConsoleUpdate update) {
         break;
     }
 
-    if (update.scroll) {
+    if (update.scroll)
+    {
         g_state.renderer.scroll();
     }
 }
 
 } // namespace
 
-namespace kernel::console::terminal {
+namespace kernel::console::terminal
+{
 
-bool init() {
-    const auto* response = boot::framebuffer();
-    if (response == nullptr || response->framebuffer_count == 0) {
+bool init()
+{
+    const auto * response = boot::framebuffer();
+    if (response == nullptr || response->framebuffer_count == 0)
+    {
         return false;
     }
 
-    auto* framebuffer = response->framebuffers[0];
+    auto * framebuffer = response->framebuffers[0];
     if (framebuffer == nullptr || framebuffer->bpp != 32 ||
         framebuffer->memory_model != LIMINE_FRAMEBUFFER_RGB || framebuffer->width < kCellWidth ||
-        framebuffer->height < kCellHeight) {
+        framebuffer->height < kCellHeight)
+    {
         return false;
     }
 
-    g_state.surface = display::Surface(framebuffer->address, framebuffer->width,
-                                       framebuffer->height, framebuffer->pitch);
+    g_state.surface = display::Surface(framebuffer->address, framebuffer->width, framebuffer->height, framebuffer->pitch);
     g_state.console.reset(framebuffer->width / kCellWidth, framebuffer->height / kCellHeight);
     const display::Color foreground{pack_rgb(*framebuffer, 0xf5, 0xf5, 0xf5)};
     const display::Color background{pack_rgb(*framebuffer, 0x10, 0x14, 0x1c)};
@@ -106,8 +118,10 @@ uint64_t cursor_column() { return g_state.console.cursor_column(); }
 
 uint64_t cursor_row() { return g_state.console.cursor_row(); }
 
-void clear() {
-    if (!ready()) {
+void clear()
+{
+    if (!ready())
+    {
         return;
     }
 
@@ -117,8 +131,10 @@ void clear() {
     g_state.console.clear();
 }
 
-void clear_cell_at(uint64_t column, uint64_t row) {
-    if (!ready() || column >= g_state.console.columns() || row >= g_state.console.rows()) {
+void clear_cell_at(uint64_t column, uint64_t row)
+{
+    if (!ready() || column >= g_state.console.columns() || row >= g_state.console.rows())
+    {
         return;
     }
 
@@ -126,20 +142,25 @@ void clear_cell_at(uint64_t column, uint64_t row) {
     g_state.renderer.clear_cell(column, row);
 }
 
-void clear_row_from(uint64_t column, uint64_t row) {
-    if (!ready() || row >= g_state.console.rows()) {
+void clear_row_from(uint64_t column, uint64_t row)
+{
+    if (!ready() || row >= g_state.console.rows())
+    {
         return;
     }
 
     MouseCursorGuard mouse_cursor;
-    while (column < g_state.console.columns()) {
+    while (column < g_state.console.columns())
+    {
         g_state.renderer.clear_cell(column, row);
         ++column;
     }
 }
 
-void draw_char_at(uint64_t column, uint64_t row, char value) {
-    if (!ready() || column >= g_state.console.columns() || row >= g_state.console.rows()) {
+void draw_char_at(uint64_t column, uint64_t row, char value)
+{
+    if (!ready() || column >= g_state.console.columns() || row >= g_state.console.rows())
+    {
         return;
     }
 
@@ -147,16 +168,20 @@ void draw_char_at(uint64_t column, uint64_t row, char value) {
     g_state.renderer.draw_glyph(value, column, row);
 }
 
-void set_cursor(uint64_t column, uint64_t row) {
-    if (!ready()) {
+void set_cursor(uint64_t column, uint64_t row)
+{
+    if (!ready())
+    {
         return;
     }
 
     g_state.console.set_cursor(column, row);
 }
 
-void show_cursor() {
-    if (!ready()) {
+void show_cursor()
+{
+    if (!ready())
+    {
         return;
     }
 
@@ -168,8 +193,10 @@ void show_cursor() {
     g_state.cursor_visible = true;
 }
 
-void hide_cursor() {
-    if (!ready() || !g_state.cursor_visible) {
+void hide_cursor()
+{
+    if (!ready() || !g_state.cursor_visible)
+    {
         return;
     }
 
@@ -177,14 +204,18 @@ void hide_cursor() {
     hide_text_cursor();
 }
 
-void write_char(char value) {
-    if (!ready()) {
+void write_char(char value)
+{
+    if (!ready())
+    {
         return;
     }
 
-    switch (value) {
+    switch (value)
+    {
     case '\t':
-        for (int index = 0; index < 4; ++index) {
+        for (int index = 0; index < 4; ++index)
+        {
             write_char(' ');
         }
         return;
@@ -193,7 +224,8 @@ void write_char(char value) {
     }
 
     MouseCursorGuard mouse_cursor;
-    switch (value) {
+    switch (value)
+    {
     case '\n':
         apply_console_update(g_state.console.newline());
         return;
@@ -210,46 +242,55 @@ void write_char(char value) {
     apply_console_update(g_state.console.write_char(value));
 }
 
-void write_string(StringView value) {
-    for (char character : value) {
+void write_string(StringView value)
+{
+    for (char character : value)
+    {
         write_char(character);
     }
 }
 
-void write_string(const char* value) { write_string(StringView(value)); }
+void write_string(const char * value) { write_string(StringView(value)); }
 
-void write_line(StringView value) {
+void write_line(StringView value)
+{
     write_string(value);
     write_char('\n');
 }
 
-void write_line(const char* value) { write_line(StringView(value)); }
+void write_line(const char * value) { write_line(StringView(value)); }
 
-void write_hex(uint64_t value) {
+void write_hex(uint64_t value)
+{
     static constexpr char digits[] = "0123456789abcdef";
     write_string("0x");
 
-    for (int shift = 60; shift >= 0; shift -= 4) {
+    for (int shift = 60; shift >= 0; shift -= 4)
+    {
         const auto nibble = static_cast<uint8_t>((value >> shift) & 0xf);
         write_char(digits[nibble]);
     }
 }
 
-void write_decimal(uint64_t value) {
+void write_decimal(uint64_t value)
+{
     char buffer[21] = {};
     size_t index = 0;
 
-    if (value == 0) {
+    if (value == 0)
+    {
         write_char('0');
         return;
     }
 
-    while (value > 0) {
+    while (value > 0)
+    {
         buffer[index++] = static_cast<char>('0' + (value % 10));
         value /= 10;
     }
 
-    while (index > 0) {
+    while (index > 0)
+    {
         write_char(buffer[--index]);
     }
 }

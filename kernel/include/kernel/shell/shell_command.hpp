@@ -2,9 +2,11 @@
 
 #include "kernel/base/string_view.hpp"
 
-namespace kernel {
+namespace kernel
+{
 
-enum class ShellCommandKind {
+enum class ShellCommandKind
+{
     Empty,
     Help,
     Clear,
@@ -15,7 +17,8 @@ enum class ShellCommandKind {
     Unknown,
 };
 
-struct ShellCommand {
+struct ShellCommand
+{
     ShellCommandKind kind = ShellCommandKind::Empty;
     StringView text;
     StringView name;

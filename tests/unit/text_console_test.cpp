@@ -2,14 +2,17 @@
 #include <gtest/gtest.h>
 #include "kernel/text/text_console.hpp"
 
-namespace {
+namespace
+{
 
-void expect_cell(kernel::ConsoleCell actual, uint64_t column, uint64_t row) {
+void expect_cell(kernel::ConsoleCell actual, uint64_t column, uint64_t row)
+{
     EXPECT_EQ(actual.column, column);
     EXPECT_EQ(actual.row, row);
 }
 
-TEST(TextConsoleTest, WritesCharacterAndAdvancesCursor) {
+TEST(TextConsoleTest, WritesCharacterAndAdvancesCursor)
+{
     kernel::TextConsole console(4, 3);
 
     const kernel::TextConsoleUpdate update = console.write_char('x');
@@ -22,7 +25,8 @@ TEST(TextConsoleTest, WritesCharacterAndAdvancesCursor) {
     EXPECT_EQ(console.cursor_row(), 0u);
 }
 
-TEST(TextConsoleTest, NewlineMovesToNextRow) {
+TEST(TextConsoleTest, NewlineMovesToNextRow)
+{
     kernel::TextConsole console(4, 3);
     console.set_cursor(2, 0);
 
@@ -34,7 +38,8 @@ TEST(TextConsoleTest, NewlineMovesToNextRow) {
     EXPECT_EQ(console.cursor_row(), 1u);
 }
 
-TEST(TextConsoleTest, NewlineAtBottomRequestsScroll) {
+TEST(TextConsoleTest, NewlineAtBottomRequestsScroll)
+{
     kernel::TextConsole console(4, 3);
     console.set_cursor(2, 2);
 
@@ -45,7 +50,8 @@ TEST(TextConsoleTest, NewlineAtBottomRequestsScroll) {
     EXPECT_EQ(console.cursor_row(), 2u);
 }
 
-TEST(TextConsoleTest, WritingLastBottomCellRequestsScrollAfterDraw) {
+TEST(TextConsoleTest, WritingLastBottomCellRequestsScrollAfterDraw)
+{
     kernel::TextConsole console(4, 3);
     console.set_cursor(3, 2);
 
@@ -59,7 +65,8 @@ TEST(TextConsoleTest, WritingLastBottomCellRequestsScrollAfterDraw) {
     EXPECT_EQ(console.cursor_row(), 2u);
 }
 
-TEST(TextConsoleTest, ClearResetsCursor) {
+TEST(TextConsoleTest, ClearResetsCursor)
+{
     kernel::TextConsole console(4, 3);
     console.set_cursor(3, 2);
 
@@ -69,7 +76,8 @@ TEST(TextConsoleTest, ClearResetsCursor) {
     EXPECT_EQ(console.cursor_row(), 0u);
 }
 
-TEST(TextConsoleTest, SetCursorClampsToBounds) {
+TEST(TextConsoleTest, SetCursorClampsToBounds)
+{
     kernel::TextConsole console(4, 3);
 
     console.set_cursor(99, 99);
@@ -78,7 +86,8 @@ TEST(TextConsoleTest, SetCursorClampsToBounds) {
     EXPECT_EQ(console.cursor_row(), 2u);
 }
 
-TEST(TextConsoleTest, BackspaceClearsPreviousCell) {
+TEST(TextConsoleTest, BackspaceClearsPreviousCell)
+{
     kernel::TextConsole console(4, 3);
     console.set_cursor(2, 1);
 
@@ -90,7 +99,8 @@ TEST(TextConsoleTest, BackspaceClearsPreviousCell) {
     EXPECT_EQ(console.cursor_row(), 1u);
 }
 
-TEST(TextConsoleTest, BackspaceAtLineStartDoesNothing) {
+TEST(TextConsoleTest, BackspaceAtLineStartDoesNothing)
+{
     kernel::TextConsole console(4, 3);
     console.set_cursor(0, 1);
 

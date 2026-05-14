@@ -1,22 +1,27 @@
 #include "kernel/text/text_console.hpp"
 
-namespace kernel {
+namespace kernel
+{
 
 TextConsole::TextConsole(uint64_t columns, uint64_t rows) { reset(columns, rows); }
 
-void TextConsole::reset(uint64_t columns, uint64_t rows) {
+void TextConsole::reset(uint64_t columns, uint64_t rows)
+{
     columns_ = columns;
     rows_ = rows;
     clear();
 }
 
-void TextConsole::clear() {
+void TextConsole::clear()
+{
     cursor_column_ = 0;
     cursor_row_ = 0;
 }
 
-TextConsoleUpdate TextConsole::write_char(char value) {
-    if (!ready()) {
+TextConsoleUpdate TextConsole::write_char(char value)
+{
+    if (!ready())
+    {
         return {};
     }
 
@@ -26,7 +31,8 @@ TextConsoleUpdate TextConsole::write_char(char value) {
     update.glyph = value;
 
     ++cursor_column_;
-    if (cursor_column_ >= columns_) {
+    if (cursor_column_ >= columns_)
+    {
         const TextConsoleUpdate newline_update = newline();
         update.scroll = newline_update.scroll;
     }
@@ -34,13 +40,16 @@ TextConsoleUpdate TextConsole::write_char(char value) {
     return update;
 }
 
-TextConsoleUpdate TextConsole::newline() {
-    if (!ready()) {
+TextConsoleUpdate TextConsole::newline()
+{
+    if (!ready())
+    {
         return {};
     }
 
     cursor_column_ = 0;
-    if (cursor_row_ + 1 >= rows_) {
+    if (cursor_row_ + 1 >= rows_)
+    {
         TextConsoleUpdate update = {};
         update.scroll = true;
         return update;
@@ -50,16 +59,20 @@ TextConsoleUpdate TextConsole::newline() {
     return {};
 }
 
-void TextConsole::carriage_return() {
-    if (!ready()) {
+void TextConsole::carriage_return()
+{
+    if (!ready())
+    {
         return;
     }
 
     cursor_column_ = 0;
 }
 
-TextConsoleUpdate TextConsole::backspace() {
-    if (!ready() || cursor_column_ == 0) {
+TextConsoleUpdate TextConsole::backspace()
+{
+    if (!ready() || cursor_column_ == 0)
+    {
         return {};
     }
 
@@ -71,8 +84,10 @@ TextConsoleUpdate TextConsole::backspace() {
     return update;
 }
 
-void TextConsole::set_cursor(uint64_t column, uint64_t row) {
-    if (!ready()) {
+void TextConsole::set_cursor(uint64_t column, uint64_t row)
+{
+    if (!ready())
+    {
         cursor_column_ = 0;
         cursor_row_ = 0;
         return;

@@ -3,7 +3,8 @@
 #include "kernel/input/mouse_packet_decoder.hpp"
 #include "kernel/drivers/ps2_controller.hpp"
 
-namespace {
+namespace
+{
 
 constexpr uint8_t kCommandEnableAuxiliary = 0xa8;
 constexpr uint8_t kCommandReadConfig = 0x20;
@@ -17,9 +18,12 @@ constexpr uint32_t kResponseWaitLimit = 100000;
 kernel::mouse::MousePacketDecoder g_decoder;
 bool g_ready = false;
 
-bool wait_for_data(uint8_t& data, kernel::drivers::ps2::Device& device) {
-    for (uint32_t attempt = 0; attempt < kResponseWaitLimit; ++attempt) {
-        if (kernel::drivers::ps2::read_data(data, device)) {
+bool wait_for_data(uint8_t & data, kernel::drivers::ps2::Device & device)
+{
+    for (uint32_t attempt = 0; attempt < kResponseWaitLimit; ++attempt)
+    {
+        if (kernel::drivers::ps2::read_data(data, device))
+        {
             return true;
         }
     }
@@ -27,15 +31,19 @@ bool wait_for_data(uint8_t& data, kernel::drivers::ps2::Device& device) {
     return false;
 }
 
-bool wait_for_mouse_ack() {
+bool wait_for_mouse_ack()
+{
     uint8_t data = 0;
     kernel::drivers::ps2::Device device = kernel::drivers::ps2::Device::Keyboard;
 
-    for (uint32_t attempt = 0; attempt < kResponseWaitLimit; ++attempt) {
-        if (!kernel::drivers::ps2::read_data(data, device)) {
+    for (uint32_t attempt = 0; attempt < kResponseWaitLimit; ++attempt)
+    {
+        if (!kernel::drivers::ps2::read_data(data, device))
+        {
             continue;
         }
-        if (device == kernel::drivers::ps2::Device::Mouse) {
+        if (device == kernel::drivers::ps2::Device::Mouse)
+        {
             return data == kMouseAck;
         }
     }
@@ -43,8 +51,10 @@ bool wait_for_mouse_ack() {
     return false;
 }
 
-bool read_controller_config(uint8_t& config) {
-    if (!kernel::drivers::ps2::write_command(kCommandReadConfig)) {
+bool read_controller_config(uint8_t & config)
+{
+    if (!kernel::drivers::ps2::write_command(kCommandReadConfig))
+    {
         return false;
     }
 
@@ -52,41 +62,50 @@ bool read_controller_config(uint8_t& config) {
     return wait_for_data(config, device);
 }
 
-bool write_controller_config(uint8_t config) {
+bool write_controller_config(uint8_t config)
+{
     return kernel::drivers::ps2::write_command(kCommandWriteConfig) &&
            kernel::drivers::ps2::write_data(config);
 }
 
-bool send_mouse_command(uint8_t command) {
+bool send_mouse_command(uint8_t command)
+{
     return kernel::drivers::ps2::write_mouse_data(command) && wait_for_mouse_ack();
 }
 
 } // namespace
 
-namespace kernel::mouse {
+namespace kernel::mouse
+{
 
-bool init() {
+bool init()
+{
     g_ready = false;
     g_decoder.reset();
 
     kernel::drivers::ps2::flush_output();
-    if (!kernel::drivers::ps2::write_command(kCommandEnableAuxiliary)) {
+    if (!kernel::drivers::ps2::write_command(kCommandEnableAuxiliary))
+    {
         return false;
     }
 
     uint8_t config = 0;
-    if (read_controller_config(config)) {
+    if (read_controller_config(config))
+    {
         config = static_cast<uint8_t>(config & ~kConfigDisableMouseClock);
-        if (!write_controller_config(config)) {
+        if (!write_controller_config(config))
+        {
             return false;
         }
     }
 
     kernel::drivers::ps2::flush_output();
-    if (!send_mouse_command(kMouseSetDefaults)) {
+    if (!send_mouse_command(kMouseSetDefaults))
+    {
         return false;
     }
-    if (!send_mouse_command(kMouseEnableDataReporting)) {
+    if (!send_mouse_command(kMouseEnableDataReporting))
+    {
         return false;
     }
 
@@ -96,19 +115,23 @@ bool init() {
 
 bool ready() { return g_ready; }
 
-bool poll(MouseEvent& event) {
+bool poll(MouseEvent & event)
+{
     event = {};
-    if (!g_ready) {
+    if (!g_ready)
+    {
         return false;
     }
 
     uint8_t data = 0;
-    if (!kernel::drivers::ps2::read_mouse_data(data)) {
+    if (!kernel::drivers::ps2::read_mouse_data(data))
+    {
         return false;
     }
 
     MousePacket packet;
-    if (!g_decoder.decode(data, packet)) {
+    if (!g_decoder.decode(data, packet))
+    {
         return false;
     }
 

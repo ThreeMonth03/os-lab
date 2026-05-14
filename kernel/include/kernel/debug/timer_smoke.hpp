@@ -1,6 +1,7 @@
 #pragma once
 
-namespace kernel::debug {
+namespace kernel::debug
+{
 
 void run_timer_smoke();
 

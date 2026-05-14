@@ -9,12 +9,14 @@
 #include "kernel/shell/shell_command.hpp"
 #include "kernel/console/terminal.hpp"
 
-namespace {
+namespace
+{
 
 namespace serial = kernel::drivers::serial;
 namespace terminal = kernel::console::terminal;
 
-void write_help() {
+void write_help()
+{
     terminal::write_line("commands:");
     terminal::write_line("  help  - show this list");
     terminal::write_line("  clear - clear the screen");
@@ -24,13 +26,15 @@ void write_help() {
     terminal::write_line("  halt  - stop the cpu");
 }
 
-void write_about() {
+void write_about()
+{
     terminal::write_line("os-lab early shell");
     terminal::write_line("freestanding c++23 kernel");
     terminal::write_line("no filesystem or heap yet");
 }
 
-void write_stat(kernel::StringView name, uint64_t value) {
+void write_stat(kernel::StringView name, uint64_t value)
+{
     terminal::write_string("  ");
     terminal::write_string(name);
     terminal::write_string(": ");
@@ -38,7 +42,8 @@ void write_stat(kernel::StringView name, uint64_t value) {
     terminal::write_char('\n');
 }
 
-void write_input_stats() {
+void write_input_stats()
+{
     const kernel::input::Stats stats = kernel::input::stats();
 
     terminal::write_line("input stats:");
@@ -50,9 +55,11 @@ void write_input_stats() {
     write_stat("queue capacity", stats.queue_capacity);
 }
 
-void write_memory_stats() {
+void write_memory_stats()
+{
     const kernel::memory::Stats stats = kernel::memory::stats();
-    if (!stats.initialized) {
+    if (!stats.initialized)
+    {
         terminal::write_line("memory stats unavailable");
         return;
     }
@@ -72,12 +79,15 @@ void write_memory_stats() {
 
 } // namespace
 
-namespace kernel::shell {
+namespace kernel::shell
+{
 
-void execute_command(StringView command) {
+void execute_command(StringView command)
+{
     const ShellCommand parsed = parse_shell_command(command);
 
-    switch (parsed.kind) {
+    switch (parsed.kind)
+    {
     case ShellCommandKind::Empty:
         return;
     case ShellCommandKind::Help:

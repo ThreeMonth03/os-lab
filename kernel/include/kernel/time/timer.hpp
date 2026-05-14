@@ -2,7 +2,8 @@
 
 #include <stdint.h>
 
-namespace kernel::time::timer {
+namespace kernel::time::timer
+{
 
 inline constexpr uint32_t frequency_hz = 100;
 

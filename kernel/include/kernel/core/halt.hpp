@@ -1,9 +1,12 @@
 #pragma once
 
-namespace kernel {
+namespace kernel
+{
 
-[[noreturn]] inline void halt_forever() {
-    for (;;) {
+[[noreturn]] inline void halt_forever()
+{
+    for (;;)
+    {
         asm volatile("cli; hlt" ::: "memory");
     }
 }

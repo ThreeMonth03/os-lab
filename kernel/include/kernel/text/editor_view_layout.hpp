@@ -3,15 +3,18 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace kernel {
+namespace kernel
+{
 
-struct EditorViewCell {
+struct EditorViewCell
+{
     uint64_t column = 0;
     uint64_t row = 0;
 };
 
-class EditorViewLayout {
-  public:
+class EditorViewLayout
+{
+public:
     EditorViewLayout() = default;
     EditorViewLayout(uint64_t columns, uint64_t prompt_column, uint64_t prompt_width);
 
@@ -23,7 +26,7 @@ class EditorViewLayout {
     [[nodiscard]] EditorViewCell position_for(size_t text_index) const;
     [[nodiscard]] uint64_t visual_rows(size_t text_length) const;
 
-  private:
+private:
     uint64_t columns_ = 0;
     uint64_t prompt_column_ = 0;
     uint64_t prompt_width_ = 0;

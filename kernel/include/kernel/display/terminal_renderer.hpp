@@ -5,17 +5,19 @@
 #include "kernel/display/display.hpp"
 #include "kernel/text/font5x7.hpp"
 
-namespace kernel::display {
+namespace kernel::display
+{
 
-class TerminalRenderer {
-  public:
+class TerminalRenderer
+{
+public:
     static constexpr uint64_t kGlyphScale = 2;
     static constexpr uint64_t kCellWidth = (Glyph5x7::width + 1) * kGlyphScale;
     static constexpr uint64_t kCellHeight = (Glyph5x7::height + 2) * kGlyphScale;
 
     TerminalRenderer() = default;
 
-    void reset(Surface& surface, Color foreground, Color background);
+    void reset(Surface & surface, Color foreground, Color background);
 
     [[nodiscard]] bool ready() const { return surface_ != nullptr && surface_->ready(); }
 
@@ -26,13 +28,13 @@ class TerminalRenderer {
     void erase_cursor(uint64_t column, uint64_t row);
     void scroll();
 
-  private:
+private:
     static constexpr uint64_t kCursorTop = (Glyph5x7::height * kGlyphScale) + 1;
     static constexpr uint64_t kCursorHeight = kGlyphScale;
 
     void fill_rect(uint64_t x, uint64_t y, uint64_t width, uint64_t height, Color color);
 
-    Surface* surface_ = nullptr;
+    Surface * surface_ = nullptr;
     Color foreground_;
     Color background_;
 };

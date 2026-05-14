@@ -4,10 +4,13 @@
 
 #include "kernel/boot/limine_support.hpp"
 
-namespace {
+namespace
+{
 
-kernel::memory::MemoryRegionKind memory_region_kind_from_limine(uint64_t type) {
-    switch (type) {
+kernel::memory::MemoryRegionKind memory_region_kind_from_limine(uint64_t type)
+{
+    switch (type)
+    {
     case LIMINE_MEMMAP_USABLE:
         return kernel::memory::MemoryRegionKind::Usable;
     case LIMINE_MEMMAP_RESERVED:
@@ -31,18 +34,23 @@ kernel::memory::MemoryRegionKind memory_region_kind_from_limine(uint64_t type) {
     }
 }
 
-class BootMemoryState {
-  public:
-    bool init(const limine_memmap_response* response) {
+class BootMemoryState
+{
+public:
+    bool init(const limine_memmap_response * response)
+    {
         reset();
-        if (response == nullptr || response->entries == nullptr) {
+        if (response == nullptr || response->entries == nullptr)
+        {
             return false;
         }
 
         stats_.initialized = true;
-        for (uint64_t index = 0; index < response->entry_count; ++index) {
-            const limine_memmap_entry* entry = response->entries[index];
-            if (entry == nullptr) {
+        for (uint64_t index = 0; index < response->entry_count; ++index)
+        {
+            const limine_memmap_entry * entry = response->entries[index];
+            if (entry == nullptr)
+            {
                 continue;
             }
 
@@ -54,8 +62,10 @@ class BootMemoryState {
         return true;
     }
 
-    kernel::memory::Stats stats() {
-        if (stats_.initialized) {
+    kernel::memory::Stats stats()
+    {
+        if (stats_.initialized)
+        {
             refresh_stats();
         }
 
@@ -64,8 +74,10 @@ class BootMemoryState {
 
     kernel::memory::MemoryMapView memory_map() const { return {regions_, region_count_}; }
 
-    bool allocate_frame(kernel::memory::PhysicalFrame& frame) {
-        if (!stats_.initialized) {
+    bool allocate_frame(kernel::memory::PhysicalFrame & frame)
+    {
+        if (!stats_.initialized)
+        {
             frame = {};
             return false;
         }
@@ -75,15 +87,18 @@ class BootMemoryState {
         return allocated;
     }
 
-  private:
-    void reset() {
+private:
+    void reset()
+    {
         region_count_ = 0;
         allocator_.reset({});
         stats_ = {};
     }
 
-    void append(const limine_memmap_entry& entry) {
-        if (region_count_ >= kernel::memory::kMaxBootMemoryRegions) {
+    void append(const limine_memmap_entry & entry)
+    {
+        if (region_count_ >= kernel::memory::kMaxBootMemoryRegions)
+        {
             stats_.truncated = true;
             return;
         }
@@ -95,7 +110,8 @@ class BootMemoryState {
         };
     }
 
-    void refresh_stats() {
+    void refresh_stats()
+    {
         stats_.map = memory_map().stats();
         stats_.frames = allocator_.stats();
     }
@@ -110,7 +126,8 @@ BootMemoryState g_memory;
 
 } // namespace
 
-namespace kernel::memory {
+namespace kernel::memory
+{
 
 bool init() { return g_memory.init(kernel::boot::memory_map()); }
 
@@ -118,6 +135,6 @@ Stats stats() { return g_memory.stats(); }
 
 MemoryMapView memory_map() { return g_memory.memory_map(); }
 
-bool allocate_frame(PhysicalFrame& frame) { return g_memory.allocate_frame(frame); }
+bool allocate_frame(PhysicalFrame & frame) { return g_memory.allocate_frame(frame); }
 
 } // namespace kernel::memory

@@ -2,28 +2,33 @@
 
 #include <stdint.h>
 
-namespace kernel {
+namespace kernel
+{
 
-struct ConsoleCell {
+struct ConsoleCell
+{
     uint64_t column = 0;
     uint64_t row = 0;
 };
 
-enum class TextConsoleAction {
+enum class TextConsoleAction
+{
     None,
     DrawGlyph,
     ClearCell,
 };
 
-struct TextConsoleUpdate {
+struct TextConsoleUpdate
+{
     TextConsoleAction action = TextConsoleAction::None;
     ConsoleCell cell = {};
     char glyph = '\0';
     bool scroll = false;
 };
 
-class TextConsole {
-  public:
+class TextConsole
+{
+public:
     TextConsole() = default;
     TextConsole(uint64_t columns, uint64_t rows);
 
@@ -43,7 +48,7 @@ class TextConsole {
     [[nodiscard]] TextConsoleUpdate backspace();
     void set_cursor(uint64_t column, uint64_t row);
 
-  private:
+private:
     uint64_t columns_ = 0;
     uint64_t rows_ = 0;
     uint64_t cursor_column_ = 0;

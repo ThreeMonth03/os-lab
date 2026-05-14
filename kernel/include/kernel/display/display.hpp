@@ -2,13 +2,16 @@
 
 #include <stdint.h>
 
-namespace kernel::display {
+namespace kernel::display
+{
 
-struct Color {
+struct Color
+{
     uint32_t value = 0;
 };
 
-struct Rect {
+struct Rect
+{
     uint64_t x = 0;
     uint64_t y = 0;
     uint64_t width = 0;
@@ -17,10 +20,11 @@ struct Rect {
     [[nodiscard]] bool empty() const { return width == 0 || height == 0; }
 };
 
-class Surface {
-  public:
+class Surface
+{
+public:
     Surface() = default;
-    Surface(void* address, uint64_t width, uint64_t height, uint64_t pitch);
+    Surface(void * address, uint64_t width, uint64_t height, uint64_t pitch);
 
     [[nodiscard]] bool ready() const { return address_ != nullptr && width_ > 0 && height_ > 0; }
     [[nodiscard]] uint64_t width() const { return width_; }
@@ -32,8 +36,8 @@ class Surface {
     void fill_rect(Rect rect, Color color);
     void scroll_up(uint64_t pixel_count, Color clear_color);
 
-  private:
-    void* address_ = nullptr;
+private:
+    void * address_ = nullptr;
     uint64_t width_ = 0;
     uint64_t height_ = 0;
     uint64_t pitch_ = 0;

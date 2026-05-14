@@ -1,6 +1,7 @@
 #include "kernel/input/keyboard_decoder.hpp"
 
-namespace {
+namespace
+{
 
 constexpr uint8_t kReleaseMask = 0x80;
 constexpr uint8_t kExtendedPrefix = 0xe0;
@@ -11,17 +12,21 @@ constexpr uint8_t kControl = 0x1d;
 constexpr uint8_t kAlt = 0x38;
 constexpr uint8_t kCapsLock = 0x3a;
 
-char letter(char lowercase, bool shift, bool caps_lock) {
+char letter(char lowercase, bool shift, bool caps_lock)
+{
     const bool uppercase = shift != caps_lock;
-    if (uppercase) {
+    if (uppercase)
+    {
         return static_cast<char>(lowercase - 'a' + 'A');
     }
 
     return lowercase;
 }
 
-char decode_character(uint8_t scancode, bool shift, bool caps_lock) {
-    switch (scancode) {
+char decode_character(uint8_t scancode, bool shift, bool caps_lock)
+{
+    switch (scancode)
+    {
     case 0x02:
         return shift ? '!' : '1';
     case 0x03:
@@ -123,9 +128,12 @@ char decode_character(uint8_t scancode, bool shift, bool caps_lock) {
     }
 }
 
-kernel::keyboard::Key key_for_scancode(uint8_t scancode, bool extended) {
-    if (extended) {
-        switch (scancode) {
+kernel::keyboard::Key key_for_scancode(uint8_t scancode, bool extended)
+{
+    if (extended)
+    {
+        switch (scancode)
+        {
         case 0x48:
             return kernel::keyboard::Key::UpArrow;
         case 0x4b:
@@ -145,7 +153,8 @@ kernel::keyboard::Key key_for_scancode(uint8_t scancode, bool extended) {
         }
     }
 
-    switch (scancode) {
+    switch (scancode)
+    {
     case 0x0f:
         return kernel::keyboard::Key::Tab;
     case 0x0e:
@@ -168,17 +177,21 @@ kernel::keyboard::Key key_for_scancode(uint8_t scancode, bool extended) {
 
 } // namespace
 
-namespace kernel::keyboard {
+namespace kernel::keyboard
+{
 
-bool KeyboardDecoder::decode(uint8_t raw_scancode, KeyEvent& event) {
+bool KeyboardDecoder::decode(uint8_t raw_scancode, KeyEvent & event)
+{
     event = {};
 
-    if (raw_scancode == kExtendedPrefix) {
+    if (raw_scancode == kExtendedPrefix)
+    {
         extended_scancode_ = true;
         return false;
     }
 
-    if (raw_scancode == kPausePrefix) {
+    if (raw_scancode == kPausePrefix)
+    {
         extended_scancode_ = false;
         return false;
     }
@@ -189,19 +202,32 @@ bool KeyboardDecoder::decode(uint8_t raw_scancode, KeyEvent& event) {
     const bool pressed = (raw_scancode & kReleaseMask) == 0;
     const uint8_t scancode = raw_scancode & ~kReleaseMask;
 
-    if (!extended && scancode == kLeftShift) {
+    if (!extended && scancode == kLeftShift)
+    {
         left_shift_pressed_ = pressed;
-    } else if (!extended && scancode == kRightShift) {
+    }
+    else if (!extended && scancode == kRightShift)
+    {
         right_shift_pressed_ = pressed;
-    } else if (!extended && scancode == kControl) {
+    }
+    else if (!extended && scancode == kControl)
+    {
         left_control_pressed_ = pressed;
-    } else if (extended && scancode == kControl) {
+    }
+    else if (extended && scancode == kControl)
+    {
         right_control_pressed_ = pressed;
-    } else if (!extended && scancode == kAlt) {
+    }
+    else if (!extended && scancode == kAlt)
+    {
         left_alt_pressed_ = pressed;
-    } else if (extended && scancode == kAlt) {
+    }
+    else if (extended && scancode == kAlt)
+    {
         right_alt_pressed_ = pressed;
-    } else if (!extended && scancode == kCapsLock && pressed) {
+    }
+    else if (!extended && scancode == kCapsLock && pressed)
+    {
         caps_lock_enabled_ = !caps_lock_enabled_;
     }
 
@@ -213,14 +239,16 @@ bool KeyboardDecoder::decode(uint8_t raw_scancode, KeyEvent& event) {
     event.caps_lock = caps_lock_enabled_;
     event.key = key_for_scancode(scancode, extended);
 
-    if (!pressed) {
+    if (!pressed)
+    {
         return event.key == Key::Shift || event.key == Key::Control || event.key == Key::Alt ||
                event.key == Key::CapsLock;
     }
 
     const char character =
         extended ? '\0' : decode_character(scancode, event.shift, event.caps_lock);
-    if (character != '\0' && !event.alt) {
+    if (character != '\0' && !event.alt)
+    {
         event.key = Key::Character;
         event.character = character;
     }
@@ -228,7 +256,8 @@ bool KeyboardDecoder::decode(uint8_t raw_scancode, KeyEvent& event) {
     return event.key != Key::Unknown;
 }
 
-void KeyboardDecoder::reset() {
+void KeyboardDecoder::reset()
+{
     left_shift_pressed_ = false;
     right_shift_pressed_ = false;
     left_control_pressed_ = false;
