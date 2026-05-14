@@ -1,5 +1,6 @@
 #include "kernel/shell.hpp"
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "kernel/halt.hpp"
@@ -97,6 +98,7 @@ void write_help() {
     kernel::terminal::write_line("  help  - show this list");
     kernel::terminal::write_line("  clear - clear the screen");
     kernel::terminal::write_line("  about - show kernel info");
+    kernel::terminal::write_line("  input - show input stats");
     kernel::terminal::write_line("  halt  - stop the cpu");
 }
 
@@ -104,6 +106,45 @@ void write_about() {
     kernel::terminal::write_line("os-lab early shell");
     kernel::terminal::write_line("freestanding c++23 kernel");
     kernel::terminal::write_line("no filesystem or heap yet");
+}
+
+void write_decimal(uint64_t value) {
+    char buffer[21] = {};
+    size_t index = 0;
+
+    if (value == 0) {
+        kernel::terminal::write_char('0');
+        return;
+    }
+
+    while (value > 0) {
+        buffer[index++] = static_cast<char>('0' + (value % 10));
+        value /= 10;
+    }
+
+    while (index > 0) {
+        kernel::terminal::write_char(buffer[--index]);
+    }
+}
+
+void write_stat(kernel::StringView name, uint64_t value) {
+    kernel::terminal::write_string("  ");
+    kernel::terminal::write_string(name);
+    kernel::terminal::write_string(": ");
+    write_decimal(value);
+    kernel::terminal::write_char('\n');
+}
+
+void write_input_stats() {
+    const kernel::input::Stats stats = kernel::input::stats();
+
+    kernel::terminal::write_line("input stats:");
+    write_stat("key events", stats.key_events);
+    write_stat("mouse move events", stats.mouse_move_events);
+    write_stat("dropped events", stats.dropped_events);
+    write_stat("queued events", stats.queued_events);
+    write_stat("queue available", stats.queue_available);
+    write_stat("queue capacity", stats.queue_capacity);
 }
 
 void handle_line(kernel::StringView command) {
@@ -120,6 +161,9 @@ void handle_line(kernel::StringView command) {
         break;
     case kernel::ShellCommandKind::About:
         write_about();
+        break;
+    case kernel::ShellCommandKind::Input:
+        write_input_stats();
         break;
     case kernel::ShellCommandKind::Halt:
         kernel::terminal::write_line("halting");

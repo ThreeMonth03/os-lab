@@ -41,6 +41,9 @@ kernel::ShellCommandKind command_kind(kernel::StringView name) {
     if (name == "about") {
         return kernel::ShellCommandKind::About;
     }
+    if (name == "input") {
+        return kernel::ShellCommandKind::Input;
+    }
     if (name == "halt") {
         return kernel::ShellCommandKind::Halt;
     }

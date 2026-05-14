@@ -398,6 +398,7 @@ TEST(ShellCommandTest, TrimsKnownCommands) {
     expect_command("help", kernel::ShellCommandKind::Help, "help", "help");
     expect_command("  clear  ", kernel::ShellCommandKind::Clear, "clear", "clear");
     expect_command("\tabout\t", kernel::ShellCommandKind::About, "about", "about");
+    expect_command(" input ", kernel::ShellCommandKind::Input, "input", "input");
     expect_command(" halt ", kernel::ShellCommandKind::Halt, "halt", "halt");
 }
 
@@ -411,6 +412,7 @@ TEST(ShellCommandTest, TreatsKnownCommandsWithArgumentsAsUnknown) {
     expect_command("help now", kernel::ShellCommandKind::Unknown, "help now", "help");
     expect_command("clear now", kernel::ShellCommandKind::Unknown, "clear now", "clear");
     expect_command("about now", kernel::ShellCommandKind::Unknown, "about now", "about");
+    expect_command("input now", kernel::ShellCommandKind::Unknown, "input now", "input");
     expect_command("halt now", kernel::ShellCommandKind::Unknown, "halt now", "halt");
 }
 
