@@ -8,6 +8,7 @@
 #include "kernel/memory/slab.hpp"
 #include "kernel/debug/heap_smoke.hpp"
 #include "kernel/debug/paging_smoke.hpp"
+#include "kernel/debug/slab_smoke.hpp"
 #include "kernel/input/mouse.hpp"
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/drivers/serial.hpp"
@@ -221,6 +222,7 @@ extern "C" [[noreturn]] void kernel_main()
     init_kernel_heap();
     init_kernel_slab();
     kernel::debug::run_heap_smoke();
+    kernel::debug::run_slab_smoke();
     kernel::debug::run_paging_smoke();
     write_bootloader_info();
     write_firmware_info();
