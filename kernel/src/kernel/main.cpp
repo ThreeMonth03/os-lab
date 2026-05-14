@@ -1,5 +1,5 @@
 #include "kernel/fixed_vector.hpp"
-#include "kernel/halt.hpp"
+#include "kernel/keyboard.hpp"
 #include "kernel/limine_support.hpp"
 #include "kernel/serial.hpp"
 #include "kernel/span.hpp"
@@ -13,6 +13,10 @@ static_assert(kernel::StringView("os-lab").starts_with("os"));
 
 constexpr char kUtilitySmokeText[] = "kernel";
 static_assert(kernel::Span<const char>(kUtilitySmokeText).size() == sizeof(kUtilitySmokeText));
+
+constexpr kernel::StringView kPrompt = "> ";
+constexpr size_t kLineCapacity = 80;
+using LineBuffer = kernel::FixedVector<char, kLineCapacity>;
 
 const char* firmware_name(uint64_t firmware_type) {
     switch (firmware_type) {
@@ -41,6 +45,65 @@ void run_utility_smoke() {
     }
 
     kernel::serial::write_line("os-lab: no-heap utilities ready");
+}
+
+void write_prompt() { kernel::terminal::write_string(kPrompt); }
+
+kernel::StringView line_view(const LineBuffer& line) { return {line.data(), line.size()}; }
+
+void handle_line(const LineBuffer& line) {
+    if (line.empty()) {
+        return;
+    }
+
+    kernel::terminal::write_string("received: ");
+    kernel::terminal::write_line(line_view(line));
+}
+
+void handle_key_event(const kernel::keyboard::KeyEvent& event, LineBuffer& line) {
+    if (!event.pressed) {
+        return;
+    }
+
+    switch (event.key) {
+    case kernel::keyboard::Key::Character:
+        if (line.push_back(event.character)) {
+            kernel::terminal::write_char(event.character);
+        }
+        break;
+    case kernel::keyboard::Key::Backspace:
+        if (!line.empty()) {
+            line.pop_back();
+            kernel::terminal::write_char('\b');
+        }
+        break;
+    case kernel::keyboard::Key::Enter:
+        kernel::terminal::write_char('\n');
+        handle_line(line);
+        line.clear();
+        write_prompt();
+        break;
+    default:
+        break;
+    }
+}
+
+[[noreturn]] void run_interactive_terminal() {
+    LineBuffer line;
+
+    kernel::terminal::write_line("");
+    kernel::terminal::write_line("interactive input ready");
+    write_prompt();
+    kernel::serial::write_line("os-lab: interactive terminal ready");
+
+    while (true) {
+        kernel::keyboard::KeyEvent event;
+        if (kernel::keyboard::poll_key(event)) {
+            handle_key_event(event, line);
+        } else {
+            asm volatile("pause");
+        }
+    }
 }
 
 } // namespace
@@ -80,9 +143,5 @@ extern "C" [[noreturn]] void kernel_main() {
 
     kernel::serial::write_line(terminal_ready ? "os-lab: framebuffer terminal active"
                                               : "os-lab: framebuffer terminal unavailable");
-    kernel::terminal::write_line("");
-    kernel::terminal::write_line("system halted");
-    kernel::serial::write_line("os-lab: system halted");
-
-    kernel::halt_forever();
+    run_interactive_terminal();
 }
