@@ -5,9 +5,12 @@ project(os_lab LANGUAGES CXX)
 option(OS_LAB_BUILD_KERNEL "Build the freestanding kernel image" ON)
 option(OS_LAB_BUILD_TESTS "Build host-side unit tests" OFF)
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+add_library(os_lab_project_warnings INTERFACE)
+target_compile_options(os_lab_project_warnings INTERFACE
+    -Wall
+    -Wextra
+    -Wpedantic
+)
 
 if(OS_LAB_BUILD_KERNEL)
     add_subdirectory(kernel)

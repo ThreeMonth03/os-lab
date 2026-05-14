@@ -34,12 +34,6 @@ target_sources(os_lab_host_logic PRIVATE
     ${OS_LAB_HOST_LOGIC_SHELL_SOURCES}
     ${OS_LAB_HOST_LOGIC_TEXT_SOURCES}
 )
-target_compile_features(os_lab_host_logic PUBLIC cxx_std_23)
-target_include_directories(os_lab_host_logic PUBLIC
-    ${PROJECT_SOURCE_DIR}/kernel/include
-)
-target_compile_options(os_lab_host_logic PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
+target_link_libraries(os_lab_host_logic PUBLIC
+    os_lab_host_compile_settings
 )

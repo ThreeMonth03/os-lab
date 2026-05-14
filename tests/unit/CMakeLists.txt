@@ -13,12 +13,8 @@ add_executable(os_lab_unit_tests
 )
 target_link_libraries(os_lab_unit_tests PRIVATE
     os_lab_host_logic
+    os_lab_host_compile_settings
     GTest::gtest_main
-)
-target_compile_options(os_lab_unit_tests PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
 )
 
 include(GoogleTest)

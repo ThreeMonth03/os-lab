@@ -51,13 +51,13 @@ target_compile_options(os_lab_kernel_compile_settings INTERFACE
     -mno-sse2
     -msoft-float
     -nostdinc++
-    -Wall
-    -Wextra
-    -Wpedantic
 )
 target_compile_definitions(os_lab_kernel_compile_settings INTERFACE
     OS_LAB_EXCEPTION_SMOKE=${OS_LAB_EXCEPTION_SMOKE_VALUE}
     OS_LAB_TIMER_SMOKE=${OS_LAB_TIMER_SMOKE_VALUE}
+)
+target_link_libraries(os_lab_kernel_compile_settings INTERFACE
+    os_lab_project_warnings
 )
 
 add_library(os_lab_kernel_link_settings INTERFACE)
