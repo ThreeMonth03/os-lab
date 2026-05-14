@@ -1,0 +1,13 @@
+#pragma once
+
+#include <stdint.h>
+
+namespace kernel::timer {
+
+inline constexpr uint32_t frequency_hz = 100;
+
+void init();
+[[nodiscard]] uint64_t ticks();
+void handle_tick();
+
+} // namespace kernel::timer

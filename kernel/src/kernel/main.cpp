@@ -1,4 +1,5 @@
 #include "kernel/arch/x86_64/exception_smoke.hpp"
+#include "kernel/arch/x86_64/irq.hpp"
 #include "kernel/fixed_vector.hpp"
 #include "kernel/limine_support.hpp"
 #include "kernel/mouse.hpp"
@@ -8,6 +9,7 @@
 #include "kernel/span.hpp"
 #include "kernel/string_view.hpp"
 #include "kernel/terminal.hpp"
+#include "kernel/timer.hpp"
 
 namespace {
 
@@ -94,6 +96,10 @@ extern "C" [[noreturn]] void kernel_main() {
     } else {
         kernel::serial::write_line("os-lab: ps/2 mouse cursor unavailable");
     }
+
+    kernel::timer::init();
+    kernel::arch::x86_64::enable_interrupts();
+    kernel::serial::write_line("os-lab: hardware interrupts enabled");
 
     kernel::shell::run();
 }
