@@ -7,6 +7,7 @@ GENERATOR ?= Ninja
 GENERATOR_BIN ?= ninja
 CMAKE ?= cmake
 CLANG_FORMAT ?= clang-format
+HOST_CXX ?= g++
 DOCKER_COMPOSE ?= $(shell if docker compose version >/dev/null 2>&1; then \
 	printf 'docker compose'; \
 elif command -v docker-compose >/dev/null 2>&1; then \
@@ -17,8 +18,14 @@ DOCKER_RUN_ENV := LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g)
 TOOLCHAIN_FILE := $(PROJECT_ROOT)/cmake/toolchains/x86_64-none-clang.cmake
 KERNEL_ELF := $(BUILD_DIR)/artifacts/kernel.elf
 ISO_IMAGE := $(BUILD_DIR)/os-lab.iso
+UNIT_BINARY := $(BUILD_DIR)/unit/unit_tests
+UNIT_SOURCES := \
+	$(PROJECT_ROOT)/tests/unit.cpp \
+	$(PROJECT_ROOT)/kernel/src/kernel/history.cpp \
+	$(PROJECT_ROOT)/kernel/src/kernel/line_editor.cpp
+UNIT_CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wpedantic -I$(PROJECT_ROOT)/kernel/include
 
-.PHONY: help deps demo gui test format shell clean ci
+.PHONY: help deps demo gui test unit format shell clean ci
 .PHONY: _check-native-tools _check-clang-format _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _format _format-check _docker-image _docker-iso
 
 help:
@@ -28,6 +35,7 @@ help:
 		'  make demo      Build in Docker, then boot headless' \
 		'  make gui       Build in Docker, then boot with a QEMU window' \
 		'  make test      Build in Docker, then run the QEMU smoke test' \
+		'  make unit      Run host-side unit tests' \
 		'  make format    Apply clang-format inside Docker' \
 		'  make shell     Open the development container' \
 		'  make clean     Remove generated files'
@@ -40,6 +48,11 @@ demo: _docker-iso _run
 gui: _docker-iso _run-gui
 
 test: _docker-iso _smoke
+
+unit:
+	mkdir -p $(dir $(UNIT_BINARY))
+	$(HOST_CXX) $(UNIT_CXXFLAGS) $(UNIT_SOURCES) -o $(UNIT_BINARY)
+	$(UNIT_BINARY)
 
 format: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _format
@@ -123,14 +136,14 @@ _smoke:
 	printf 'Smoke test passed\n'
 
 _format: _check-clang-format
-	@mapfile -d '' sources < <(find kernel/include/kernel kernel/src -type f \
+	@mapfile -d '' sources < <(find kernel/include/kernel kernel/src tests -type f \
 		\( -name '*.hpp' -o -name '*.cpp' \) -print0 | sort -z); \
 	if [[ $${#sources[@]} -gt 0 ]]; then \
 		$(CLANG_FORMAT) -i "$${sources[@]}"; \
 	fi
 
 _format-check: _check-clang-format
-	@mapfile -d '' sources < <(find kernel/include/kernel kernel/src -type f \
+	@mapfile -d '' sources < <(find kernel/include/kernel kernel/src tests -type f \
 		\( -name '*.hpp' -o -name '*.cpp' \) -print0 | sort -z); \
 	if [[ $${#sources[@]} -gt 0 ]]; then \
 		$(CLANG_FORMAT) --dry-run --Werror "$${sources[@]}"; \
