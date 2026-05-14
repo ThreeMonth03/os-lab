@@ -44,6 +44,59 @@ void write_stat(kernel::StringView name, uint64_t value)
     terminal::write_char('\n');
 }
 
+void write_hex_stat(kernel::StringView name, uint64_t value)
+{
+    terminal::write_string("  ");
+    terminal::write_string(name);
+    terminal::write_string(": ");
+    terminal::write_hex(value);
+    terminal::write_char('\n');
+}
+
+void write_bool_stat(kernel::StringView name, bool value)
+{
+    terminal::write_string("  ");
+    terminal::write_string(name);
+    terminal::write_string(": ");
+    terminal::write_line(value ? "yes" : "no");
+}
+
+kernel::StringView heap_validation_error_name(kernel::memory::HeapValidationError error)
+{
+    switch (error)
+    {
+    case kernel::memory::HeapValidationError::None:
+        return "none";
+    case kernel::memory::HeapValidationError::RegionListFull:
+        return "region list full";
+    case kernel::memory::HeapValidationError::RegionMisaligned:
+        return "region misaligned";
+    case kernel::memory::HeapValidationError::RegionTooSmall:
+        return "region too small";
+    case kernel::memory::HeapValidationError::RegionOverlap:
+        return "region overlap";
+    case kernel::memory::HeapValidationError::RegionStatsMismatch:
+        return "region stats mismatch";
+    case kernel::memory::HeapValidationError::FreeListPreviousMismatch:
+        return "free list previous mismatch";
+    case kernel::memory::HeapValidationError::FreeListOrder:
+        return "free list order";
+    case kernel::memory::HeapValidationError::FreeBlockMisaligned:
+        return "free block misaligned";
+    case kernel::memory::HeapValidationError::FreeBlockTooSmall:
+        return "free block too small";
+    case kernel::memory::HeapValidationError::FreeBlockSizeMisaligned:
+        return "free block size misaligned";
+    case kernel::memory::HeapValidationError::FreeBlockOutOfRegion:
+        return "free block out of region";
+    case kernel::memory::HeapValidationError::FreeStatsMismatch:
+        return "free stats mismatch";
+    case kernel::memory::HeapValidationError::AllocatedBytesExceedRegion:
+        return "allocated bytes exceed region";
+    }
+    return "unknown";
+}
+
 void write_input_stats()
 {
     const kernel::input::Stats stats = kernel::input::stats();
@@ -82,6 +135,7 @@ void write_memory_stats()
 void write_heap_stats()
 {
     const kernel::memory::heap::Stats stats = kernel::memory::heap::stats();
+    const kernel::memory::HeapValidationResult validation = kernel::memory::heap::validate();
     if (!stats.initialized)
     {
         terminal::write_line("heap stats unavailable");
@@ -89,13 +143,19 @@ void write_heap_stats()
     }
 
     terminal::write_line("heap stats:");
-    write_stat("reserved KiB", stats.reserved_bytes / 1024);
-    write_stat("committed KiB", stats.committed_bytes / 1024);
+    write_bool_stat("initialized", stats.initialized);
+    write_bool_stat("valid", validation.valid);
+    terminal::write_string("  validation error: ");
+    terminal::write_line(heap_validation_error_name(validation.error));
+    write_hex_stat("virtual base", stats.virtual_base);
+    write_stat("committed bytes", stats.committed_bytes);
+    write_stat("max bytes", stats.reserved_bytes);
     write_stat("committed pages", stats.committed_pages);
+    write_stat("regions", stats.allocator.region_count);
     write_stat("allocated bytes", stats.allocator.allocated_bytes);
-    write_stat("allocations", stats.allocator.allocation_count);
+    write_stat("allocation count", stats.allocator.allocation_count);
     write_stat("free bytes", stats.allocator.free_bytes);
-    write_stat("free blocks", stats.allocator.free_block_count);
+    write_stat("free block count", stats.allocator.free_block_count);
     write_stat("largest free block", stats.allocator.largest_free_block);
     write_stat("failed allocations", stats.failed_allocations);
 }
