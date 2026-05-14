@@ -22,6 +22,7 @@ RUN_TIDY := ./scripts/dev/run_tidy.sh
 RUN_QEMU := ./scripts/qemu/run_qemu.sh
 SMOKE_DEMO := ./scripts/smoke/smoke_demo.sh
 SMOKE_EXCEPTION := ./scripts/smoke/smoke_exception.sh
+SMOKE_HEAP := ./scripts/smoke/smoke_heap.sh
 SMOKE_PAGING := ./scripts/smoke/smoke_paging.sh
 SMOKE_TIMER := ./scripts/smoke/smoke_timer.sh
 
@@ -39,9 +40,12 @@ TIMER_ISO_IMAGE := $(TIMER_BUILD_DIR)/os-lab.iso
 PAGING_BUILD_DIR := $(BUILD_DIR)/paging-smoke
 PAGING_KERNEL_ELF := $(PAGING_BUILD_DIR)/artifacts/kernel.elf
 PAGING_ISO_IMAGE := $(PAGING_BUILD_DIR)/os-lab.iso
+HEAP_BUILD_DIR := $(BUILD_DIR)/heap-smoke
+HEAP_KERNEL_ELF := $(HEAP_BUILD_DIR)/artifacts/kernel.elf
+HEAP_ISO_IMAGE := $(HEAP_BUILD_DIR)/os-lab.iso
 
-.PHONY: help deps demo gui test demo-exception test-exception demo-timer test-timer test-paging unit format tidy shell clean ci
-.PHONY: _check-native-tools _check-clang-format _check-clang-tidy _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _exception-configure _exception-kernel _exception-iso _run-exception _smoke-exception _timer-configure _timer-kernel _timer-iso _run-timer _smoke-timer _paging-configure _paging-kernel _paging-iso _smoke-paging _unit _format _format-check _tidy _docker-image _docker-iso _docker-exception-iso _docker-timer-iso _docker-paging-iso
+.PHONY: help deps demo gui test demo-exception test-exception demo-timer test-timer test-paging test-heap unit format tidy shell clean ci
+.PHONY: _check-native-tools _check-clang-format _check-clang-tidy _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _exception-configure _exception-kernel _exception-iso _run-exception _smoke-exception _timer-configure _timer-kernel _timer-iso _run-timer _smoke-timer _paging-configure _paging-kernel _paging-iso _smoke-paging _heap-configure _heap-kernel _heap-iso _smoke-heap _unit _format _format-check _tidy _docker-image _docker-iso _docker-exception-iso _docker-timer-iso _docker-paging-iso _docker-heap-iso
 
 help:
 	@printf '%s\n' \
@@ -58,6 +62,8 @@ help:
 		'                 Build and verify the debug PIT timer smoke path' \
 		'  make test-paging' \
 		'                 Build and verify the debug active paging smoke path' \
+		'  make test-heap' \
+		'                 Build and verify the debug kernel heap smoke path' \
 		'  make unit      Run host-side unit tests' \
 		'  make format    Apply clang-format inside Docker' \
 		'  make tidy      Run clang-tidy on host-side pure logic' \
@@ -82,6 +88,8 @@ demo-timer: _docker-timer-iso _run-timer
 test-timer: _docker-timer-iso _smoke-timer
 
 test-paging: _docker-paging-iso _smoke-paging
+
+test-heap: _docker-heap-iso _smoke-heap
 
 unit: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _unit
@@ -188,6 +196,19 @@ _paging-kernel: _paging-configure
 _paging-iso: _paging-kernel
 	$(CREATE_ISO) $(PAGING_KERNEL_ELF) $(PAGING_ISO_IMAGE)
 
+_heap-configure: _check-native-tools
+	$(CMAKE) -S $(PROJECT_ROOT) -B $(HEAP_BUILD_DIR) -G $(GENERATOR) \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+		-DOS_LAB_HEAP_SMOKE=ON
+
+_heap-kernel: _heap-configure
+	$(CMAKE) --build $(HEAP_BUILD_DIR) --target kernel
+
+_heap-iso: _heap-kernel
+	$(CREATE_ISO) $(HEAP_KERNEL_ELF) $(HEAP_ISO_IMAGE)
+
 _run:
 	@if [[ ! -f "$(ISO_IMAGE)" ]]; then $(MAKE) _iso; fi
 	$(RUN_QEMU) $(ISO_IMAGE)
@@ -226,6 +247,10 @@ _smoke-paging:
 	@if [[ ! -f "$(PAGING_ISO_IMAGE)" ]]; then $(MAKE) _paging-iso; fi
 	$(SMOKE_PAGING) $(PAGING_ISO_IMAGE)
 
+_smoke-heap:
+	@if [[ ! -f "$(HEAP_ISO_IMAGE)" ]]; then $(MAKE) _heap-iso; fi
+	$(SMOKE_HEAP) $(HEAP_ISO_IMAGE)
+
 _unit:
 	$(CMAKE) -S $(PROJECT_ROOT) -B $(UNIT_BUILD_DIR) -G $(GENERATOR) \
 		-DCMAKE_BUILD_TYPE=Debug \
@@ -258,3 +283,6 @@ _docker-timer-iso: _docker-image
 
 _docker-paging-iso: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _paging-iso
+
+_docker-heap-iso: _docker-image
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _heap-iso

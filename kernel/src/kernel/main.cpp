@@ -5,6 +5,7 @@
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/memory/memory.hpp"
 #include "kernel/memory/heap.hpp"
+#include "kernel/debug/heap_smoke.hpp"
 #include "kernel/debug/paging_smoke.hpp"
 #include "kernel/input/mouse.hpp"
 #include "kernel/display/mouse_cursor.hpp"
@@ -205,6 +206,7 @@ extern "C" [[noreturn]] void kernel_main()
     run_utility_smoke();
     write_memory_summary(init_memory_and_paging());
     init_kernel_heap();
+    kernel::debug::run_heap_smoke();
     kernel::debug::run_paging_smoke();
     write_bootloader_info();
     write_firmware_info();

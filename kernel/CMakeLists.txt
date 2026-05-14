@@ -8,6 +8,7 @@ set_property(CACHE OS_LAB_EXCEPTION_SMOKE PROPERTY STRINGS
     none invalid_opcode page_fault divide_error)
 option(OS_LAB_TIMER_SMOKE "Debug-only PIT timer smoke trigger" OFF)
 option(OS_LAB_PAGING_SMOKE "Debug-only active paging smoke trigger" OFF)
+option(OS_LAB_HEAP_SMOKE "Debug-only kernel heap smoke trigger" OFF)
 
 set(OS_LAB_EXCEPTION_SMOKE_VALUE 0)
 if(OS_LAB_EXCEPTION_SMOKE STREQUAL "none")
@@ -31,6 +32,11 @@ endif()
 set(OS_LAB_PAGING_SMOKE_VALUE 0)
 if(OS_LAB_PAGING_SMOKE)
     set(OS_LAB_PAGING_SMOKE_VALUE 1)
+endif()
+
+set(OS_LAB_HEAP_SMOKE_VALUE 0)
+if(OS_LAB_HEAP_SMOKE)
+    set(OS_LAB_HEAP_SMOKE_VALUE 1)
 endif()
 
 add_library(os_lab_kernel_compile_settings INTERFACE)
@@ -60,6 +66,7 @@ target_compile_options(os_lab_kernel_compile_settings INTERFACE
 )
 target_compile_definitions(os_lab_kernel_compile_settings INTERFACE
     OS_LAB_EXCEPTION_SMOKE=${OS_LAB_EXCEPTION_SMOKE_VALUE}
+    OS_LAB_HEAP_SMOKE=${OS_LAB_HEAP_SMOKE_VALUE}
     OS_LAB_PAGING_SMOKE=${OS_LAB_PAGING_SMOKE_VALUE}
     OS_LAB_TIMER_SMOKE=${OS_LAB_TIMER_SMOKE_VALUE}
 )

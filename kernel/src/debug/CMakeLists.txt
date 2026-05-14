@@ -1,4 +1,5 @@
 add_library(os_lab_kernel_debug OBJECT
+    heap_smoke.cpp
     paging_smoke.cpp
     timer_smoke.cpp
 )
