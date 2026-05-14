@@ -1,6 +1,7 @@
 find_package(GTest REQUIRED)
 
 add_library(os_lab_host_logic
+    ${PROJECT_SOURCE_DIR}/kernel/src/kernel/display.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/kernel/history.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/kernel/keyboard_decoder.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/kernel/line_editor.cpp
