@@ -5,6 +5,7 @@ add_library(os_lab_kernel_logic OBJECT
     keyboard_decoder.cpp
     line_editor.cpp
     mouse_packet_decoder.cpp
+    pointer_state.cpp
     shell_command.cpp
     text_console.cpp
 )

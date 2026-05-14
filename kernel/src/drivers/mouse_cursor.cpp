@@ -2,6 +2,7 @@
 
 #include "kernel/display.hpp"
 #include "kernel/limine_support.hpp"
+#include "kernel/pointer_state.hpp"
 
 namespace {
 
@@ -16,8 +17,7 @@ constexpr char kCursorBitmap[kCursorHeight][kCursorWidth + 1] = {
 
 struct CursorState {
     kernel::display::Surface surface;
-    uint64_t x = 0;
-    uint64_t y = 0;
+    kernel::PointerState pointer;
     uint64_t saved_width = 0;
     uint64_t saved_height = 0;
     uint32_t saved_pixels[kCursorWidth * kCursorHeight] = {};
@@ -37,26 +37,15 @@ uint32_t pack_rgb(const limine_framebuffer& framebuffer, uint8_t red, uint8_t gr
 
 uint64_t min_u64(uint64_t lhs, uint64_t rhs) { return lhs < rhs ? lhs : rhs; }
 
-uint64_t clamp_position(int64_t value, uint64_t extent, uint64_t cursor_extent) {
-    const uint64_t max = extent > cursor_extent ? extent - cursor_extent : 0;
-    if (value <= 0) {
-        return 0;
-    }
-    if (static_cast<uint64_t>(value) > max) {
-        return max;
-    }
-
-    return static_cast<uint64_t>(value);
-}
-
 void save_background() {
-    g_state.saved_width = min_u64(kCursorWidth, g_state.surface.width() - g_state.x);
-    g_state.saved_height = min_u64(kCursorHeight, g_state.surface.height() - g_state.y);
+    g_state.saved_width = min_u64(kCursorWidth, g_state.surface.width() - g_state.pointer.x());
+    g_state.saved_height = min_u64(kCursorHeight, g_state.surface.height() - g_state.pointer.y());
 
     for (uint64_t row = 0; row < g_state.saved_height; ++row) {
         for (uint64_t column = 0; column < g_state.saved_width; ++column) {
             g_state.saved_pixels[(row * kCursorWidth) + column] =
-                g_state.surface.pixel(g_state.x + column, g_state.y + row).value;
+                g_state.surface.pixel(g_state.pointer.x() + column, g_state.pointer.y() + row)
+                    .value;
         }
     }
 }
@@ -64,7 +53,7 @@ void save_background() {
 void restore_background() {
     for (uint64_t row = 0; row < g_state.saved_height; ++row) {
         for (uint64_t column = 0; column < g_state.saved_width; ++column) {
-            g_state.surface.put_pixel(g_state.x + column, g_state.y + row,
+            g_state.surface.put_pixel(g_state.pointer.x() + column, g_state.pointer.y() + row,
                                       {g_state.saved_pixels[(row * kCursorWidth) + column]});
         }
     }
@@ -75,9 +64,11 @@ void draw_bitmap() {
         for (uint64_t column = 0; column < kCursorWidth; ++column) {
             const char pixel = kCursorBitmap[row][column];
             if (pixel == '#') {
-                g_state.surface.put_pixel(g_state.x + column, g_state.y + row, {g_state.outline});
+                g_state.surface.put_pixel(g_state.pointer.x() + column, g_state.pointer.y() + row,
+                                          {g_state.outline});
             } else if (pixel == 'o') {
-                g_state.surface.put_pixel(g_state.x + column, g_state.y + row, {g_state.fill});
+                g_state.surface.put_pixel(g_state.pointer.x() + column, g_state.pointer.y() + row,
+                                          {g_state.fill});
             }
         }
     }
@@ -104,8 +95,7 @@ bool init() {
 
     g_state.surface = kernel::display::Surface(framebuffer->address, framebuffer->width,
                                                framebuffer->height, framebuffer->pitch);
-    g_state.x = framebuffer->width > kCursorWidth ? (framebuffer->width - kCursorWidth) / 2 : 0;
-    g_state.y = framebuffer->height > kCursorHeight ? (framebuffer->height - kCursorHeight) / 2 : 0;
+    g_state.pointer.reset(framebuffer->width, framebuffer->height, kCursorWidth, kCursorHeight);
     g_state.outline = pack_rgb(*framebuffer, 0x00, 0x00, 0x00);
     g_state.fill = pack_rgb(*framebuffer, 0xff, 0xff, 0xff);
     g_state.initialized = true;
@@ -143,10 +133,7 @@ void move_by(int16_t delta_x, int16_t delta_y) {
         hide();
     }
 
-    g_state.x = clamp_position(static_cast<int64_t>(g_state.x) + delta_x, g_state.surface.width(),
-                               kCursorWidth);
-    g_state.y = clamp_position(static_cast<int64_t>(g_state.y) - delta_y, g_state.surface.height(),
-                               kCursorHeight);
+    g_state.pointer.move_by(delta_x, delta_y);
 
     if (was_visible) {
         show();
