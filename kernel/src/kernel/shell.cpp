@@ -11,44 +11,56 @@
 
 namespace {
 
-constexpr kernel::StringView kPrompt = "> ";
+constexpr kernel::StringView kDefaultPrompt = "> ";
+constexpr kernel::StringView kCapsPrompt = "[CAPS] > ";
 
 struct LinePosition {
-    uint64_t column = 0;
-    uint64_t row = 0;
+    uint64_t prompt_column = 0;
+    uint64_t prompt_row = 0;
+    uint64_t input_column = 0;
+    uint64_t input_row = 0;
 };
 
-void write_prompt(LinePosition& position) {
+kernel::StringView prompt_for_caps(bool caps_lock) {
+    return caps_lock ? kCapsPrompt : kDefaultPrompt;
+}
+
+void write_prompt(LinePosition& position, bool caps_lock) {
     kernel::terminal::hide_cursor();
-    kernel::terminal::write_string(kPrompt);
-    position.column = kernel::terminal::cursor_column();
-    position.row = kernel::terminal::cursor_row();
+    position.prompt_column = kernel::terminal::cursor_column();
+    position.prompt_row = kernel::terminal::cursor_row();
+    kernel::terminal::write_string(prompt_for_caps(caps_lock));
+    position.input_column = kernel::terminal::cursor_column();
+    position.input_row = kernel::terminal::cursor_row();
 }
 
 void redraw_line(const kernel::LineEditor& line, const LinePosition& position) {
     kernel::terminal::hide_cursor();
-    kernel::terminal::set_cursor(position.column, position.row);
+    kernel::terminal::set_cursor(position.input_column, position.input_row);
     kernel::terminal::write_string(line.view());
-    kernel::terminal::clear_row_from(position.column + line.view().size(), position.row);
-    kernel::terminal::set_cursor(position.column + line.cursor(), position.row);
+    kernel::terminal::clear_row_from(position.input_column + line.view().size(),
+                                     position.input_row);
+    kernel::terminal::set_cursor(position.input_column + line.cursor(), position.input_row);
     kernel::terminal::show_cursor();
 }
 
-void redraw_prompt_and_line(const kernel::LineEditor& line, LinePosition& position) {
-    write_prompt(position);
+void write_new_prompt_and_line(const kernel::LineEditor& line, LinePosition& position,
+                               bool caps_lock) {
+    write_prompt(position, caps_lock);
+    redraw_line(line, position);
+}
+
+void redraw_prompt_and_line(const kernel::LineEditor& line, LinePosition& position,
+                            bool caps_lock) {
+    kernel::terminal::hide_cursor();
+    kernel::terminal::set_cursor(position.prompt_column, position.prompt_row);
+    kernel::terminal::clear_row_from(position.prompt_column, position.prompt_row);
+    write_prompt(position, caps_lock);
     redraw_line(line, position);
 }
 
 void move_to_line_end(const kernel::LineEditor& line, const LinePosition& position) {
-    kernel::terminal::set_cursor(position.column + line.view().size(), position.row);
-}
-
-void write_status(kernel::StringView status, kernel::LineEditor& line, LinePosition& position) {
-    kernel::terminal::hide_cursor();
-    move_to_line_end(line, position);
-    kernel::terminal::write_char('\n');
-    kernel::terminal::write_line(status);
-    redraw_prompt_and_line(line, position);
+    kernel::terminal::set_cursor(position.input_column + line.view().size(), position.input_row);
 }
 
 char lowercase(char value) {
@@ -95,7 +107,7 @@ void handle_line(kernel::StringView command) {
 }
 
 bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::LineEditor& line,
-                             LinePosition& position) {
+                             LinePosition& position, bool caps_lock) {
     if (!event.control || event.key != kernel::keyboard::Key::Character) {
         return false;
     }
@@ -112,7 +124,7 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
         kernel::terminal::write_char('\n');
         kernel::terminal::write_line("cancelled");
         line.clear();
-        redraw_prompt_and_line(line, position);
+        write_new_prompt_and_line(line, position, caps_lock);
         break;
     case 'e':
         if (line.move_to_end()) {
@@ -122,7 +134,7 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
     case 'l':
         kernel::terminal::hide_cursor();
         kernel::terminal::clear();
-        redraw_prompt_and_line(line, position);
+        write_new_prompt_and_line(line, position, caps_lock);
         break;
     case 'u':
         line.clear();
@@ -136,12 +148,12 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::Li
 }
 
 void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEditor& line,
-                      LinePosition& position) {
+                      LinePosition& position, bool& caps_lock) {
     if (!event.pressed) {
         return;
     }
 
-    if (handle_control_shortcut(event, line, position)) {
+    if (handle_control_shortcut(event, line, position, caps_lock)) {
         return;
     }
 
@@ -173,14 +185,16 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
         break;
     case kernel::keyboard::Key::Enter:
         kernel::terminal::hide_cursor();
-        kernel::terminal::set_cursor(position.column + line.view().size(), position.row);
+        kernel::terminal::set_cursor(position.input_column + line.view().size(),
+                                     position.input_row);
         kernel::terminal::write_char('\n');
         handle_line(line.view());
         line.clear();
-        redraw_prompt_and_line(line, position);
+        write_new_prompt_and_line(line, position, caps_lock);
         break;
     case kernel::keyboard::Key::CapsLock:
-        write_status(event.caps_lock ? "caps lock on" : "caps lock off", line, position);
+        caps_lock = event.caps_lock;
+        redraw_prompt_and_line(line, position, caps_lock);
         break;
     default:
         break;
@@ -194,17 +208,18 @@ namespace kernel::shell {
 [[noreturn]] void run() {
     LineEditor line;
     LinePosition position;
+    bool caps_lock = false;
 
     terminal::write_line("");
     terminal::write_line("interactive input ready");
     write_help();
-    redraw_prompt_and_line(line, position);
+    write_new_prompt_and_line(line, position, caps_lock);
     serial::write_line("os-lab: interactive terminal ready");
 
     while (true) {
         keyboard::KeyEvent event;
         if (keyboard::poll_key(event)) {
-            handle_key_event(event, line, position);
+            handle_key_event(event, line, position, caps_lock);
         } else {
             asm volatile("pause");
         }
