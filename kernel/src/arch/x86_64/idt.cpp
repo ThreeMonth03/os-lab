@@ -67,18 +67,6 @@ extern "C" void kernel_x86_64_exception_14();
 
 void load_idt(const Idtr& idtr) { asm volatile("lidt %0" : : "m"(idtr) : "memory"); }
 
-void set_gate(uint8_t vector, void (*handler)()) {
-    const auto address = reinterpret_cast<uint64_t>(handler);
-
-    g_idt[vector].offset_low = static_cast<uint16_t>(address & 0xffff);
-    g_idt[vector].selector = current_code_selector();
-    g_idt[vector].ist = 0;
-    g_idt[vector].attributes = 0x8e;
-    g_idt[vector].offset_mid = static_cast<uint16_t>((address >> 16) & 0xffff);
-    g_idt[vector].offset_high = static_cast<uint32_t>((address >> 32) & 0xffffffff);
-    g_idt[vector].reserved = 0;
-}
-
 kernel::StringView exception_name(uint64_t vector) {
     switch (vector) {
     case 0:
@@ -172,11 +160,23 @@ extern "C" [[noreturn]] void kernel_x86_64_exception_dispatch(const ExceptionFra
 
 namespace kernel::arch::x86_64 {
 
+void set_interrupt_gate(uint8_t vector, void (*handler)()) {
+    const auto address = reinterpret_cast<uint64_t>(handler);
+
+    g_idt[vector].offset_low = static_cast<uint16_t>(address & 0xffff);
+    g_idt[vector].selector = current_code_selector();
+    g_idt[vector].ist = 0;
+    g_idt[vector].attributes = 0x8e;
+    g_idt[vector].offset_mid = static_cast<uint16_t>((address >> 16) & 0xffff);
+    g_idt[vector].offset_high = static_cast<uint32_t>((address >> 32) & 0xffffffff);
+    g_idt[vector].reserved = 0;
+}
+
 void init_exceptions() {
-    set_gate(0, kernel_x86_64_exception_0);
-    set_gate(6, kernel_x86_64_exception_6);
-    set_gate(13, kernel_x86_64_exception_13);
-    set_gate(14, kernel_x86_64_exception_14);
+    set_interrupt_gate(0, kernel_x86_64_exception_0);
+    set_interrupt_gate(6, kernel_x86_64_exception_6);
+    set_interrupt_gate(13, kernel_x86_64_exception_13);
+    set_interrupt_gate(14, kernel_x86_64_exception_14);
 
     const Idtr idtr = {static_cast<uint16_t>(sizeof(g_idt) - 1),
                        reinterpret_cast<uint64_t>(&g_idt)};
