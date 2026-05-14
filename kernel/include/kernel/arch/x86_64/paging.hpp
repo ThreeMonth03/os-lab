@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 namespace kernel::arch::x86_64::paging
@@ -8,7 +9,9 @@ namespace kernel::arch::x86_64::paging
 inline constexpr uint64_t kPageSize = 4096;
 inline constexpr uint64_t kPageOffsetMask = kPageSize - 1;
 inline constexpr uint64_t kPageAddressMask = 0x000ffffffffff000;
+inline constexpr uint64_t kPageFlagMask = 0x8000000000000fff;
 inline constexpr uint16_t kPageTableIndexMask = 0x01ff;
+inline constexpr size_t kPageTableEntryCount = 512;
 
 enum class PageFlag : uint64_t
 {
@@ -88,5 +91,80 @@ struct PageIndices
 [[nodiscard]] uint64_t align_up_to_page(uint64_t value);
 [[nodiscard]] bool is_page_aligned(uint64_t value);
 [[nodiscard]] PageIndices page_indices(uint64_t virtual_address);
+
+class PageTableEntry
+{
+public:
+    constexpr PageTableEntry() = default;
+
+    [[nodiscard]] constexpr uint64_t raw() const { return value_; }
+    [[nodiscard]] constexpr bool present() const
+    {
+        return (value_ & static_cast<uint64_t>(PageFlag::Present)) != 0;
+    }
+    [[nodiscard]] constexpr uint64_t address() const { return value_ & kPageAddressMask; }
+    [[nodiscard]] constexpr PageFlags flags() const
+    {
+        return PageFlags::from_bits(value_ & kPageFlagMask);
+    }
+
+    constexpr void set(uint64_t physical_address, PageFlags flags)
+    {
+        value_ = (physical_address & kPageAddressMask) | (flags | PageFlag::Present).bits();
+    }
+
+    constexpr void clear() { value_ = 0; }
+
+private:
+    uint64_t value_ = 0;
+};
+
+struct alignas(kPageSize) PageTable
+{
+    PageTableEntry entries[kPageTableEntryCount];
+};
+
+static_assert(sizeof(PageTableEntry) == 8);
+static_assert(sizeof(PageTable) == kPageSize);
+
+enum class MapResult
+{
+    Mapped,
+    InvalidAlignment,
+    AllocationFailed,
+    AlreadyMapped,
+};
+
+struct Translation
+{
+    uint64_t physical_address = 0;
+    PageFlags flags;
+};
+
+using AllocatePageTable = bool (*)(PageTable *& table, uint64_t & physical_address, void * context);
+using PageTableFromPhysical = PageTable * (*)(uint64_t physical_address, void * context);
+
+class PageTableManager
+{
+public:
+    PageTableManager(PageTable & root,
+                     AllocatePageTable allocate_table,
+                     PageTableFromPhysical table_from_physical,
+                     void * context);
+
+    [[nodiscard]] MapResult map_page(uint64_t virtual_address,
+                                     uint64_t physical_address,
+                                     PageFlags flags);
+    [[nodiscard]] bool translate(uint64_t virtual_address, Translation & translation) const;
+
+private:
+    [[nodiscard]] PageTable * table_for(const PageTableEntry & entry) const;
+    [[nodiscard]] bool ensure_next_table(PageTableEntry & entry, PageFlags leaf_flags, PageTable *& next);
+
+    PageTable * root_ = nullptr;
+    AllocatePageTable allocate_table_ = nullptr;
+    PageTableFromPhysical table_from_physical_ = nullptr;
+    void * context_ = nullptr;
+};
 
 } // namespace kernel::arch::x86_64::paging
