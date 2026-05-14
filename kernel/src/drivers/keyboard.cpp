@@ -253,7 +253,7 @@ bool poll_key(KeyEvent& event) {
 
     const char character =
         extended ? '\0' : decode_character(scancode, event.shift, event.caps_lock);
-    if (character != '\0' && !event.control && !event.alt) {
+    if (character != '\0' && !event.alt) {
         event.key = Key::Character;
         event.character = character;
     }

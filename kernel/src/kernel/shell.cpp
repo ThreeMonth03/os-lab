@@ -31,6 +31,30 @@ void redraw_line(const kernel::LineEditor& line, const LinePosition& position) {
     kernel::terminal::set_cursor(position.column + line.cursor(), position.row);
 }
 
+void redraw_prompt_and_line(const kernel::LineEditor& line, LinePosition& position) {
+    write_prompt(position);
+    redraw_line(line, position);
+}
+
+void move_to_line_end(const kernel::LineEditor& line, const LinePosition& position) {
+    kernel::terminal::set_cursor(position.column + line.view().size(), position.row);
+}
+
+void write_status(kernel::StringView status, kernel::LineEditor& line, LinePosition& position) {
+    move_to_line_end(line, position);
+    kernel::terminal::write_char('\n');
+    kernel::terminal::write_line(status);
+    redraw_prompt_and_line(line, position);
+}
+
+char lowercase(char value) {
+    if (value >= 'A' && value <= 'Z') {
+        return static_cast<char>(value - 'A' + 'a');
+    }
+
+    return value;
+}
+
 void write_help() {
     kernel::terminal::write_line("commands:");
     kernel::terminal::write_line("  help  - show this list");
@@ -66,9 +90,52 @@ void handle_line(kernel::StringView command) {
     }
 }
 
+bool handle_control_shortcut(const kernel::keyboard::KeyEvent& event, kernel::LineEditor& line,
+                             LinePosition& position) {
+    if (!event.control || event.key != kernel::keyboard::Key::Character) {
+        return false;
+    }
+
+    switch (lowercase(event.character)) {
+    case 'a':
+        if (line.move_to_start()) {
+            redraw_line(line, position);
+        }
+        break;
+    case 'c':
+        move_to_line_end(line, position);
+        kernel::terminal::write_char('\n');
+        kernel::terminal::write_line("cancelled");
+        line.clear();
+        redraw_prompt_and_line(line, position);
+        break;
+    case 'e':
+        if (line.move_to_end()) {
+            redraw_line(line, position);
+        }
+        break;
+    case 'l':
+        kernel::terminal::clear();
+        redraw_prompt_and_line(line, position);
+        break;
+    case 'u':
+        line.clear();
+        redraw_line(line, position);
+        break;
+    default:
+        break;
+    }
+
+    return true;
+}
+
 void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEditor& line,
                       LinePosition& position) {
     if (!event.pressed) {
+        return;
+    }
+
+    if (handle_control_shortcut(event, line, position)) {
         return;
     }
 
@@ -104,6 +171,9 @@ void handle_key_event(const kernel::keyboard::KeyEvent& event, kernel::LineEdito
         handle_line(line.view());
         line.clear();
         write_prompt(position);
+        break;
+    case kernel::keyboard::Key::CapsLock:
+        write_status(event.caps_lock ? "caps lock on" : "caps lock off", line, position);
         break;
     default:
         break;
