@@ -61,6 +61,10 @@ kernel::ShellCommandKind command_kind(kernel::StringView name)
     {
         return kernel::ShellCommandKind::Mem;
     }
+    if (name == "heap")
+    {
+        return kernel::ShellCommandKind::Heap;
+    }
     if (name == "halt")
     {
         return kernel::ShellCommandKind::Halt;

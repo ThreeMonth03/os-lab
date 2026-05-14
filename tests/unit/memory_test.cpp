@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <stdint.h>
 
+#include "kernel/memory/heap.hpp"
 #include "kernel/memory/heap_allocator.hpp"
 #include "kernel/memory/memory_map.hpp"
 #include "kernel/memory/physical_frame_allocator.hpp"
@@ -182,6 +183,28 @@ TEST(HeapAllocatorTest, AddsAdjacentRegionAndCoalesces)
     EXPECT_EQ(stats.region_bytes, 512u);
     EXPECT_EQ(stats.free_block_count, 1u);
     EXPECT_EQ(stats.free_bytes, 512u);
+}
+
+TEST(HeapRangeTest, CountsRequiredPages)
+{
+    EXPECT_EQ(kernel::memory::heap::page_count_for_bytes(0), 0u);
+    EXPECT_EQ(kernel::memory::heap::page_count_for_bytes(1), 1u);
+    EXPECT_EQ(kernel::memory::heap::page_count_for_bytes(kernel::arch::x86_64::paging::kPageSize), 1u);
+    EXPECT_EQ(kernel::memory::heap::page_count_for_bytes(kernel::arch::x86_64::paging::kPageSize + 1), 2u);
+}
+
+TEST(HeapRangeTest, ChecksBounds)
+{
+    EXPECT_TRUE(kernel::memory::heap::contains(kernel::memory::heap::kVirtualBase));
+    EXPECT_TRUE(kernel::memory::heap::contains(kernel::memory::heap::kVirtualBase +
+                                               kernel::memory::heap::kMaxBytes - 1));
+    EXPECT_FALSE(kernel::memory::heap::contains(kernel::memory::heap::kVirtualBase - 1));
+    EXPECT_FALSE(kernel::memory::heap::contains(kernel::memory::heap::kVirtualBase +
+                                                kernel::memory::heap::kMaxBytes));
+    EXPECT_TRUE(kernel::memory::heap::contains(kernel::memory::heap::kVirtualBase, 4096));
+    EXPECT_FALSE(kernel::memory::heap::contains(kernel::memory::heap::kVirtualBase +
+                                                    kernel::memory::heap::kMaxBytes - 2048,
+                                                4096));
 }
 
 } // namespace

@@ -1,4 +1,5 @@
 add_library(os_lab_kernel_memory OBJECT
+    heap.cpp
     heap_allocator.cpp
     memory.cpp
     memory_map.cpp

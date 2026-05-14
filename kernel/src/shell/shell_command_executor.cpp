@@ -4,6 +4,7 @@
 
 #include "kernel/core/halt.hpp"
 #include "kernel/input/input.hpp"
+#include "kernel/memory/heap.hpp"
 #include "kernel/memory/memory.hpp"
 #include "kernel/drivers/serial.hpp"
 #include "kernel/shell/shell_command.hpp"
@@ -23,6 +24,7 @@ void write_help()
     terminal::write_line("  about - show kernel info");
     terminal::write_line("  input - show input stats");
     terminal::write_line("  mem   - show memory stats");
+    terminal::write_line("  heap  - show heap stats");
     terminal::write_line("  halt  - stop the cpu");
 }
 
@@ -30,7 +32,7 @@ void write_about()
 {
     terminal::write_line("os-lab early shell");
     terminal::write_line("freestanding c++23 kernel");
-    terminal::write_line("no filesystem or heap yet");
+    terminal::write_line("no filesystem yet");
 }
 
 void write_stat(kernel::StringView name, uint64_t value)
@@ -77,6 +79,27 @@ void write_memory_stats()
     terminal::write_line(stats.truncated ? "yes" : "no");
 }
 
+void write_heap_stats()
+{
+    const kernel::memory::heap::Stats stats = kernel::memory::heap::stats();
+    if (!stats.initialized)
+    {
+        terminal::write_line("heap stats unavailable");
+        return;
+    }
+
+    terminal::write_line("heap stats:");
+    write_stat("reserved KiB", stats.reserved_bytes / 1024);
+    write_stat("committed KiB", stats.committed_bytes / 1024);
+    write_stat("committed pages", stats.committed_pages);
+    write_stat("allocated bytes", stats.allocator.allocated_bytes);
+    write_stat("allocations", stats.allocator.allocation_count);
+    write_stat("free bytes", stats.allocator.free_bytes);
+    write_stat("free blocks", stats.allocator.free_block_count);
+    write_stat("largest free block", stats.allocator.largest_free_block);
+    write_stat("failed allocations", stats.failed_allocations);
+}
+
 } // namespace
 
 namespace kernel::shell
@@ -104,6 +127,9 @@ void execute_command(StringView command)
         break;
     case ShellCommandKind::Mem:
         write_memory_stats();
+        break;
+    case ShellCommandKind::Heap:
+        write_heap_stats();
         break;
     case ShellCommandKind::Halt:
         terminal::write_line("halting");

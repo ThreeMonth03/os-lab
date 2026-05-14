@@ -13,6 +13,7 @@ enum class ShellCommandKind
     About,
     Input,
     Mem,
+    Heap,
     Halt,
     Unknown,
 };
