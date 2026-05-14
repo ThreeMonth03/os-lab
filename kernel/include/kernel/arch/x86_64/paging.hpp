@@ -167,4 +167,6 @@ private:
     void * context_ = nullptr;
 };
 
+[[nodiscard]] bool init_foundation();
+
 } // namespace kernel::arch::x86_64::paging

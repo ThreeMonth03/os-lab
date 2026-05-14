@@ -1,5 +1,6 @@
 #include "kernel/arch/x86_64/exception_smoke.hpp"
 #include "kernel/arch/x86_64/irq.hpp"
+#include "kernel/arch/x86_64/paging.hpp"
 #include "kernel/base/fixed_vector.hpp"
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/memory/memory.hpp"
@@ -84,6 +85,16 @@ void write_memory_summary(bool ready)
     kernel::console::terminal::write_string("memory usable = ");
     kernel::console::terminal::write_decimal(usable_kib);
     kernel::console::terminal::write_line(" KiB");
+}
+
+bool init_memory_and_paging()
+{
+    const bool memory_ready = kernel::memory::init();
+    if (memory_ready)
+    {
+        (void)kernel::arch::x86_64::paging::init_foundation();
+    }
+    return memory_ready;
 }
 
 void write_terminal_banner()
@@ -178,7 +189,7 @@ extern "C" [[noreturn]] void kernel_main()
     kernel::arch::x86_64::run_exception_smoke();
 
     run_utility_smoke();
-    write_memory_summary(kernel::memory::init());
+    write_memory_summary(init_memory_and_paging());
     write_bootloader_info();
     write_firmware_info();
     write_loaded_base_revision();

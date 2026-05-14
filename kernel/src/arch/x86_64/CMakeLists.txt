@@ -3,6 +3,7 @@ add_library(os_lab_kernel_arch_x86_64 OBJECT
     idt.cpp
     irq.cpp
     paging.cpp
+    paging_init.cpp
     pic.cpp
     pit.cpp
 )

@@ -28,6 +28,12 @@ __attribute__((used, section(".limine_requests"), aligned(8))) volatile limine_s
     .stack_size = 64 * 1024,
 };
 
+__attribute__((used, section(".limine_requests"), aligned(8))) volatile limine_hhdm_request hhdm_request = {
+    .id = LIMINE_HHDM_REQUEST_ID,
+    .revision = 0,
+    .response = nullptr,
+};
+
 __attribute__((used, section(".limine_requests"), aligned(8))) volatile limine_framebuffer_request framebuffer_request = {
     .id = LIMINE_FRAMEBUFFER_REQUEST_ID,
     .revision = 0,
@@ -60,6 +66,18 @@ uint64_t firmware_type()
         return UINT64_MAX;
     }
     return firmware_type_request.response->firmware_type;
+}
+
+bool hhdm_available() { return hhdm_request.response != nullptr; }
+
+uint64_t hhdm_offset()
+{
+    if (hhdm_request.response == nullptr)
+    {
+        return 0;
+    }
+
+    return hhdm_request.response->offset;
 }
 
 const limine_bootloader_info_response * bootloader_info()

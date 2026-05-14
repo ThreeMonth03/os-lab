@@ -10,6 +10,8 @@ namespace kernel::boot
 bool base_revision_supported();
 uint64_t loaded_base_revision();
 uint64_t firmware_type();
+bool hhdm_available();
+uint64_t hhdm_offset();
 const limine_bootloader_info_response * bootloader_info();
 const limine_framebuffer_response * framebuffer();
 const limine_memmap_response * memory_map();

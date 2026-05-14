@@ -58,6 +58,12 @@ static_assert(sizeof(ExceptionFrame) == 160);
 
 alignas(16) IdtEntry g_idt[256] = {};
 
+constexpr uint64_t kPageFaultProtectionBit = 1ull << 0;
+constexpr uint64_t kPageFaultWriteBit = 1ull << 1;
+constexpr uint64_t kPageFaultUserBit = 1ull << 2;
+constexpr uint64_t kPageFaultReservedBit = 1ull << 3;
+constexpr uint64_t kPageFaultInstructionFetchBit = 1ull << 4;
+
 extern "C" void kernel_x86_64_exception_0();
 extern "C" void kernel_x86_64_exception_6();
 extern "C" void kernel_x86_64_exception_13();
@@ -143,6 +149,23 @@ void write_hex_field(kernel::StringView name, uint64_t value)
     write_both_line("");
 }
 
+void write_page_fault_error_code(uint64_t error_code)
+{
+    write_both("  page fault flags: ");
+    write_both((error_code & kPageFaultProtectionBit) != 0 ? "protection" : "not-present");
+    write_both((error_code & kPageFaultWriteBit) != 0 ? " write" : " read");
+    write_both((error_code & kPageFaultUserBit) != 0 ? " user" : " supervisor");
+    if ((error_code & kPageFaultReservedBit) != 0)
+    {
+        write_both(" reserved-bit");
+    }
+    if ((error_code & kPageFaultInstructionFetchBit) != 0)
+    {
+        write_both(" instruction-fetch");
+    }
+    write_both_line("");
+}
+
 [[nodiscard]] uint64_t read_cr2()
 {
     uint64_t value = 0;
@@ -173,6 +196,7 @@ extern "C" [[noreturn]] void kernel_x86_64_exception_dispatch(const ExceptionFra
     if (frame->vector == 14)
     {
         write_hex_field("cr2", read_cr2());
+        write_page_fault_error_code(frame->error_code);
     }
 
     write_both_line("kernel halted");
