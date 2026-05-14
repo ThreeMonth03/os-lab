@@ -90,6 +90,67 @@ MapResult PageTableManager::map_page(uint64_t virtual_address,
     return MapResult::Mapped;
 }
 
+UnmapResult PageTableManager::unmap_page(uint64_t virtual_address)
+{
+    if (!is_page_aligned(virtual_address))
+    {
+        return UnmapResult::InvalidAlignment;
+    }
+
+    if (root_ == nullptr || table_from_physical_ == nullptr)
+    {
+        return UnmapResult::NotMapped;
+    }
+
+    const PageIndices indices = page_indices(virtual_address);
+    PageTable * table = root_;
+
+    PageTableEntry * entry = &table->entries[indices.pml4];
+    if (!entry->present() || entry->flags().contains(PageFlag::HugePage))
+    {
+        return UnmapResult::NotMapped;
+    }
+
+    table = table_for(*entry);
+    if (table == nullptr)
+    {
+        return UnmapResult::NotMapped;
+    }
+
+    entry = &table->entries[indices.pdpt];
+    if (!entry->present() || entry->flags().contains(PageFlag::HugePage))
+    {
+        return UnmapResult::NotMapped;
+    }
+
+    table = table_for(*entry);
+    if (table == nullptr)
+    {
+        return UnmapResult::NotMapped;
+    }
+
+    entry = &table->entries[indices.pd];
+    if (!entry->present() || entry->flags().contains(PageFlag::HugePage))
+    {
+        return UnmapResult::NotMapped;
+    }
+
+    table = table_for(*entry);
+    if (table == nullptr)
+    {
+        return UnmapResult::NotMapped;
+    }
+
+    PageTableEntry & leaf = table->entries[indices.pt];
+    if (!leaf.present())
+    {
+        return UnmapResult::NotMapped;
+    }
+
+    leaf.clear();
+    return UnmapResult::Unmapped;
+}
+
 bool PageTableManager::translate(uint64_t virtual_address, Translation & translation) const
 {
     if (root_ == nullptr || table_from_physical_ == nullptr)

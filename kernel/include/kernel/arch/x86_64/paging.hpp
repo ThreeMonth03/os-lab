@@ -135,6 +135,13 @@ enum class MapResult
     AlreadyMapped,
 };
 
+enum class UnmapResult
+{
+    Unmapped,
+    InvalidAlignment,
+    NotMapped,
+};
+
 struct Translation
 {
     uint64_t physical_address = 0;
@@ -155,6 +162,7 @@ public:
     [[nodiscard]] MapResult map_page(uint64_t virtual_address,
                                      uint64_t physical_address,
                                      PageFlags flags);
+    [[nodiscard]] UnmapResult unmap_page(uint64_t virtual_address);
     [[nodiscard]] bool translate(uint64_t virtual_address, Translation & translation) const;
 
 private:

@@ -128,6 +128,36 @@ TEST(PageTableManagerTest, MapsAndTranslatesPage)
     EXPECT_TRUE(translation.flags.contains(paging::PageFlag::NoExecute));
 }
 
+TEST(PageTableManagerTest, PreservesLeafFlagsAndPropagatesUserIntermediateFlag)
+{
+    alignas(paging::kPageSize) paging::PageTable root = {};
+    TestPageTableArena arena;
+    paging::PageTableManager manager(root, allocate_test_table, test_table_from_physical, &arena);
+
+    const uint64_t virtual_address = 0xffff800000402000;
+    const uint64_t physical_address = 0x00204000;
+
+    EXPECT_EQ(manager.map_page(virtual_address,
+                               physical_address,
+                               paging::PageFlag::User | paging::PageFlag::NoCache |
+                                   paging::PageFlag::NoExecute),
+              paging::MapResult::Mapped);
+
+    const paging::PageIndices indices = paging::page_indices(virtual_address);
+    const paging::PageTableEntry & pml4_entry = root.entries[indices.pml4];
+    ASSERT_TRUE(pml4_entry.present());
+    EXPECT_TRUE(pml4_entry.flags().contains(paging::PageFlag::Writable));
+    EXPECT_TRUE(pml4_entry.flags().contains(paging::PageFlag::User));
+    EXPECT_FALSE(pml4_entry.flags().contains(paging::PageFlag::NoExecute));
+
+    paging::Translation translation;
+    ASSERT_TRUE(manager.translate(virtual_address, translation));
+    EXPECT_EQ(translation.physical_address, physical_address);
+    EXPECT_TRUE(translation.flags.contains(paging::PageFlag::User));
+    EXPECT_TRUE(translation.flags.contains(paging::PageFlag::NoCache));
+    EXPECT_TRUE(translation.flags.contains(paging::PageFlag::NoExecute));
+}
+
 TEST(PageTableManagerTest, RejectsUnalignedAndDuplicateMappings)
 {
     alignas(paging::kPageSize) paging::PageTable root = {};
@@ -142,6 +172,26 @@ TEST(PageTableManagerTest, RejectsUnalignedAndDuplicateMappings)
               paging::MapResult::Mapped);
     EXPECT_EQ(manager.map_page(0x1000, 0x3000, paging::PageFlag::Writable),
               paging::MapResult::AlreadyMapped);
+}
+
+TEST(PageTableManagerTest, UnmapsLeafPageWithoutFreeingTables)
+{
+    alignas(paging::kPageSize) paging::PageTable root = {};
+    TestPageTableArena arena;
+    paging::PageTableManager manager(root, allocate_test_table, test_table_from_physical, &arena);
+    paging::Translation translation;
+
+    EXPECT_EQ(manager.unmap_page(0x1001), paging::UnmapResult::InvalidAlignment);
+    EXPECT_EQ(manager.unmap_page(0x1000), paging::UnmapResult::NotMapped);
+    EXPECT_EQ(manager.map_page(0x1000, 0x2000, paging::PageFlag::Writable),
+              paging::MapResult::Mapped);
+    EXPECT_TRUE(manager.translate(0x1000, translation));
+    EXPECT_EQ(arena.allocated, 3u);
+
+    EXPECT_EQ(manager.unmap_page(0x1000), paging::UnmapResult::Unmapped);
+    EXPECT_FALSE(manager.translate(0x1000, translation));
+    EXPECT_EQ(manager.unmap_page(0x1000), paging::UnmapResult::NotMapped);
+    EXPECT_EQ(arena.allocated, 3u);
 }
 
 TEST(PageTableManagerTest, ReportsMissingMappings)
