@@ -15,6 +15,8 @@ namespace kernel::terminal {
 void clear();
 void clear_row_from(uint64_t column, uint64_t row);
 void set_cursor(uint64_t column, uint64_t row);
+void show_cursor();
+void hide_cursor();
 void write_char(char value);
 void write_string(StringView value);
 void write_string(const char* value);

@@ -11,6 +11,8 @@ constexpr uint64_t kGlyphHeight = 7;
 constexpr uint64_t kGlyphScale = 2;
 constexpr uint64_t kCellWidth = (kGlyphWidth + 1) * kGlyphScale;
 constexpr uint64_t kCellHeight = (kGlyphHeight + 2) * kGlyphScale;
+constexpr uint64_t kCursorTop = (kGlyphHeight * kGlyphScale) + 1;
+constexpr uint64_t kCursorHeight = kGlyphScale;
 
 struct Glyph {
     uint8_t rows[kGlyphHeight];
@@ -22,8 +24,11 @@ struct TerminalState {
     uint64_t rows = 0;
     uint64_t cursor_column = 0;
     uint64_t cursor_row = 0;
+    uint64_t visible_cursor_column = 0;
+    uint64_t visible_cursor_row = 0;
     uint32_t foreground = 0;
     uint32_t background = 0;
+    bool cursor_visible = false;
 };
 
 TerminalState g_state;
@@ -217,6 +222,15 @@ void clear_cell(uint64_t column, uint64_t row) {
     fill_rect(column * kCellWidth, row * kCellHeight, kCellWidth, kCellHeight, g_state.background);
 }
 
+void draw_cursor(uint64_t column, uint64_t row, uint32_t color) {
+    if (column >= g_state.columns || row >= g_state.rows) {
+        return;
+    }
+
+    fill_rect(column * kCellWidth, (row * kCellHeight) + kCursorTop, kGlyphWidth * kGlyphScale,
+              kCursorHeight, color);
+}
+
 void draw_glyph(char value, uint64_t column, uint64_t row) {
     clear_cell(column, row);
 
@@ -312,6 +326,7 @@ void clear() {
         return;
     }
 
+    g_state.cursor_visible = false;
     fill_rect(0, 0, g_state.framebuffer->width, g_state.framebuffer->height, g_state.background);
     g_state.cursor_column = 0;
     g_state.cursor_row = 0;
@@ -342,6 +357,27 @@ void set_cursor(uint64_t column, uint64_t row) {
 
     g_state.cursor_column = column;
     g_state.cursor_row = row;
+}
+
+void show_cursor() {
+    if (!ready()) {
+        return;
+    }
+
+    hide_cursor();
+    draw_cursor(g_state.cursor_column, g_state.cursor_row, g_state.foreground);
+    g_state.visible_cursor_column = g_state.cursor_column;
+    g_state.visible_cursor_row = g_state.cursor_row;
+    g_state.cursor_visible = true;
+}
+
+void hide_cursor() {
+    if (!ready() || !g_state.cursor_visible) {
+        return;
+    }
+
+    draw_cursor(g_state.visible_cursor_column, g_state.visible_cursor_row, g_state.background);
+    g_state.cursor_visible = false;
 }
 
 void write_char(char value) {

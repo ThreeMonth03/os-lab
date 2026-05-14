@@ -46,7 +46,8 @@ make gui
 The early shell supports `help`, `clear`, `about`, and `halt`. The line editor
 supports left/right arrows, Backspace, Delete, and the `Ctrl+A`, `Ctrl+C`,
 `Ctrl+E`, `Ctrl+L`, and `Ctrl+U` shortcuts. Caps Lock toggles are printed in the
-terminal; keyboard LEDs are not managed yet.
+terminal; keyboard LEDs are not managed yet. The current edit position is shown
+with a static underline cursor.
 
 In headless mode, quit QEMU with `Ctrl+A`, then `X`.
 
