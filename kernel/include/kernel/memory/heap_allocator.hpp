@@ -54,9 +54,9 @@ public:
     [[nodiscard]] void * allocate(size_t bytes, size_t alignment);
     [[nodiscard]] bool free(void * memory);
 
-    [[nodiscard]] HeapAllocatorStats stats() const;
+    HeapAllocatorStats stats() const;
     [[nodiscard]] HeapValidationResult validate() const;
-    [[nodiscard]] bool initialized() const { return initialized_; }
+    bool initialized() const { return initialized_; }
 
 private:
     static constexpr size_t kMaxRegions = 64;

@@ -20,11 +20,11 @@ public:
 
     ~FixedQueue() { clear(); }
 
-    [[nodiscard]] size_t size() const { return size_; }
-    [[nodiscard]] constexpr size_t capacity() const { return Capacity; }
-    [[nodiscard]] size_t available() const { return Capacity - size_; }
-    [[nodiscard]] bool empty() const { return size_ == 0; }
-    [[nodiscard]] bool full() const { return size_ == Capacity; }
+    size_t size() const { return size_; }
+    constexpr size_t capacity() const { return Capacity; }
+    size_t available() const { return Capacity - size_; }
+    bool empty() const { return size_ == 0; }
+    bool full() const { return size_ == Capacity; }
 
     [[nodiscard]] bool push(const T & value)
     {
@@ -66,18 +66,18 @@ public:
     }
 
 private:
-    [[nodiscard]] size_t advance(size_t index) const
+    size_t advance(size_t index) const
     {
         ++index;
         return index == Capacity ? 0 : index;
     }
 
-    [[nodiscard]] T * slot(size_t index)
+    T * slot(size_t index)
     {
         return reinterpret_cast<T *>(storage_ + (sizeof(T) * index));
     }
 
-    [[nodiscard]] const T * slot(size_t index) const
+    const T * slot(size_t index) const
     {
         return reinterpret_cast<const T *>(storage_ + (sizeof(T) * index));
     }

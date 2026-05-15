@@ -13,11 +13,11 @@ public:
     static constexpr size_t capacity = kShellLineCapacity;
     static constexpr size_t tab_width = 4;
 
-    [[nodiscard]] bool empty() const { return buffer_.empty(); }
-    [[nodiscard]] bool full() const { return buffer_.full(); }
-    [[nodiscard]] size_t size() const { return buffer_.size(); }
-    [[nodiscard]] size_t cursor() const { return cursor_; }
-    [[nodiscard]] StringView view() const { return {buffer_.data(), buffer_.size()}; }
+    bool empty() const { return buffer_.empty(); }
+    bool full() const { return buffer_.full(); }
+    size_t size() const { return buffer_.size(); }
+    size_t cursor() const { return cursor_; }
+    StringView view() const { return {buffer_.data(), buffer_.size()}; }
 
     [[nodiscard]] static size_t spaces_to_next_tab_stop(size_t column);
 

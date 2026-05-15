@@ -24,17 +24,17 @@ public:
     {
     }
 
-    [[nodiscard]] constexpr T * data() const { return data_; }
-    [[nodiscard]] constexpr size_t size() const { return size_; }
-    [[nodiscard]] constexpr size_t size_bytes() const { return size_ * sizeof(T); }
-    [[nodiscard]] constexpr bool empty() const { return size_ == 0; }
+    constexpr T * data() const { return data_; }
+    constexpr size_t size() const { return size_; }
+    constexpr size_t size_bytes() const { return size_ * sizeof(T); }
+    constexpr bool empty() const { return size_ == 0; }
 
-    [[nodiscard]] constexpr T * begin() const { return data_; }
-    [[nodiscard]] constexpr T * end() const { return data_ + size_; }
+    constexpr T * begin() const { return data_; }
+    constexpr T * end() const { return data_ + size_; }
 
-    [[nodiscard]] constexpr T & operator[](size_t index) const { return data_[index]; }
-    [[nodiscard]] constexpr T & front() const { return data_[0]; }
-    [[nodiscard]] constexpr T & back() const { return data_[size_ - 1]; }
+    constexpr T & operator[](size_t index) const { return data_[index]; }
+    constexpr T & front() const { return data_[0]; }
+    constexpr T & back() const { return data_[size_ - 1]; }
 
     [[nodiscard]] constexpr Span first(size_t count) const
     {

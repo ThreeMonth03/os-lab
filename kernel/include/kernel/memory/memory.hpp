@@ -19,8 +19,8 @@ struct Stats
 };
 
 [[nodiscard]] bool init();
-[[nodiscard]] Stats stats();
-[[nodiscard]] MemoryMapView memory_map();
+Stats stats();
+MemoryMapView memory_map();
 [[nodiscard]] bool allocate_frame(PhysicalFrame & frame);
 
 } // namespace kernel::memory

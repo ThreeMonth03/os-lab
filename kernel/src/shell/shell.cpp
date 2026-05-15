@@ -179,7 +179,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::LineEdit
         terminal::write_char('\n');
         if (!line.empty())
         {
-            (void)history.push(line.view());
+            history.push(line.view());
         }
         kernel::shell::execute_command(line.view());
         line.clear();

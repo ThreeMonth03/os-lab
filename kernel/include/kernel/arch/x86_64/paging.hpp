@@ -38,7 +38,7 @@ public:
 
     [[nodiscard]] static constexpr PageFlags from_bits(uint64_t bits) { return PageFlags(bits); }
 
-    [[nodiscard]] constexpr uint64_t bits() const { return bits_; }
+    constexpr uint64_t bits() const { return bits_; }
     [[nodiscard]] constexpr bool contains(PageFlag flag) const
     {
         return (bits_ & static_cast<uint64_t>(flag)) != 0;
@@ -97,13 +97,13 @@ class PageTableEntry
 public:
     constexpr PageTableEntry() = default;
 
-    [[nodiscard]] constexpr uint64_t raw() const { return value_; }
-    [[nodiscard]] constexpr bool present() const
+    constexpr uint64_t raw() const { return value_; }
+    constexpr bool present() const
     {
         return (value_ & static_cast<uint64_t>(PageFlag::Present)) != 0;
     }
-    [[nodiscard]] constexpr uint64_t address() const { return value_ & kPageAddressMask; }
-    [[nodiscard]] constexpr PageFlags flags() const
+    constexpr uint64_t address() const { return value_ & kPageAddressMask; }
+    constexpr PageFlags flags() const
     {
         return PageFlags::from_bits(value_ & kPageFlagMask);
     }

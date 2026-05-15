@@ -51,8 +51,8 @@ struct Stats
 };
 
 void pump();
-[[nodiscard]] bool enqueue(const Event & event);
+bool enqueue(const Event & event);
 [[nodiscard]] bool poll(Event & event);
-[[nodiscard]] Stats stats();
+Stats stats();
 
 } // namespace kernel::input

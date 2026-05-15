@@ -12,8 +12,8 @@ struct Position
 };
 
 [[nodiscard]] bool init();
-[[nodiscard]] bool ready();
-[[nodiscard]] Position position();
+bool ready();
+Position position();
 void show();
 void hide();
 void move_by(int16_t delta_x, int16_t delta_y);

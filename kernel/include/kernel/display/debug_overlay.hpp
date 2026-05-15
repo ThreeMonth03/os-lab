@@ -46,7 +46,7 @@ struct Lines
 void format_snapshot(const Snapshot & snapshot, Lines & lines);
 
 [[nodiscard]] bool init(Surface & surface, const SurfaceDescriptor & target, Color foreground, Color background, Config config = {});
-[[nodiscard]] bool ready();
+bool ready();
 void refresh_if_due();
 void refresh_now();
 void refresh_now(const Snapshot & snapshot);

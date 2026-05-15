@@ -37,7 +37,7 @@ struct Layer
     Rect bounds;
     bool visible = true;
 
-    [[nodiscard]] bool valid() const;
+    bool valid() const;
 };
 
 [[nodiscard]] uint8_t layer_order(LayerKind kind);
@@ -53,17 +53,17 @@ public:
 
     void reset(Rect bounds);
     void clear();
-    [[nodiscard]] DirtyMarkResult mark_dirty(Rect rect);
+    DirtyMarkResult mark_dirty(Rect rect);
     [[nodiscard]] bool pop(Rect & rect);
 
-    [[nodiscard]] bool empty() const { return count_ == 0; }
-    [[nodiscard]] size_t size() const { return count_; }
-    [[nodiscard]] size_t capacity() const { return kMaxDirtyRects; }
-    [[nodiscard]] bool full_screen_dirty() const { return full_screen_dirty_; }
-    [[nodiscard]] Rect bounds() const { return bounds_; }
+    bool empty() const { return count_ == 0; }
+    size_t size() const { return count_; }
+    size_t capacity() const { return kMaxDirtyRects; }
+    bool full_screen_dirty() const { return full_screen_dirty_; }
+    Rect bounds() const { return bounds_; }
 
 private:
-    [[nodiscard]] DirtyMarkResult fallback_to_fullscreen();
+    DirtyMarkResult fallback_to_fullscreen();
 
     Rect bounds_;
     Rect rects_[kMaxDirtyRects] = {};
@@ -83,14 +83,14 @@ public:
     [[nodiscard]] const Layer * find_layer(LayerKind kind) const;
     [[nodiscard]] const Layer * top_visible_layer() const;
 
-    [[nodiscard]] DirtyMarkResult mark_dirty(Rect rect) { return dirty_rects_.mark_dirty(rect); }
+    DirtyMarkResult mark_dirty(Rect rect) { return dirty_rects_.mark_dirty(rect); }
     [[nodiscard]] bool pop_dirty(Rect & rect) { return dirty_rects_.pop(rect); }
 
-    [[nodiscard]] size_t layer_count() const { return layer_count_; }
-    [[nodiscard]] size_t layer_capacity() const { return kMaxCompositorLayers; }
-    [[nodiscard]] size_t dirty_count() const { return dirty_rects_.size(); }
-    [[nodiscard]] bool full_screen_dirty() const { return dirty_rects_.full_screen_dirty(); }
-    [[nodiscard]] Rect bounds() const { return dirty_rects_.bounds(); }
+    size_t layer_count() const { return layer_count_; }
+    size_t layer_capacity() const { return kMaxCompositorLayers; }
+    size_t dirty_count() const { return dirty_rects_.size(); }
+    bool full_screen_dirty() const { return dirty_rects_.full_screen_dirty(); }
+    Rect bounds() const { return dirty_rects_.bounds(); }
 
 private:
     Layer layers_[kMaxCompositorLayers] = {};
@@ -104,7 +104,7 @@ namespace compositor
 void init(Rect bounds);
 [[nodiscard]] bool register_layer(Layer layer);
 void mark_dirty(Rect rect);
-[[nodiscard]] size_t dirty_count();
+size_t dirty_count();
 [[nodiscard]] bool pop_dirty(Rect & rect);
 void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect);
 

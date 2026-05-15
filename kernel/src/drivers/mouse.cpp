@@ -78,7 +78,7 @@ void enqueue_mouse_event(const kernel::mouse::MousePacket & packet)
     event.mouse_move.middle_button = packet.middle_button;
     event.mouse_move.x_overflow = packet.x_overflow;
     event.mouse_move.y_overflow = packet.y_overflow;
-    (void)kernel::input::enqueue(event);
+    kernel::input::enqueue(event);
 }
 
 } // namespace
@@ -99,7 +99,7 @@ bool init()
     }
 
     bool irq_configured = false;
-    (void)configure_controller(irq_configured);
+    configure_controller(irq_configured);
 
     kernel::drivers::ps2::flush_output();
     if (!send_mouse_command(kMouseSetDefaults))

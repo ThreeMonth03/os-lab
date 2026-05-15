@@ -41,25 +41,25 @@ public:
 
     ~FixedVector() { clear(); }
 
-    [[nodiscard]] size_t size() const { return size_; }
-    [[nodiscard]] constexpr size_t capacity() const { return Capacity; }
-    [[nodiscard]] bool empty() const { return size_ == 0; }
-    [[nodiscard]] bool full() const { return size_ == Capacity; }
+    size_t size() const { return size_; }
+    constexpr size_t capacity() const { return Capacity; }
+    bool empty() const { return size_ == 0; }
+    bool full() const { return size_ == Capacity; }
 
-    [[nodiscard]] T * data() { return slot(0); }
-    [[nodiscard]] const T * data() const { return slot(0); }
+    T * data() { return slot(0); }
+    const T * data() const { return slot(0); }
 
-    [[nodiscard]] T * begin() { return data(); }
-    [[nodiscard]] T * end() { return data() + size_; }
-    [[nodiscard]] const T * begin() const { return data(); }
-    [[nodiscard]] const T * end() const { return data() + size_; }
+    T * begin() { return data(); }
+    T * end() { return data() + size_; }
+    const T * begin() const { return data(); }
+    const T * end() const { return data() + size_; }
 
-    [[nodiscard]] T & operator[](size_t index) { return *slot(index); }
-    [[nodiscard]] const T & operator[](size_t index) const { return *slot(index); }
-    [[nodiscard]] T & front() { return (*this)[0]; }
-    [[nodiscard]] const T & front() const { return (*this)[0]; }
-    [[nodiscard]] T & back() { return (*this)[size_ - 1]; }
-    [[nodiscard]] const T & back() const { return (*this)[size_ - 1]; }
+    T & operator[](size_t index) { return *slot(index); }
+    const T & operator[](size_t index) const { return *slot(index); }
+    T & front() { return (*this)[0]; }
+    const T & front() const { return (*this)[0]; }
+    T & back() { return (*this)[size_ - 1]; }
+    const T & back() const { return (*this)[size_ - 1]; }
 
     [[nodiscard]] bool push_back(const T & value) { return emplace_back(value) != nullptr; }
     [[nodiscard]] bool push_back(T && value) { return emplace_back(static_cast<T &&>(value)) != nullptr; }
@@ -103,7 +103,10 @@ private:
     {
         for (const T & value : other)
         {
-            (void)push_back(value);
+            if (!push_back(value))
+            {
+                return;
+            }
         }
     }
 
@@ -111,17 +114,20 @@ private:
     {
         for (T & value : other)
         {
-            (void)emplace_back(static_cast<T &&>(value));
+            if (emplace_back(static_cast<T &&>(value)) == nullptr)
+            {
+                return;
+            }
         }
         other.clear();
     }
 
-    [[nodiscard]] T * slot(size_t index)
+    T * slot(size_t index)
     {
         return reinterpret_cast<T *>(storage_ + (sizeof(T) * index));
     }
 
-    [[nodiscard]] const T * slot(size_t index) const
+    const T * slot(size_t index) const
     {
         return reinterpret_cast<const T *>(storage_ + (sizeof(T) * index));
     }

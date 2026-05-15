@@ -15,8 +15,8 @@ public:
 
     [[nodiscard]] static bool current(ActivePageTable & active);
 
-    [[nodiscard]] bool valid() const { return root_ != nullptr; }
-    [[nodiscard]] uint64_t root_physical() const { return root_physical_; }
+    bool valid() const { return root_ != nullptr; }
+    uint64_t root_physical() const { return root_physical_; }
 
     [[nodiscard]] MapResult map_page(uint64_t virtual_address,
                                      uint64_t physical_address,

@@ -9,12 +9,12 @@ namespace kernel::console::terminal
 {
 
 [[nodiscard]] bool init();
-[[nodiscard]] bool ready();
-[[nodiscard]] uint64_t columns();
-[[nodiscard]] uint64_t rows();
-[[nodiscard]] uint64_t cursor_column();
-[[nodiscard]] uint64_t cursor_row();
-[[nodiscard]] kernel::display::HitTestResult pointer_target();
+bool ready();
+uint64_t columns();
+uint64_t rows();
+uint64_t cursor_column();
+uint64_t cursor_row();
+kernel::display::HitTestResult pointer_target();
 
 void clear();
 void clear_cell_at(uint64_t column, uint64_t row);

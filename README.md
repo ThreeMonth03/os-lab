@@ -80,6 +80,14 @@ make clean     # Remove generated files
 `EXCEPTION_SMOKE` accepts `invalid_opcode`, `page_fault`, or `divide_error`.
 Normal `make demo` and `make gui` always build with the trigger disabled.
 
+## Style Notes
+
+Use `[[nodiscard]]` where ignoring a result is likely to hide a real bug:
+initialization, registration, allocation, mapping, validation, parse/decode, and
+pop/find/lookup style APIs. Avoid it on plain getters and best-effort drawing or
+dirty-region helpers; those should stay quiet when callers intentionally ignore
+the value.
+
 ## Native Toolchain
 
 Docker is the default path, but a full native setup is available:

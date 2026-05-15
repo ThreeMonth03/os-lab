@@ -73,7 +73,7 @@ public:
     [[nodiscard]] SlabCacheId find(StringView name) const;
     [[nodiscard]] SlabCache * lookup(SlabCacheId id);
     [[nodiscard]] const SlabCache * lookup(SlabCacheId id) const;
-    [[nodiscard]] StringView name(SlabCacheId id) const;
+    StringView name(SlabCacheId id) const;
 
     [[nodiscard]] bool add_slab(SlabCacheId id, void * memory, size_t bytes);
     [[nodiscard]] void * allocate(SlabCacheId id);
@@ -82,8 +82,8 @@ public:
 
     void record_failed_backing_allocation(SlabCacheId id);
 
-    [[nodiscard]] SlabRegistryStats stats() const;
-    [[nodiscard]] SlabRegistryCacheStats cache_stats(SlabCacheId id) const;
+    SlabRegistryStats stats() const;
+    SlabRegistryCacheStats cache_stats(SlabCacheId id) const;
     [[nodiscard]] SlabRegistryValidationResult validate_all() const;
 
 private:

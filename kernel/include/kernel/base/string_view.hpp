@@ -24,16 +24,16 @@ public:
     {
     }
 
-    [[nodiscard]] constexpr const char * data() const { return data_; }
-    [[nodiscard]] constexpr size_t size() const { return size_; }
-    [[nodiscard]] constexpr bool empty() const { return size_ == 0; }
+    constexpr const char * data() const { return data_; }
+    constexpr size_t size() const { return size_; }
+    constexpr bool empty() const { return size_ == 0; }
 
-    [[nodiscard]] constexpr const char * begin() const { return data_; }
-    [[nodiscard]] constexpr const char * end() const { return data_ + size_; }
+    constexpr const char * begin() const { return data_; }
+    constexpr const char * end() const { return data_ + size_; }
 
-    [[nodiscard]] constexpr char operator[](size_t index) const { return data_[index]; }
-    [[nodiscard]] constexpr char front() const { return data_[0]; }
-    [[nodiscard]] constexpr char back() const { return data_[size_ - 1]; }
+    constexpr char operator[](size_t index) const { return data_[index]; }
+    constexpr char front() const { return data_[0]; }
+    constexpr char back() const { return data_[size_ - 1]; }
 
     constexpr void remove_prefix(size_t count)
     {
@@ -72,7 +72,7 @@ public:
         return {data_ + offset, count};
     }
 
-    [[nodiscard]] constexpr bool starts_with(StringView prefix) const
+    constexpr bool starts_with(StringView prefix) const
     {
         if (prefix.size_ > size_)
         {
@@ -91,7 +91,7 @@ public:
     }
 
 private:
-    [[nodiscard]] static constexpr size_t length(const char * value)
+    static constexpr size_t length(const char * value)
     {
         if (value == nullptr)
         {

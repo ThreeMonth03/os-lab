@@ -35,12 +35,12 @@ public:
     void reset(uint64_t columns, uint64_t rows);
     void clear();
 
-    [[nodiscard]] bool ready() const { return columns_ > 0 && rows_ > 0; }
-    [[nodiscard]] uint64_t columns() const { return columns_; }
-    [[nodiscard]] uint64_t rows() const { return rows_; }
-    [[nodiscard]] uint64_t cursor_column() const { return cursor_column_; }
-    [[nodiscard]] uint64_t cursor_row() const { return cursor_row_; }
-    [[nodiscard]] ConsoleCell cursor() const { return {cursor_column_, cursor_row_}; }
+    bool ready() const { return columns_ > 0 && rows_ > 0; }
+    uint64_t columns() const { return columns_; }
+    uint64_t rows() const { return rows_; }
+    uint64_t cursor_column() const { return cursor_column_; }
+    uint64_t cursor_row() const { return cursor_row_; }
+    ConsoleCell cursor() const { return {cursor_column_, cursor_row_}; }
 
     [[nodiscard]] TextConsoleUpdate write_char(char value);
     [[nodiscard]] TextConsoleUpdate newline();

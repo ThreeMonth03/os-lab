@@ -26,7 +26,7 @@ bool register_layer(Layer layer)
 
 void mark_dirty(Rect rect)
 {
-    (void)g_compositor.mark_dirty(rect);
+    g_compositor.mark_dirty(rect);
 }
 
 size_t dirty_count()

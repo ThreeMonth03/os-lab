@@ -36,7 +36,10 @@ bool LineEditor::insert_spaces(size_t count)
 
     for (size_t index = 0; index < count; ++index)
     {
-        (void)insert(' ');
+        if (!insert(' '))
+        {
+            return false;
+        }
     }
 
     return true;

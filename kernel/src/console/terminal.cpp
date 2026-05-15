@@ -104,13 +104,13 @@ display::Rect apply_console_update(kernel::TextConsoleUpdate update)
     switch (update.action)
     {
     case kernel::TextConsoleAction::DrawGlyph:
-        (void)g_state.text_buffer.put(update.cell.column, update.cell.row, update.glyph);
+        g_state.text_buffer.put(update.cell.column, update.cell.row, update.glyph);
         g_state.renderer.draw_glyph(update.glyph, update.cell.column, update.cell.row);
         dirty_rect = cell_rect(update.cell.column, update.cell.row);
         display::compositor::mark_dirty(dirty_rect);
         break;
     case kernel::TextConsoleAction::ClearCell:
-        (void)g_state.text_buffer.clear_cell(update.cell.column, update.cell.row);
+        g_state.text_buffer.clear_cell(update.cell.column, update.cell.row);
         g_state.renderer.clear_cell(update.cell.column, update.cell.row);
         dirty_rect = cell_rect(update.cell.column, update.cell.row);
         display::compositor::mark_dirty(dirty_rect);
@@ -121,7 +121,7 @@ display::Rect apply_console_update(kernel::TextConsoleUpdate update)
 
     if (update.scroll)
     {
-        (void)g_state.text_buffer.scroll_up();
+        g_state.text_buffer.scroll_up();
         repaint_text_layer();
         display::compositor::mark_dirty(terminal_bounds());
         return terminal_bounds();
@@ -288,7 +288,7 @@ void clear_cell_at(uint64_t column, uint64_t row)
 
     {
         display::compositor::RedrawGuard redraw(cell_rect(column, row));
-        (void)g_state.text_buffer.clear_cell(column, row);
+        g_state.text_buffer.clear_cell(column, row);
         g_state.renderer.clear_cell(column, row);
     }
     display::compositor::repaint_layers_above(display::LayerKind::Console, cell_rect(column, row));
@@ -306,7 +306,7 @@ void clear_row_from(uint64_t column, uint64_t row)
         display::compositor::RedrawGuard redraw(dirty_rect);
         while (column < g_state.console.columns())
         {
-            (void)g_state.text_buffer.clear_cell(column, row);
+            g_state.text_buffer.clear_cell(column, row);
             g_state.renderer.clear_cell(column, row);
             ++column;
         }
@@ -323,7 +323,7 @@ void draw_char_at(uint64_t column, uint64_t row, char value)
 
     {
         display::compositor::RedrawGuard redraw(cell_rect(column, row));
-        (void)g_state.text_buffer.put(column, row, value);
+        g_state.text_buffer.put(column, row, value);
         g_state.renderer.draw_glyph(value, column, row);
     }
     display::compositor::repaint_layers_above(display::LayerKind::Console, cell_rect(column, row));

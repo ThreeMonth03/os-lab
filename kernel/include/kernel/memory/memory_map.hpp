@@ -56,11 +56,11 @@ public:
     {
     }
 
-    [[nodiscard]] bool empty() const { return regions_.empty(); }
-    [[nodiscard]] size_t size() const { return regions_.size(); }
-    [[nodiscard]] Span<const MemoryRegion> regions() const { return regions_; }
-    [[nodiscard]] const MemoryRegion & operator[](size_t index) const { return regions_[index]; }
-    [[nodiscard]] MemoryMapStats stats() const;
+    bool empty() const { return regions_.empty(); }
+    size_t size() const { return regions_.size(); }
+    Span<const MemoryRegion> regions() const { return regions_; }
+    const MemoryRegion & operator[](size_t index) const { return regions_[index]; }
+    MemoryMapStats stats() const;
 
 private:
     Span<const MemoryRegion> regions_;

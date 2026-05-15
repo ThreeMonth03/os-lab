@@ -30,7 +30,7 @@ struct SurfaceDescriptor
     bool active = false;
     bool focused = false;
 
-    [[nodiscard]] bool valid() const;
+    bool valid() const;
 };
 
 class DisplayTargetRegistry
@@ -43,10 +43,10 @@ public:
     [[nodiscard]] bool set_active(SurfaceId id);
     [[nodiscard]] bool set_focused(SurfaceId id);
 
-    [[nodiscard]] size_t size() const { return count_; }
-    [[nodiscard]] size_t capacity() const { return kMaxDisplayTargets; }
-    [[nodiscard]] SurfaceId active_target_id() const { return active_target_id_; }
-    [[nodiscard]] SurfaceId focused_target_id() const { return focused_target_id_; }
+    size_t size() const { return count_; }
+    size_t capacity() const { return kMaxDisplayTargets; }
+    SurfaceId active_target_id() const { return active_target_id_; }
+    SurfaceId focused_target_id() const { return focused_target_id_; }
     [[nodiscard]] const SurfaceDescriptor * find(SurfaceId id) const;
     [[nodiscard]] SurfaceDescriptor active_target() const;
 

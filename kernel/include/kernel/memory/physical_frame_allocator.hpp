@@ -21,8 +21,8 @@ public:
         return PhysicalFrame(address);
     }
 
-    [[nodiscard]] constexpr uint64_t address() const { return address_; }
-    [[nodiscard]] constexpr bool valid() const { return address_ != 0; }
+    constexpr uint64_t address() const { return address_; }
+    constexpr bool valid() const { return address_ != 0; }
 
 private:
     explicit constexpr PhysicalFrame(uint64_t address)
@@ -52,7 +52,7 @@ public:
 
     void reset(MemoryMapView map);
     [[nodiscard]] bool allocate(PhysicalFrame & frame);
-    [[nodiscard]] FrameAllocatorStats stats() const;
+    FrameAllocatorStats stats() const;
 
 private:
     Span<const MemoryRegion> regions_;

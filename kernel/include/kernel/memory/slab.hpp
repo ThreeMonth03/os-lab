@@ -29,8 +29,8 @@ struct Stats
 [[nodiscard]] void * allocate(SlabCacheId id);
 [[nodiscard]] bool free(void * memory);
 [[nodiscard]] bool free(SlabCacheId id, void * memory);
-[[nodiscard]] Stats stats();
-[[nodiscard]] SlabRegistryCacheStats cache_stats(SlabCacheId id);
+Stats stats();
+SlabRegistryCacheStats cache_stats(SlabCacheId id);
 [[nodiscard]] SlabValidationResult validate();
 [[nodiscard]] SlabRegistryValidationResult validate_all();
 

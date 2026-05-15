@@ -59,7 +59,7 @@ struct Stats
 [[nodiscard]] bool init();
 [[nodiscard]] void * allocate(size_t bytes, size_t alignment);
 [[nodiscard]] bool free(void * memory);
-[[nodiscard]] Stats stats();
+Stats stats();
 [[nodiscard]] HeapValidationResult validate();
 
 } // namespace kernel::memory::heap

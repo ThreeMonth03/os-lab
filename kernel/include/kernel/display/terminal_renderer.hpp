@@ -19,7 +19,7 @@ public:
 
     void reset(Surface & surface, Color foreground, Color background);
 
-    [[nodiscard]] bool ready() const { return surface_ != nullptr && surface_->ready(); }
+    bool ready() const { return surface_ != nullptr && surface_->ready(); }
 
     void clear_screen();
     void clear_cell(uint64_t column, uint64_t row);

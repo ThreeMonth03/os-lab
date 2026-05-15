@@ -18,20 +18,20 @@ public:
     [[nodiscard]] bool reset(uint64_t columns, uint64_t rows);
     void clear();
 
-    [[nodiscard]] bool ready() const { return columns_ > 0 && rows_ > 0; }
-    [[nodiscard]] uint64_t columns() const { return columns_; }
-    [[nodiscard]] uint64_t rows() const { return rows_; }
-    [[nodiscard]] uint64_t max_columns() const { return kTextBufferMaxColumns; }
-    [[nodiscard]] uint64_t max_rows() const { return kTextBufferMaxRows; }
+    bool ready() const { return columns_ > 0 && rows_ > 0; }
+    uint64_t columns() const { return columns_; }
+    uint64_t rows() const { return rows_; }
+    uint64_t max_columns() const { return kTextBufferMaxColumns; }
+    uint64_t max_rows() const { return kTextBufferMaxRows; }
 
-    [[nodiscard]] bool put(uint64_t column, uint64_t row, char glyph);
-    [[nodiscard]] bool clear_cell(uint64_t column, uint64_t row);
-    [[nodiscard]] bool scroll_up();
-    [[nodiscard]] char glyph_at(uint64_t column, uint64_t row) const;
+    bool put(uint64_t column, uint64_t row, char glyph);
+    bool clear_cell(uint64_t column, uint64_t row);
+    bool scroll_up();
+    char glyph_at(uint64_t column, uint64_t row) const;
 
 private:
-    [[nodiscard]] bool in_bounds(uint64_t column, uint64_t row) const;
-    [[nodiscard]] size_t index_of(uint64_t column, uint64_t row) const;
+    bool in_bounds(uint64_t column, uint64_t row) const;
+    size_t index_of(uint64_t column, uint64_t row) const;
 
     char cells_[kTextBufferMaxColumns * kTextBufferMaxRows] = {};
     uint64_t columns_ = 0;

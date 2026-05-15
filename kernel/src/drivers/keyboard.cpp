@@ -74,7 +74,7 @@ void handle_irq()
     KeyEvent key;
     if (read_decoded_key(key))
     {
-        (void)enqueue_key_event(key);
+        enqueue_key_event(key);
     }
 }
 

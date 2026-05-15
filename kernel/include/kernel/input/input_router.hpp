@@ -17,7 +17,7 @@ class InputRouter
 public:
     InputRouter() = default;
 
-    [[nodiscard]] InputFocus focus() const { return focus_; }
+    InputFocus focus() const { return focus_; }
     void set_focus(InputFocus focus) { focus_ = focus; }
 
     [[nodiscard]] RoutedEvent route(const Event & event) const;
@@ -26,7 +26,7 @@ private:
     InputFocus focus_ = InputFocus::Shell;
 };
 
-[[nodiscard]] InputFocus focus();
+InputFocus focus();
 void set_focus(InputFocus focus);
 [[nodiscard]] RoutedEvent route(const Event & event);
 

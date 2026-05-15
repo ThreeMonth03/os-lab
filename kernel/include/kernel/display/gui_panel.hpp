@@ -37,7 +37,7 @@ struct Config
                         Color background,
                         Color foreground,
                         Config config = {});
-[[nodiscard]] bool ready();
+bool ready();
 void refresh_now();
 
 } // namespace kernel::display::gui_panel

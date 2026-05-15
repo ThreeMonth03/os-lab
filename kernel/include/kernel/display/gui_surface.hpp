@@ -30,7 +30,7 @@ struct GuiSurface
     bool focusable = false;
     bool focused = false;
 
-    [[nodiscard]] bool valid() const;
+    bool valid() const;
     [[nodiscard]] SurfaceDescriptor display_target() const;
     [[nodiscard]] Layer layer() const;
 };
@@ -52,8 +52,8 @@ public:
     [[nodiscard]] const GuiSurface * focused_surface() const;
     [[nodiscard]] const GuiSurface * at(size_t index) const;
 
-    [[nodiscard]] size_t size() const { return count_; }
-    [[nodiscard]] size_t capacity() const { return kMaxGuiSurfaces; }
+    size_t size() const { return count_; }
+    size_t capacity() const { return kMaxGuiSurfaces; }
 
 private:
     [[nodiscard]] GuiSurface * find_mutable(GuiSurfaceId id);

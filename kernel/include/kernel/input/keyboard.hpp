@@ -36,7 +36,7 @@ struct KeyEvent
 };
 
 [[nodiscard]] bool init_irq();
-[[nodiscard]] input::DeviceMode input_mode();
+input::DeviceMode input_mode();
 void handle_irq();
 [[nodiscard]] bool poll_key(KeyEvent & event);
 

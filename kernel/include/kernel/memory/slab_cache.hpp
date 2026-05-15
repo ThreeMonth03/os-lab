@@ -50,9 +50,9 @@ public:
     [[nodiscard]] void * allocate();
     [[nodiscard]] bool free(void * memory);
 
-    [[nodiscard]] SlabCacheStats stats() const;
+    SlabCacheStats stats() const;
     [[nodiscard]] SlabValidationResult validate() const;
-    [[nodiscard]] bool initialized() const { return initialized_; }
+    bool initialized() const { return initialized_; }
 
 private:
     struct FreeNode;

@@ -28,9 +28,9 @@ public:
     [[nodiscard]] bool free_raw(void * memory) { return cache_.free(memory); }
     [[nodiscard]] bool free_uninitialized(T * memory) { return cache_.free(memory); }
 
-    [[nodiscard]] SlabCacheStats stats() const { return cache_.stats(); }
+    SlabCacheStats stats() const { return cache_.stats(); }
     [[nodiscard]] SlabValidationResult validate() const { return cache_.validate(); }
-    [[nodiscard]] bool initialized() const { return cache_.initialized(); }
+    bool initialized() const { return cache_.initialized(); }
 
 private:
     SlabCache cache_;

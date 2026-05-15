@@ -19,8 +19,8 @@ struct MouseEvent
 };
 
 [[nodiscard]] bool init();
-[[nodiscard]] bool ready();
-[[nodiscard]] input::DeviceMode input_mode();
+bool ready();
+input::DeviceMode input_mode();
 void handle_irq();
 [[nodiscard]] bool poll(MouseEvent & event);
 

@@ -153,7 +153,7 @@ bool SlabCache::free(void * memory)
     const auto address = reinterpret_cast<uintptr_t>(memory);
     size_t object_index = 0;
     SlabHeader * slab = find_slab(address, object_index);
-    if (slab == nullptr || object_on_free_list(*slab, address))
+    if (slab == nullptr || object_index >= slab->object_count || object_on_free_list(*slab, address))
     {
         return false;
     }
@@ -164,7 +164,6 @@ bool SlabCache::free(void * memory)
     ++slab->free_count;
     ++free_objects_;
     --allocated_objects_;
-    (void)object_index;
     return true;
 }
 
@@ -388,7 +387,7 @@ SlabValidationError SlabCache::validate_slab(const SlabHeader & slab,
         const auto node_address = reinterpret_cast<uintptr_t>(node);
         size_t object_index = 0;
         const SlabHeader * owner = find_slab(node_address, object_index);
-        if (owner != &slab)
+        if (owner != &slab || object_index >= slab.object_count)
         {
             return SlabValidationError::FreeListOutOfSlab;
         }
@@ -407,7 +406,6 @@ SlabValidationError SlabCache::validate_slab(const SlabHeader & slab,
             ++seen_index;
         }
 
-        (void)object_index;
         ++free_count;
     }
 

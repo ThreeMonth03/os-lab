@@ -22,10 +22,10 @@ public:
     static constexpr size_t capacity = kShellHistoryCapacity;
     static constexpr size_t entry_capacity = kShellLineCapacity;
 
-    [[nodiscard]] bool empty() const { return count_ == 0; }
-    [[nodiscard]] size_t size() const { return count_; }
+    bool empty() const { return count_ == 0; }
+    size_t size() const { return count_; }
 
-    [[nodiscard]] bool push(StringView command);
+    bool push(StringView command);
     [[nodiscard]] HistoryResult previous(StringView & command);
     [[nodiscard]] HistoryResult next(StringView & command);
     void reset_browse();
@@ -34,7 +34,7 @@ private:
     struct Entry
     {
         [[nodiscard]] bool assign(StringView value);
-        [[nodiscard]] StringView view() const { return {characters.data(), characters.size()}; }
+        StringView view() const { return {characters.data(), characters.size()}; }
 
         FixedVector<char, entry_capacity> characters;
     };
