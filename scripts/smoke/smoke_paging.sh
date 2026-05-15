@@ -7,26 +7,17 @@ if [[ $# -ne 1 ]]; then
 fi
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-run_qemu="${script_dir}/../qemu/run_qemu.sh"
+source "${script_dir}/lib.sh"
+
 image_path=$1
 
-if [[ ! -f "${image_path}" ]]; then
-    printf 'image not found: %s\n' "${image_path}" >&2
-    exit 1
-fi
+smoke_require_iso "${image_path}"
 
 log_file=$(mktemp)
 trap 'rm -f "${log_file}"' EXIT
 
-set +e
-timeout 15s "${run_qemu}" "${image_path}" | tee "${log_file}"
-status=$?
-set -e
+smoke_run_qemu_capture "${image_path}" "${log_file}"
 
-if [[ ${status} -ne 0 && ${status} -ne 124 ]]; then
-    exit "${status}"
-fi
-
-grep -q "os-lab: paging smoke mapping scratch page" "${log_file}"
-grep -q "os-lab: paging smoke passed" "${log_file}"
+smoke_expect "${log_file}" "os-lab: paging smoke mapping scratch page"
+smoke_expect "${log_file}" "os-lab: paging smoke passed"
 printf 'Paging smoke passed\n'

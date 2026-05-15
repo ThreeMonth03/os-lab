@@ -6,21 +6,26 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+source "${script_dir}/lib.sh"
+
 image_path=$1
 
-if [[ ! -f "${image_path}" ]]; then
-    printf 'image not found: %s\n' "${image_path}" >&2
-    exit 1
-fi
-
-if ! command -v qemu-system-x86_64 >/dev/null 2>&1; then
-    printf 'Smoke test requires native Linux qemu-system-x86_64 in PATH\n' >&2
-    exit 1
-fi
+smoke_require_iso "${image_path}"
 
 log_file=$(mktemp)
+trap 'rm -f "${log_file}" "${debug_file:-}"' EXIT
+
+if ! command -v qemu-system-x86_64 >/dev/null 2>&1; then
+    printf 'Native QEMU not found; running serial-only smoke through QEMU launcher.\n'
+    smoke_run_qemu_capture "${image_path}" "${log_file}"
+    smoke_expect "${log_file}" "os-lab: kernel main entered"
+    smoke_expect "${log_file}" "os-lab: framebuffer terminal active"
+    printf 'Smoke test passed\n'
+    exit 0
+fi
+
 debug_file=$(mktemp)
-trap 'rm -f "${log_file}" "${debug_file}"' EXIT
 
 set +e
 timeout 15s qemu-system-x86_64 \
@@ -36,11 +41,9 @@ timeout 15s qemu-system-x86_64 \
 status=$?
 set -e
 
-if [[ ${status} -ne 0 && ${status} -ne 124 ]]; then
-    exit "${status}"
-fi
+smoke_accept_qemu_status "${status}"
 
 cat "${debug_file}" >> "${log_file}"
-grep -q "os-lab: reached _start" "${log_file}"
-grep -q "os-lab: entering kernel_main" "${log_file}"
+smoke_expect "${log_file}" "os-lab: reached _start"
+smoke_expect "${log_file}" "os-lab: entering kernel_main"
 printf 'Smoke test passed\n'
