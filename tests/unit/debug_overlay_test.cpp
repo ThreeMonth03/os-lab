@@ -1,0 +1,85 @@
+#include <gtest/gtest.h>
+
+#include "kernel/display/debug_overlay.hpp"
+
+namespace
+{
+
+void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t width, uint64_t height)
+{
+    EXPECT_EQ(actual.x, x);
+    EXPECT_EQ(actual.y, y);
+    EXPECT_EQ(actual.width, width);
+    EXPECT_EQ(actual.height, height);
+}
+
+} // namespace
+
+TEST(DebugOverlayTest, PlacesBoundsInUpperRightCorner)
+{
+    const kernel::display::debug_overlay::Config config{200, 20, 4, 25};
+
+    expect_rect(kernel::display::debug_overlay::bounds_for(800, 600, config), 596, 4, 200, 20);
+}
+
+TEST(DebugOverlayTest, ClampsBoundsToSmallSurface)
+{
+    const kernel::display::debug_overlay::Config config{200, 20, 4, 25};
+
+    expect_rect(kernel::display::debug_overlay::bounds_for(80, 40, config), 4, 4, 72, 20);
+    expect_rect(kernel::display::debug_overlay::bounds_for(4, 40, config), 0, 0, 0, 0);
+}
+
+TEST(DebugOverlayTest, RefreshesOnIntervalOrCounterWrap)
+{
+    EXPECT_FALSE(kernel::display::debug_overlay::should_refresh(100, 124, 25));
+    EXPECT_TRUE(kernel::display::debug_overlay::should_refresh(100, 125, 25));
+    EXPECT_TRUE(kernel::display::debug_overlay::should_refresh(100, 101, 0));
+    EXPECT_TRUE(kernel::display::debug_overlay::should_refresh(100, 10, 25));
+}
+
+TEST(DebugOverlayTest, FormatsSnapshotIntoFixedLines)
+{
+    kernel::display::debug_overlay::Snapshot snapshot;
+    snapshot.ticks = 1234;
+    snapshot.queued_events = 2;
+    snapshot.dropped_events = 1;
+    snapshot.keyboard_mode = kernel::input::DeviceMode::Irq;
+    snapshot.mouse_mode = kernel::input::DeviceMode::PollingFallback;
+    snapshot.remaining_frames = 42;
+
+    kernel::display::debug_overlay::Lines lines;
+    kernel::display::debug_overlay::format_snapshot(snapshot, lines);
+
+    EXPECT_STREQ(lines.first, "t:1234 q:2 d:1");
+    EXPECT_STREQ(lines.second, "k:irq m:poll f:42");
+}
+
+TEST(DebugOverlayTest, RegistryCanTrackConsoleAndOverlayTargets)
+{
+    kernel::display::DisplayTargetRegistry registry;
+
+    EXPECT_TRUE(registry.register_target({
+        kernel::display::kConsoleSurfaceId,
+        kernel::display::DisplayTargetKind::Console,
+        {0, 0, 800, 600},
+        false,
+        false,
+    }));
+    EXPECT_TRUE(registry.register_target({
+        kernel::display::debug_overlay::kSurfaceId,
+        kernel::display::DisplayTargetKind::DebugOverlay,
+        kernel::display::debug_overlay::bounds_for(800, 600),
+        false,
+        false,
+    }));
+
+    const kernel::display::SurfaceDescriptor * overlay =
+        registry.find(kernel::display::debug_overlay::kSurfaceId);
+    ASSERT_NE(overlay, nullptr);
+    EXPECT_EQ(registry.size(), 2u);
+    EXPECT_EQ(registry.active_target_id(), kernel::display::kConsoleSurfaceId);
+    EXPECT_EQ(registry.focused_target_id(), kernel::display::kConsoleSurfaceId);
+    EXPECT_FALSE(overlay->active);
+    EXPECT_FALSE(overlay->focused);
+}
