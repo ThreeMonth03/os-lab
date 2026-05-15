@@ -8,6 +8,7 @@ add_executable(os_lab_unit_tests
     font5x7_test.cpp
     gui_panel_test.cpp
     gui_surface_test.cpp
+    hit_test_test.cpp
     input_queue_test.cpp
     input_router_test.cpp
     keyboard_decoder_test.cpp

@@ -50,6 +50,7 @@ public:
     [[nodiscard]] const GuiSurface * find(GuiSurfaceId id) const;
     [[nodiscard]] const GuiSurface * find_by_display_surface(SurfaceId id) const;
     [[nodiscard]] const GuiSurface * focused_surface() const;
+    [[nodiscard]] const GuiSurface * at(size_t index) const;
 
     [[nodiscard]] size_t size() const { return count_; }
     [[nodiscard]] size_t capacity() const { return kMaxGuiSurfaces; }

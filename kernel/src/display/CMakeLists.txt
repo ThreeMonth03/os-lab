@@ -8,6 +8,7 @@ add_library(os_lab_kernel_display OBJECT
     gui_panel.cpp
     gui_panel_runtime.cpp
     gui_surface.cpp
+    hit_test.cpp
     mouse_cursor.cpp
     terminal_renderer.cpp
 )

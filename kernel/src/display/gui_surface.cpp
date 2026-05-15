@@ -123,6 +123,16 @@ const GuiSurface * GuiSurfaceRegistry::focused_surface() const
     return nullptr;
 }
 
+const GuiSurface * GuiSurfaceRegistry::at(size_t index) const
+{
+    if (index >= count_)
+    {
+        return nullptr;
+    }
+
+    return &surfaces_[index];
+}
+
 GuiSurface * GuiSurfaceRegistry::find_mutable(GuiSurfaceId id)
 {
     for (size_t index = 0; index < count_; ++index)

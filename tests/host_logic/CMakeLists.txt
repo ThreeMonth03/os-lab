@@ -5,6 +5,7 @@ set(OS_LAB_HOST_LOGIC_DISPLAY_SOURCES
     ${PROJECT_SOURCE_DIR}/kernel/src/display/display_target.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/gui_panel.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/gui_surface.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/display/hit_test.cpp
 )
 
 set(OS_LAB_HOST_LOGIC_ARCH_X86_64_SOURCES
