@@ -7,6 +7,7 @@ set(OS_LAB_HOST_LOGIC_ARCH_X86_64_SOURCES
 )
 
 set(OS_LAB_HOST_LOGIC_INPUT_SOURCES
+    ${PROJECT_SOURCE_DIR}/kernel/src/input/input_router.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/input/keyboard_decoder.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/input/mouse_packet_decoder.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/input/pointer_state.cpp

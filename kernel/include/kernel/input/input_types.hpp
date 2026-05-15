@@ -16,4 +16,17 @@ enum class EventSource
     PollingFallback,
 };
 
+enum class InputFocus
+{
+    None,
+    Shell,
+};
+
+enum class EventTarget
+{
+    None,
+    Shell,
+    Pointer,
+};
+
 } // namespace kernel::input
