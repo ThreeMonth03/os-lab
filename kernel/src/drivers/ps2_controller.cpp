@@ -9,6 +9,8 @@ constexpr uint16_t kCommandPort = 0x64;
 constexpr uint8_t kStatusOutputReady = 0x01;
 constexpr uint8_t kStatusInputFull = 0x02;
 constexpr uint8_t kStatusAuxData = 0x20;
+constexpr uint8_t kCommandReadConfig = 0x20;
+constexpr uint8_t kCommandWriteConfig = 0x60;
 constexpr uint8_t kCommandWriteMouse = 0xd4;
 constexpr uint32_t kWaitLimit = 100000;
 
@@ -57,6 +59,20 @@ bool read_data_for(bool mouse, uint8_t & data)
     return true;
 }
 
+bool wait_for_data(uint8_t & data, kernel::drivers::ps2::Device & device)
+{
+    for (uint32_t attempt = 0; attempt < kWaitLimit; ++attempt)
+    {
+        if (kernel::drivers::ps2::read_data(data, device) &&
+            device == kernel::drivers::ps2::Device::Keyboard)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 } // namespace
 
 namespace kernel::drivers::ps2
@@ -79,6 +95,17 @@ bool read_data(uint8_t & data, Device & device)
     return true;
 }
 
+bool read_config(uint8_t & config)
+{
+    if (!write_command(kCommandReadConfig))
+    {
+        return false;
+    }
+
+    Device device = Device::Keyboard;
+    return wait_for_data(config, device);
+}
+
 bool write_command(uint8_t command)
 {
     if (!wait_input_empty())
@@ -99,6 +126,11 @@ bool write_data(uint8_t data)
 
     outb(kDataPort, data);
     return true;
+}
+
+bool write_config(uint8_t config)
+{
+    return write_command(kCommandWriteConfig) && write_data(config);
 }
 
 bool write_mouse_data(uint8_t data)

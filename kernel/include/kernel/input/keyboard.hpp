@@ -33,6 +33,9 @@ struct KeyEvent
     bool extended = false;
 };
 
+[[nodiscard]] bool init_irq();
+[[nodiscard]] bool irq_enabled();
+void handle_irq();
 [[nodiscard]] bool poll_key(KeyEvent & event);
 
 } // namespace kernel::keyboard

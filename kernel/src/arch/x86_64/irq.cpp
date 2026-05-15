@@ -5,6 +5,7 @@
 #include "kernel/arch/x86_64/idt.hpp"
 #include "kernel/arch/x86_64/pic.hpp"
 #include "kernel/drivers/serial.hpp"
+#include "kernel/input/keyboard.hpp"
 #include "kernel/time/timer.hpp"
 
 namespace
@@ -109,6 +110,10 @@ extern "C" void kernel_x86_64_irq_dispatch(const IrqFrame * frame)
     if (irq_line == 0)
     {
         kernel::time::timer::handle_tick();
+    }
+    else if (irq_line == 1)
+    {
+        kernel::keyboard::handle_irq();
     }
 
     kernel::arch::x86_64::pic::send_eoi(irq_line);

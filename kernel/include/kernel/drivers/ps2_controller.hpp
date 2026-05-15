@@ -14,8 +14,10 @@ enum class Device
 [[nodiscard]] bool read_keyboard_data(uint8_t & data);
 [[nodiscard]] bool read_mouse_data(uint8_t & data);
 [[nodiscard]] bool read_data(uint8_t & data, Device & device);
+[[nodiscard]] bool read_config(uint8_t & config);
 [[nodiscard]] bool write_command(uint8_t command);
 [[nodiscard]] bool write_data(uint8_t data);
+[[nodiscard]] bool write_config(uint8_t config);
 [[nodiscard]] bool write_mouse_data(uint8_t data);
 void flush_output();
 

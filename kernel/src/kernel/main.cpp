@@ -10,6 +10,7 @@
 #include "kernel/debug/paging_smoke.hpp"
 #include "kernel/debug/slab_smoke.hpp"
 #include "kernel/input/mouse.hpp"
+#include "kernel/input/keyboard.hpp"
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/drivers/serial.hpp"
 #include "kernel/shell/shell.hpp"
@@ -204,6 +205,14 @@ void init_mouse_cursor()
 void init_timer_interrupts()
 {
     kernel::time::timer::init();
+    if (kernel::keyboard::init_irq())
+    {
+        kernel::drivers::serial::write_line("os-lab: ps/2 keyboard IRQ active");
+    }
+    else
+    {
+        kernel::drivers::serial::write_line("os-lab: ps/2 keyboard IRQ unavailable; polling fallback active");
+    }
     kernel::arch::x86_64::enable_interrupts();
     kernel::drivers::serial::write_line("os-lab: hardware interrupts enabled");
 }
