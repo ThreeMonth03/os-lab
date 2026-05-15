@@ -6,8 +6,11 @@ BUILD_DIR ?= $(PROJECT_ROOT)/build
 GENERATOR ?= Ninja
 GENERATOR_BIN ?= ninja
 CMAKE ?= cmake
+CLANG_CC ?= clang-19
+CLANG_CXX ?= clang++-19
 CLANG_FORMAT ?= clang-format-19
 CLANG_TIDY ?= clang-tidy-19
+LD_LLD ?= ld.lld-19
 DOCKER_COMPOSE ?= $(shell if docker compose version >/dev/null 2>&1; then \
 	printf 'docker compose'; \
 elif command -v docker-compose >/dev/null 2>&1; then \
@@ -120,7 +123,7 @@ clean:
 ci: _format-check _iso _smoke
 
 _check-native-tools:
-	@for tool in clang clang++ g++ ld.lld $(CMAKE) xorriso curl tar sha256sum $(GENERATOR_BIN); do \
+	@for tool in $(CLANG_CC) $(CLANG_CXX) g++ $(LD_LLD) $(CMAKE) xorriso curl tar sha256sum $(GENERATOR_BIN); do \
 		if ! command -v "$$tool" >/dev/null 2>&1; then \
 			printf 'Missing native tool: %s\n' "$$tool" >&2; \
 			printf 'Use `make demo` or install native deps with $(INSTALL_DEPS) native.\n' >&2; \
@@ -152,7 +155,7 @@ _check-clang-tidy:
 
 _check-docker-compose:
 	@if [[ -z "$(DOCKER_COMPOSE)" ]]; then \
-		printf 'Missing Docker Compose. Install the Docker Compose plugin or legacy docker-compose.\n' >&2; \
+		printf 'Missing Docker Compose. Install the Docker Compose plugin or docker-compose.\n' >&2; \
 		exit 1; \
 	fi
 

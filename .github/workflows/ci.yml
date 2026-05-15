@@ -23,13 +23,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            clang \
-            clang-format \
+            clang-19 \
             clang-format-19 \
+            clang-tidy-19 \
             cmake \
             curl \
             g++ \
-            lld \
+            lld-19 \
             make \
             mtools \
             nasm \
@@ -39,7 +39,7 @@ jobs:
             xz-utils
 
       - name: Format, build, and boot smoke test
-        run: CLANG_FORMAT=clang-format-19 make ci
+        run: make ci
 
   docker:
     runs-on: ubuntu-latest

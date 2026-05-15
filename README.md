@@ -6,7 +6,7 @@ native Linux and WSL2.
 
 ## Current Baseline
 
-- A freestanding C++23 kernel built with `clang++` and `ld.lld`
+- A freestanding C++23 kernel built with `clang++-19` and `ld.lld-19`
 - A pinned Limine `v12.2.0` fetch flow with checksum verification
 - A BIOS/UEFI hybrid ISO image builder
 - A host-side QEMU launcher that works on Linux and can bridge to Windows QEMU from WSL2
@@ -15,7 +15,7 @@ native Linux and WSL2.
 
 ## Quick Start
 
-Install Docker plus either the Docker Compose plugin or legacy `docker-compose`.
+Install Docker plus either the Docker Compose plugin or `docker-compose`.
 Then install the host QEMU dependency needed to boot the ISO:
 
 ```bash
@@ -101,8 +101,8 @@ make _run
 ## WSL2
 
 - Keep the repo in the Linux filesystem, for example `/home/<you>/os-lab`.
-- Install Docker with either `docker compose` or legacy `docker-compose`; the
-  Makefile will use whichever one is available.
+- Install Docker with either `docker compose` or `docker-compose`; the Makefile
+  will use whichever one is available.
 - Install `QEMU` on Windows and make sure `qemu-system-x86_64.exe` is on the Windows
   `PATH`, or lives in the default `C:\Program Files\qemu\` location.
 - `make demo` and `make gui` prefer native Linux QEMU, but on WSL2 they will

@@ -1,5 +1,5 @@
 if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    message(FATAL_ERROR "The freestanding kernel target requires clang/clang++.")
+    message(FATAL_ERROR "The freestanding kernel target requires clang-19/clang++-19.")
 endif()
 
 set(OS_LAB_EXCEPTION_SMOKE "none" CACHE STRING
@@ -90,13 +90,11 @@ target_link_libraries(os_lab_kernel_compile_settings INTERFACE
 
 add_library(os_lab_kernel_link_settings INTERFACE)
 target_link_options(os_lab_kernel_link_settings INTERFACE
-    -nostdlib
-    -static
-    -fuse-ld=lld
-    -Wl,-T,${CMAKE_CURRENT_SOURCE_DIR}/linker.ld
-    -Wl,--build-id=none
-    -Wl,--gc-sections
-    -Wl,-z,max-page-size=0x1000
+    -T${CMAKE_CURRENT_SOURCE_DIR}/linker.ld
+    --build-id=none
+    --gc-sections
+    -z
+    max-page-size=0x1000
 )
 
 function(os_lab_configure_kernel_object target)

@@ -11,12 +11,13 @@ case "${mode}" in
         ;;
     native)
         packages=(
-            clang
-            clang-format
+            clang-19
+            clang-format-19
+            clang-tidy-19
             cmake
             curl
             g++
-            lld
+            lld-19
             make
             mtools
             nasm

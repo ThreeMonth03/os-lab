@@ -20,7 +20,7 @@ fi
 limine_dir=$("${script_dir}/fetch_limine.sh")
 
 if [[ ! -x "${limine_dir}/limine" ]]; then
-    make -C "${limine_dir}" CC="${HOST_CC:-clang}" >/dev/null
+    make -C "${limine_dir}" CC="${HOST_CC:-clang-19}" >/dev/null
 fi
 
 rm -rf "${iso_root}"

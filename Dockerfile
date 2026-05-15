@@ -3,14 +3,14 @@ FROM debian:trixie-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
-        clang \
-        clang-format \
+        clang-19 \
+        clang-format-19 \
         clang-tidy-19 \
         cmake \
         curl \
         g++ \
         libgtest-dev \
-        lld \
+        lld-19 \
         make \
         mtools \
         nasm \
