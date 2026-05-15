@@ -37,6 +37,11 @@ bool queue_full()
 
 bool poll_keyboard()
 {
+    if (kernel::keyboard::irq_enabled())
+    {
+        return false;
+    }
+
     kernel::keyboard::KeyEvent key;
     if (!kernel::keyboard::poll_key(key))
     {
