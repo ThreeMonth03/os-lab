@@ -5,6 +5,12 @@
 namespace kernel::mouse
 {
 
+enum class InputMode
+{
+    PollingFallback,
+    Irq,
+};
+
 struct MouseEvent
 {
     int16_t delta_x = 0;
@@ -18,6 +24,7 @@ struct MouseEvent
 
 [[nodiscard]] bool init();
 [[nodiscard]] bool ready();
+[[nodiscard]] InputMode input_mode();
 [[nodiscard]] bool poll(MouseEvent & event);
 
 } // namespace kernel::mouse

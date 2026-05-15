@@ -15,6 +15,7 @@ constexpr uint32_t kResponseWaitLimit = 100000;
 
 kernel::mouse::MousePacketDecoder g_decoder;
 bool g_ready = false;
+kernel::mouse::InputMode g_input_mode = kernel::mouse::InputMode::PollingFallback;
 
 bool wait_for_mouse_ack()
 {
@@ -49,6 +50,7 @@ namespace kernel::mouse
 bool init()
 {
     g_ready = false;
+    g_input_mode = InputMode::PollingFallback;
     g_decoder.reset();
 
     kernel::drivers::ps2::flush_output();
@@ -83,10 +85,12 @@ bool init()
 
 bool ready() { return g_ready; }
 
+InputMode input_mode() { return g_input_mode; }
+
 bool poll(MouseEvent & event)
 {
     event = {};
-    if (!g_ready)
+    if (!g_ready || g_input_mode == InputMode::Irq)
     {
         return false;
     }
