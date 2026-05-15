@@ -1,5 +1,6 @@
 #include "kernel/console/terminal.hpp"
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "kernel/display/compositor.hpp"
@@ -80,6 +81,18 @@ void hide_text_cursor()
     g_state.cursor_visible = false;
 }
 
+void clear_visible_gui_surfaces_before_scroll()
+{
+    for (size_t index = 0; index < g_state.gui_surfaces.size(); ++index)
+    {
+        const display::GuiSurface * surface = g_state.gui_surfaces.at(index);
+        if (surface != nullptr && surface->visible && surface->valid())
+        {
+            g_state.renderer.clear_rect(surface->bounds);
+        }
+    }
+}
+
 void apply_console_update(kernel::TextConsoleUpdate update)
 {
     switch (update.action)
@@ -98,6 +111,7 @@ void apply_console_update(kernel::TextConsoleUpdate update)
 
     if (update.scroll)
     {
+        clear_visible_gui_surfaces_before_scroll();
         g_state.renderer.scroll();
         display::compositor::mark_dirty(terminal_bounds());
     }
