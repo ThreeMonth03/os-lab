@@ -101,6 +101,11 @@ void apply_console_update(kernel::TextConsoleUpdate update)
     }
 }
 
+void refresh_gui_panel()
+{
+    gui_panel::refresh_now();
+}
+
 void register_debug_overlay_target(const limine_framebuffer & framebuffer)
 {
     const display::Rect bounds = debug_overlay::bounds_for(framebuffer.width, framebuffer.height);
@@ -140,7 +145,7 @@ void register_debug_overlay_target(const limine_framebuffer & framebuffer)
 
 void register_gui_panel_target(const limine_framebuffer & framebuffer)
 {
-    const gui_panel::Config config;
+    const gui_panel::Config config = gui_panel::default_config();
     const display::GuiSurface surface = gui_panel::make_surface(framebuffer.width, framebuffer.height, gui_panel::kGuiSurfaceId, config);
     if (!g_state.gui_surfaces.register_surface(surface))
     {
@@ -157,10 +162,7 @@ void register_gui_panel_target(const limine_framebuffer & framebuffer)
     const display::Color border{pack_rgb(framebuffer, 0x6b, 0xd6, 0xff)};
     const display::Color background{pack_rgb(framebuffer, 0x12, 0x1b, 0x28)};
     const display::Color foreground{pack_rgb(framebuffer, 0xf5, 0xf5, 0xf5)};
-    if (gui_panel::init(g_state.surface, *registered, border, background, foreground, config))
-    {
-        gui_panel::refresh_now();
-    }
+    (void)gui_panel::init(g_state.surface, *registered, border, background, foreground, config);
 }
 
 } // namespace
@@ -236,9 +238,12 @@ void clear()
     }
 
     g_state.cursor_visible = false;
-    display::compositor::RedrawGuard redraw(terminal_bounds());
-    g_state.renderer.clear_screen();
-    g_state.console.clear();
+    {
+        display::compositor::RedrawGuard redraw(terminal_bounds());
+        g_state.renderer.clear_screen();
+        g_state.console.clear();
+    }
+    refresh_gui_panel();
 }
 
 void clear_cell_at(uint64_t column, uint64_t row)
@@ -248,8 +253,11 @@ void clear_cell_at(uint64_t column, uint64_t row)
         return;
     }
 
-    display::compositor::RedrawGuard redraw(cell_rect(column, row));
-    g_state.renderer.clear_cell(column, row);
+    {
+        display::compositor::RedrawGuard redraw(cell_rect(column, row));
+        g_state.renderer.clear_cell(column, row);
+    }
+    refresh_gui_panel();
 }
 
 void clear_row_from(uint64_t column, uint64_t row)
@@ -259,12 +267,15 @@ void clear_row_from(uint64_t column, uint64_t row)
         return;
     }
 
-    display::compositor::RedrawGuard redraw(row_tail_rect(column, row));
-    while (column < g_state.console.columns())
     {
-        g_state.renderer.clear_cell(column, row);
-        ++column;
+        display::compositor::RedrawGuard redraw(row_tail_rect(column, row));
+        while (column < g_state.console.columns())
+        {
+            g_state.renderer.clear_cell(column, row);
+            ++column;
+        }
     }
+    refresh_gui_panel();
 }
 
 void draw_char_at(uint64_t column, uint64_t row, char value)
@@ -274,8 +285,11 @@ void draw_char_at(uint64_t column, uint64_t row, char value)
         return;
     }
 
-    display::compositor::RedrawGuard redraw(cell_rect(column, row));
-    g_state.renderer.draw_glyph(value, column, row);
+    {
+        display::compositor::RedrawGuard redraw(cell_rect(column, row));
+        g_state.renderer.draw_glyph(value, column, row);
+    }
+    refresh_gui_panel();
 }
 
 void set_cursor(uint64_t column, uint64_t row)
@@ -295,12 +309,15 @@ void show_cursor()
         return;
     }
 
-    display::compositor::RedrawGuard redraw(cell_rect(g_state.console.cursor_column(), g_state.console.cursor_row()));
-    hide_text_cursor();
-    g_state.renderer.draw_cursor(g_state.console.cursor_column(), g_state.console.cursor_row());
-    g_state.visible_cursor_column = g_state.console.cursor_column();
-    g_state.visible_cursor_row = g_state.console.cursor_row();
-    g_state.cursor_visible = true;
+    {
+        display::compositor::RedrawGuard redraw(cell_rect(g_state.console.cursor_column(), g_state.console.cursor_row()));
+        hide_text_cursor();
+        g_state.renderer.draw_cursor(g_state.console.cursor_column(), g_state.console.cursor_row());
+        g_state.visible_cursor_column = g_state.console.cursor_column();
+        g_state.visible_cursor_row = g_state.console.cursor_row();
+        g_state.cursor_visible = true;
+    }
+    refresh_gui_panel();
 }
 
 void hide_cursor()
@@ -310,8 +327,11 @@ void hide_cursor()
         return;
     }
 
-    display::compositor::RedrawGuard redraw(cell_rect(g_state.visible_cursor_column, g_state.visible_cursor_row));
-    hide_text_cursor();
+    {
+        display::compositor::RedrawGuard redraw(cell_rect(g_state.visible_cursor_column, g_state.visible_cursor_row));
+        hide_text_cursor();
+    }
+    refresh_gui_panel();
 }
 
 void write_char(char value)
@@ -333,23 +353,25 @@ void write_char(char value)
         break;
     }
 
-    display::compositor::RedrawGuard redraw;
-    switch (value)
     {
-    case '\n':
-        apply_console_update(g_state.console.newline());
-        return;
-    case '\r':
-        g_state.console.carriage_return();
-        return;
-    case '\b':
-        apply_console_update(g_state.console.backspace());
-        return;
-    default:
-        break;
+        display::compositor::RedrawGuard redraw;
+        switch (value)
+        {
+        case '\n':
+            apply_console_update(g_state.console.newline());
+            break;
+        case '\r':
+            g_state.console.carriage_return();
+            break;
+        case '\b':
+            apply_console_update(g_state.console.backspace());
+            break;
+        default:
+            apply_console_update(g_state.console.write_char(value));
+            break;
+        }
     }
-
-    apply_console_update(g_state.console.write_char(value));
+    refresh_gui_panel();
 }
 
 void write_string(StringView value)
