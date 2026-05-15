@@ -36,6 +36,9 @@ struct TerminalState
     kernel::TextBuffer text_buffer;
     uint64_t visible_cursor_column = 0;
     uint64_t visible_cursor_row = 0;
+    uint32_t update_depth = 0;
+    display::Rect pending_console_dirty;
+    bool pending_console_dirty_valid = false;
     bool cursor_visible = false;
 };
 
@@ -51,6 +54,11 @@ uint32_t pack_rgb(const limine_framebuffer & framebuffer, uint8_t red, uint8_t g
 display::Rect terminal_bounds()
 {
     return {0, 0, g_state.surface.width(), g_state.surface.height()};
+}
+
+bool terminal_ready()
+{
+    return g_state.surface.ready() && g_state.targets.active_target().valid();
 }
 
 display::Rect cell_rect(uint64_t column, uint64_t row)
@@ -96,6 +104,29 @@ void repaint_text_layer()
             }
         }
     }
+}
+
+void record_console_dirty(display::Rect dirty_rect)
+{
+    if (dirty_rect.empty())
+    {
+        return;
+    }
+
+    if (g_state.update_depth == 0)
+    {
+        display::compositor::repaint_layers_above(display::LayerKind::Console, dirty_rect);
+        return;
+    }
+
+    if (!g_state.pending_console_dirty_valid)
+    {
+        g_state.pending_console_dirty = dirty_rect;
+        g_state.pending_console_dirty_valid = true;
+        return;
+    }
+
+    g_state.pending_console_dirty = display::bounding_rect(g_state.pending_console_dirty, dirty_rect);
 }
 
 display::Rect apply_console_update(kernel::TextConsoleUpdate update)
@@ -250,7 +281,45 @@ bool init()
     return true;
 }
 
-bool ready() { return g_state.surface.ready() && g_state.targets.active_target().valid(); }
+ScopedUpdate::ScopedUpdate()
+{
+    if (!terminal_ready())
+    {
+        return;
+    }
+
+    if (g_state.update_depth == 0)
+    {
+        g_state.pending_console_dirty = {};
+        g_state.pending_console_dirty_valid = false;
+        display::compositor::begin_redraw();
+    }
+    ++g_state.update_depth;
+    active_ = true;
+}
+
+ScopedUpdate::~ScopedUpdate()
+{
+    if (!active_ || g_state.update_depth == 0)
+    {
+        return;
+    }
+
+    --g_state.update_depth;
+    if (g_state.update_depth == 0)
+    {
+        if (g_state.pending_console_dirty_valid)
+        {
+            display::compositor::repaint_layers_above(display::LayerKind::Console,
+                                                      g_state.pending_console_dirty);
+        }
+        g_state.pending_console_dirty = {};
+        g_state.pending_console_dirty_valid = false;
+        display::compositor::end_redraw();
+    }
+}
+
+bool ready() { return terminal_ready(); }
 
 uint64_t columns() { return g_state.console.columns(); }
 
@@ -276,7 +345,7 @@ void clear()
         g_state.console.clear();
         g_state.text_buffer.clear();
     }
-    display::compositor::repaint_layers_above(display::LayerKind::Console, terminal_bounds());
+    record_console_dirty(terminal_bounds());
 }
 
 void clear_cell_at(uint64_t column, uint64_t row)
@@ -291,7 +360,7 @@ void clear_cell_at(uint64_t column, uint64_t row)
         g_state.text_buffer.clear_cell(column, row);
         g_state.renderer.clear_cell(column, row);
     }
-    display::compositor::repaint_layers_above(display::LayerKind::Console, cell_rect(column, row));
+    record_console_dirty(cell_rect(column, row));
 }
 
 void clear_row_from(uint64_t column, uint64_t row)
@@ -311,7 +380,7 @@ void clear_row_from(uint64_t column, uint64_t row)
             ++column;
         }
     }
-    display::compositor::repaint_layers_above(display::LayerKind::Console, dirty_rect);
+    record_console_dirty(dirty_rect);
 }
 
 void draw_char_at(uint64_t column, uint64_t row, char value)
@@ -326,7 +395,7 @@ void draw_char_at(uint64_t column, uint64_t row, char value)
         g_state.text_buffer.put(column, row, value);
         g_state.renderer.draw_glyph(value, column, row);
     }
-    display::compositor::repaint_layers_above(display::LayerKind::Console, cell_rect(column, row));
+    record_console_dirty(cell_rect(column, row));
 }
 
 void set_cursor(uint64_t column, uint64_t row)
@@ -354,8 +423,7 @@ void show_cursor()
         g_state.visible_cursor_row = g_state.console.cursor_row();
         g_state.cursor_visible = true;
     }
-    display::compositor::repaint_layers_above(display::LayerKind::Console,
-                                              cell_rect(g_state.console.cursor_column(), g_state.console.cursor_row()));
+    record_console_dirty(cell_rect(g_state.console.cursor_column(), g_state.console.cursor_row()));
 }
 
 void hide_cursor()
@@ -369,8 +437,7 @@ void hide_cursor()
         display::compositor::RedrawGuard redraw(cell_rect(g_state.visible_cursor_column, g_state.visible_cursor_row));
         hide_text_cursor();
     }
-    display::compositor::repaint_layers_above(display::LayerKind::Console,
-                                              cell_rect(g_state.visible_cursor_column, g_state.visible_cursor_row));
+    record_console_dirty(cell_rect(g_state.visible_cursor_column, g_state.visible_cursor_row));
 }
 
 void write_char(char value)
@@ -411,7 +478,7 @@ void write_char(char value)
             break;
         }
     }
-    display::compositor::repaint_layers_above(display::LayerKind::Console, dirty_rect);
+    record_console_dirty(dirty_rect);
 }
 
 void write_string(StringView value)

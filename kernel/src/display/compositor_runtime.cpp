@@ -8,6 +8,7 @@ namespace
 {
 
 kernel::display::Compositor g_compositor;
+uint32_t g_redraw_depth = 0;
 
 } // namespace
 
@@ -39,6 +40,30 @@ bool pop_dirty(Rect & rect)
     return g_compositor.pop_dirty(rect);
 }
 
+void begin_redraw(Rect dirty_rect)
+{
+    mark_dirty(dirty_rect);
+    if (g_redraw_depth == 0)
+    {
+        mouse_cursor::hide();
+    }
+    ++g_redraw_depth;
+}
+
+void end_redraw()
+{
+    if (g_redraw_depth == 0)
+    {
+        return;
+    }
+
+    --g_redraw_depth;
+    if (g_redraw_depth == 0)
+    {
+        mouse_cursor::show();
+    }
+}
+
 void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect)
 {
     const Layer * gui_surface = g_compositor.find_layer(LayerKind::GuiSurface);
@@ -56,13 +81,12 @@ void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect)
 
 RedrawGuard::RedrawGuard(Rect dirty_rect)
 {
-    mark_dirty(dirty_rect);
-    mouse_cursor::hide();
+    begin_redraw(dirty_rect);
 }
 
 RedrawGuard::~RedrawGuard()
 {
-    mouse_cursor::show();
+    end_redraw();
 }
 
 } // namespace kernel::display::compositor

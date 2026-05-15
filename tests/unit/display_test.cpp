@@ -21,6 +21,13 @@ TEST(DisplayTest, ClipsRectToSurfaceBounds)
     expect_rect(kernel::display::clip_rect({0, 10, 1, 1}, 10, 10), 0, 10, 0, 0);
 }
 
+TEST(DisplayTest, ComputesBoundingRect)
+{
+    expect_rect(kernel::display::bounding_rect({10, 5, 4, 4}, {12, 8, 8, 2}), 10, 5, 10, 5);
+    expect_rect(kernel::display::bounding_rect({}, {1, 2, 3, 4}), 1, 2, 3, 4);
+    expect_rect(kernel::display::bounding_rect({5, 6, 7, 8}, {}), 5, 6, 7, 8);
+}
+
 TEST(DisplayTest, PutPixelAndFillRectAreClipped)
 {
     uint32_t pixels[12] = {};

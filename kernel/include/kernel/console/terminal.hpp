@@ -8,6 +8,21 @@
 namespace kernel::console::terminal
 {
 
+class ScopedUpdate
+{
+public:
+    ScopedUpdate();
+    ~ScopedUpdate();
+
+    ScopedUpdate(const ScopedUpdate &) = delete;
+    ScopedUpdate & operator=(const ScopedUpdate &) = delete;
+    ScopedUpdate(ScopedUpdate &&) = delete;
+    ScopedUpdate & operator=(ScopedUpdate &&) = delete;
+
+private:
+    bool active_ = false;
+};
+
 [[nodiscard]] bool init();
 bool ready();
 uint64_t columns();

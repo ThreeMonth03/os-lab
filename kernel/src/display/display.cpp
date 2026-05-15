@@ -2,6 +2,30 @@
 
 namespace kernel::display
 {
+namespace
+{
+
+uint64_t saturating_end(uint64_t origin, uint64_t size)
+{
+    const uint64_t end = origin + size;
+    if (end < origin)
+    {
+        return UINT64_MAX;
+    }
+    return end;
+}
+
+uint64_t min_u64(uint64_t lhs, uint64_t rhs)
+{
+    return lhs < rhs ? lhs : rhs;
+}
+
+uint64_t max_u64(uint64_t lhs, uint64_t rhs)
+{
+    return lhs > rhs ? lhs : rhs;
+}
+
+} // namespace
 
 Surface::Surface(void * address, uint64_t width, uint64_t height, uint64_t pitch)
     : address_(address)
@@ -104,6 +128,24 @@ Rect clip_rect(Rect rect, uint64_t width, uint64_t height)
     }
 
     return rect;
+}
+
+Rect bounding_rect(Rect lhs, Rect rhs)
+{
+    if (lhs.empty())
+    {
+        return rhs;
+    }
+    if (rhs.empty())
+    {
+        return lhs;
+    }
+
+    const uint64_t left = min_u64(lhs.x, rhs.x);
+    const uint64_t top = min_u64(lhs.y, rhs.y);
+    const uint64_t right = max_u64(saturating_end(lhs.x, lhs.width), saturating_end(rhs.x, rhs.width));
+    const uint64_t bottom = max_u64(saturating_end(lhs.y, lhs.height), saturating_end(rhs.y, rhs.height));
+    return {left, top, right - left, bottom - top};
 }
 
 } // namespace kernel::display

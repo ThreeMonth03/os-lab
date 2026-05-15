@@ -18,20 +18,6 @@ uint64_t min_u64(uint64_t lhs, uint64_t rhs)
     return lhs < rhs ? lhs : rhs;
 }
 
-uint64_t max_u64(uint64_t lhs, uint64_t rhs)
-{
-    return lhs > rhs ? lhs : rhs;
-}
-
-kernel::display::Rect union_rect(kernel::display::Rect lhs, kernel::display::Rect rhs)
-{
-    const uint64_t left = min_u64(lhs.x, rhs.x);
-    const uint64_t top = min_u64(lhs.y, rhs.y);
-    const uint64_t right = max_u64(saturating_end(lhs.x, lhs.width), saturating_end(rhs.x, rhs.width));
-    const uint64_t bottom = max_u64(saturating_end(lhs.y, lhs.height), saturating_end(rhs.y, rhs.height));
-    return {left, top, right - left, bottom - top};
-}
-
 bool touches_or_overlaps(kernel::display::Rect lhs, kernel::display::Rect rhs)
 {
     const uint64_t lhs_right = saturating_end(lhs.x, lhs.width);
@@ -48,8 +34,8 @@ kernel::display::Rect clip_to_bounds(kernel::display::Rect rect, kernel::display
         return {};
     }
 
-    const uint64_t left = max_u64(rect.x, bounds.x);
-    const uint64_t top = max_u64(rect.y, bounds.y);
+    const uint64_t left = rect.x > bounds.x ? rect.x : bounds.x;
+    const uint64_t top = rect.y > bounds.y ? rect.y : bounds.y;
     const uint64_t right = min_u64(saturating_end(rect.x, rect.width),
                                    saturating_end(bounds.x, bounds.width));
     const uint64_t bottom = min_u64(saturating_end(rect.y, rect.height),
@@ -148,7 +134,7 @@ DirtyMarkResult DirtyRectQueue::mark_dirty(Rect rect)
     {
         if (touches_or_overlaps(rects_[index], rect))
         {
-            rects_[index] = clip_to_bounds(union_rect(rects_[index], rect), bounds_);
+            rects_[index] = clip_to_bounds(bounding_rect(rects_[index], rect), bounds_);
             return DirtyMarkResult::Merged;
         }
     }

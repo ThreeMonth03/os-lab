@@ -106,6 +106,8 @@ void init(Rect bounds);
 void mark_dirty(Rect rect);
 size_t dirty_count();
 [[nodiscard]] bool pop_dirty(Rect & rect);
+void begin_redraw(Rect dirty_rect = {});
+void end_redraw();
 void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect);
 
 class RedrawGuard
