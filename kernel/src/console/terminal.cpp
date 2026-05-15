@@ -10,6 +10,7 @@
 #include "kernel/display/gui_surface.hpp"
 #include "kernel/display/hit_test.hpp"
 #include "kernel/display/terminal_renderer.hpp"
+#include "kernel/display/terminal_repaint_state.hpp"
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/text/text_buffer.hpp"
@@ -34,11 +35,9 @@ struct TerminalState
     display::TerminalRenderer renderer;
     kernel::TextConsole console;
     kernel::TextBuffer text_buffer;
+    display::TerminalRepaintState repaint;
     uint64_t visible_cursor_column = 0;
     uint64_t visible_cursor_row = 0;
-    uint32_t update_depth = 0;
-    display::Rect pending_console_dirty;
-    bool pending_console_dirty_valid = false;
     bool cursor_visible = false;
 };
 
@@ -106,45 +105,62 @@ void repaint_text_layer()
     }
 }
 
+void apply_repaint_request(display::TerminalRepaintRequest request)
+{
+    if (request.repaint_text_layer)
+    {
+        repaint_text_layer();
+        display::compositor::mark_dirty(request.dirty_rect);
+    }
+
+    if (request.repaint_higher_layers && !request.dirty_rect.empty())
+    {
+        display::compositor::repaint_layers_above(display::LayerKind::Console, request.dirty_rect);
+    }
+}
+
+void apply_repaint_flush(display::TerminalRepaintFlush flush)
+{
+    if (flush.repaint_text_layer)
+    {
+        repaint_text_layer();
+        display::compositor::mark_dirty(flush.dirty_rect);
+    }
+
+    if (flush.repaint_higher_layers && !flush.dirty_rect.empty())
+    {
+        display::compositor::repaint_layers_above(display::LayerKind::Console, flush.dirty_rect);
+    }
+}
+
 void record_console_dirty(display::Rect dirty_rect)
 {
-    if (dirty_rect.empty())
-    {
-        return;
-    }
-
-    if (g_state.update_depth == 0)
-    {
-        display::compositor::repaint_layers_above(display::LayerKind::Console, dirty_rect);
-        return;
-    }
-
-    if (!g_state.pending_console_dirty_valid)
-    {
-        g_state.pending_console_dirty = dirty_rect;
-        g_state.pending_console_dirty_valid = true;
-        return;
-    }
-
-    g_state.pending_console_dirty = display::bounding_rect(g_state.pending_console_dirty, dirty_rect);
+    apply_repaint_request(g_state.repaint.record_dirty(dirty_rect));
 }
 
 display::Rect apply_console_update(kernel::TextConsoleUpdate update)
 {
     display::Rect dirty_rect;
+    const bool draw_immediately = !update.scroll && !g_state.repaint.pending_full_repaint();
     switch (update.action)
     {
     case kernel::TextConsoleAction::DrawGlyph:
         g_state.text_buffer.put(update.cell.column, update.cell.row, update.glyph);
-        g_state.renderer.draw_glyph(update.glyph, update.cell.column, update.cell.row);
-        dirty_rect = cell_rect(update.cell.column, update.cell.row);
-        display::compositor::mark_dirty(dirty_rect);
+        if (draw_immediately)
+        {
+            g_state.renderer.draw_glyph(update.glyph, update.cell.column, update.cell.row);
+            dirty_rect = cell_rect(update.cell.column, update.cell.row);
+            display::compositor::mark_dirty(dirty_rect);
+        }
         break;
     case kernel::TextConsoleAction::ClearCell:
         g_state.text_buffer.clear_cell(update.cell.column, update.cell.row);
-        g_state.renderer.clear_cell(update.cell.column, update.cell.row);
-        dirty_rect = cell_rect(update.cell.column, update.cell.row);
-        display::compositor::mark_dirty(dirty_rect);
+        if (draw_immediately)
+        {
+            g_state.renderer.clear_cell(update.cell.column, update.cell.row);
+            dirty_rect = cell_rect(update.cell.column, update.cell.row);
+            display::compositor::mark_dirty(dirty_rect);
+        }
         break;
     case kernel::TextConsoleAction::None:
         break;
@@ -153,9 +169,8 @@ display::Rect apply_console_update(kernel::TextConsoleUpdate update)
     if (update.scroll)
     {
         g_state.text_buffer.scroll_up();
-        repaint_text_layer();
-        display::compositor::mark_dirty(terminal_bounds());
-        return terminal_bounds();
+        apply_repaint_request(g_state.repaint.record_scroll(terminal_bounds()));
+        return {};
     }
 
     return dirty_rect;
@@ -274,6 +289,7 @@ bool init()
     const display::Color foreground{pack_rgb(*framebuffer, 0xf5, 0xf5, 0xf5)};
     const display::Color background{pack_rgb(*framebuffer, 0x10, 0x14, 0x1c)};
     g_state.renderer.reset(g_state.surface, foreground, background);
+    g_state.repaint.reset();
     register_gui_panel_target(*framebuffer);
     register_debug_overlay_target(*framebuffer);
 
@@ -288,33 +304,24 @@ ScopedUpdate::ScopedUpdate()
         return;
     }
 
-    if (g_state.update_depth == 0)
+    if (g_state.repaint.begin_batch())
     {
-        g_state.pending_console_dirty = {};
-        g_state.pending_console_dirty_valid = false;
         display::compositor::begin_redraw();
     }
-    ++g_state.update_depth;
     active_ = true;
 }
 
 ScopedUpdate::~ScopedUpdate()
 {
-    if (!active_ || g_state.update_depth == 0)
+    if (!active_)
     {
         return;
     }
 
-    --g_state.update_depth;
-    if (g_state.update_depth == 0)
+    const display::TerminalRepaintFlush flush = g_state.repaint.end_batch();
+    if (flush.outermost_batch_ended)
     {
-        if (g_state.pending_console_dirty_valid)
-        {
-            display::compositor::repaint_layers_above(display::LayerKind::Console,
-                                                      g_state.pending_console_dirty);
-        }
-        g_state.pending_console_dirty = {};
-        g_state.pending_console_dirty_valid = false;
+        apply_repaint_flush(flush);
         display::compositor::end_redraw();
     }
 }
