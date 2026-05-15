@@ -13,6 +13,8 @@ inline constexpr size_t kMaxDirtyRects = 16;
 inline constexpr size_t kMaxCompositorLayers = 8;
 inline constexpr SurfaceId kMouseCursorLayerSurfaceId = 3;
 
+class DirtyRectQueue;
+
 enum class DirtyMarkResult
 {
     Ignored,
@@ -40,10 +42,21 @@ struct Layer
     bool valid() const;
 };
 
+struct LayerRepaintPlan
+{
+    LayerKind layers[kMaxCompositorLayers] = {};
+    size_t count = 0;
+
+    bool push(LayerKind kind);
+    bool contains(LayerKind kind) const;
+    LayerKind at(size_t index) const;
+};
+
 [[nodiscard]] uint8_t layer_order(LayerKind kind);
 [[nodiscard]] bool layer_above(LayerKind candidate, LayerKind reference);
 [[nodiscard]] bool rects_overlap(Rect lhs, Rect rhs);
 [[nodiscard]] bool should_repaint_layer_after_update(Layer layer, LayerKind updated_layer, Rect dirty_rect);
+void mark_cursor_move_dirty(DirtyRectQueue & queue, Rect old_bounds, Rect new_bounds);
 
 class DirtyRectQueue
 {
@@ -82,6 +95,8 @@ public:
     [[nodiscard]] bool register_layer(Layer layer);
     [[nodiscard]] const Layer * find_layer(LayerKind kind) const;
     [[nodiscard]] const Layer * top_visible_layer() const;
+    [[nodiscard]] LayerRepaintPlan repaint_plan_from(LayerKind base_layer, Rect dirty_rect) const;
+    [[nodiscard]] LayerRepaintPlan repaint_plan_above(LayerKind updated_layer, Rect dirty_rect) const;
 
     DirtyMarkResult mark_dirty(Rect rect) { return dirty_rects_.mark_dirty(rect); }
     [[nodiscard]] bool pop_dirty(Rect & rect) { return dirty_rects_.pop(rect); }
@@ -101,14 +116,20 @@ private:
 namespace compositor
 {
 
+using RepaintCallback = void (*)(Rect dirty_rect);
+
 void init(Rect bounds);
 [[nodiscard]] bool register_layer(Layer layer);
+[[nodiscard]] bool register_repaint_callback(LayerKind kind, RepaintCallback callback);
 void mark_dirty(Rect rect);
 size_t dirty_count();
 [[nodiscard]] bool pop_dirty(Rect & rect);
 void begin_redraw(Rect dirty_rect = {});
 void end_redraw();
 void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect);
+void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
+void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds);
+void flush_dirty();
 
 class RedrawGuard
 {

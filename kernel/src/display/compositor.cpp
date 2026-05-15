@@ -58,6 +58,46 @@ bool Layer::valid() const
     return kind != LayerKind::None && !bounds.empty();
 }
 
+bool LayerRepaintPlan::push(LayerKind kind)
+{
+    if (kind == LayerKind::None || count >= kMaxCompositorLayers || contains(kind))
+    {
+        return false;
+    }
+
+    size_t insert_at = count;
+    while (insert_at > 0 && layer_order(kind) < layer_order(layers[insert_at - 1]))
+    {
+        layers[insert_at] = layers[insert_at - 1];
+        --insert_at;
+    }
+
+    layers[insert_at] = kind;
+    ++count;
+    return true;
+}
+
+bool LayerRepaintPlan::contains(LayerKind kind) const
+{
+    for (size_t index = 0; index < count; ++index)
+    {
+        if (layers[index] == kind)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+LayerKind LayerRepaintPlan::at(size_t index) const
+{
+    if (index >= count)
+    {
+        return LayerKind::None;
+    }
+    return layers[index];
+}
+
 uint8_t layer_order(LayerKind kind)
 {
     switch (kind)
@@ -99,6 +139,12 @@ bool should_repaint_layer_after_update(Layer layer, LayerKind updated_layer, Rec
 {
     return layer.visible && layer.valid() && layer_above(layer.kind, updated_layer) &&
            rects_overlap(layer.bounds, dirty_rect);
+}
+
+void mark_cursor_move_dirty(DirtyRectQueue & queue, Rect old_bounds, Rect new_bounds)
+{
+    queue.mark_dirty(old_bounds);
+    queue.mark_dirty(new_bounds);
 }
 
 void DirtyRectQueue::reset(Rect bounds)
@@ -235,6 +281,50 @@ const Layer * Compositor::top_visible_layer() const
         }
     }
     return top;
+}
+
+LayerRepaintPlan Compositor::repaint_plan_from(LayerKind base_layer, Rect dirty_rect) const
+{
+    LayerRepaintPlan plan;
+    if (dirty_rect.empty())
+    {
+        return plan;
+    }
+
+    const uint8_t minimum_order = layer_order(base_layer);
+    for (size_t index = 0; index < layer_count_; ++index)
+    {
+        const Layer & layer = layers_[index];
+        if (!layer.visible || !layer.valid() || layer_order(layer.kind) < minimum_order ||
+            !rects_overlap(layer.bounds, dirty_rect))
+        {
+            continue;
+        }
+        (void)plan.push(layer.kind);
+    }
+
+    return plan;
+}
+
+LayerRepaintPlan Compositor::repaint_plan_above(LayerKind updated_layer, Rect dirty_rect) const
+{
+    LayerRepaintPlan plan;
+    if (dirty_rect.empty())
+    {
+        return plan;
+    }
+
+    for (size_t index = 0; index < layer_count_; ++index)
+    {
+        const Layer & layer = layers_[index];
+        if (!should_repaint_layer_after_update(layer, updated_layer, dirty_rect))
+        {
+            continue;
+        }
+        (void)plan.push(layer.kind);
+    }
+
+    return plan;
 }
 
 } // namespace kernel::display

@@ -72,6 +72,21 @@ TEST(DisplayCompositorTest, FallsBackToFullscreenDirtyWhenQueueIsFull)
     expect_rect(dirty, 0, 0, 100, 50);
 }
 
+TEST(DisplayCompositorTest, CursorMoveMarksOldAndNewRectsDirty)
+{
+    kernel::display::DirtyRectQueue queue({0, 0, 100, 50});
+
+    kernel::display::mark_cursor_move_dirty(queue, {4, 4, 10, 16}, {40, 4, 10, 16});
+
+    EXPECT_EQ(queue.size(), 2u);
+    kernel::display::Rect dirty;
+    ASSERT_TRUE(queue.pop(dirty));
+    expect_rect(dirty, 4, 4, 10, 16);
+    ASSERT_TRUE(queue.pop(dirty));
+    expect_rect(dirty, 40, 4, 10, 16);
+    EXPECT_FALSE(queue.pop(dirty));
+}
+
 TEST(DisplayCompositorTest, OrdersConsoleOverlayAndMouseCursorLayers)
 {
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::GuiSurface,
@@ -119,6 +134,58 @@ TEST(DisplayCompositorTest, MouseCursorLayerIsTopmost)
     const kernel::display::Layer * top = compositor.top_visible_layer();
     ASSERT_NE(top, nullptr);
     EXPECT_EQ(top->kind, kernel::display::LayerKind::MouseCursor);
+}
+
+TEST(DisplayCompositorTest, PlansRepaintOrderFromConsoleToCursor)
+{
+    kernel::display::Compositor compositor({0, 0, 800, 600});
+
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::MouseCursor,
+                                                        kernel::display::kMouseCursorLayerSurfaceId,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DebugOverlay,
+                                                        kernel::display::debug_overlay::kSurfaceId,
+                                                        {0, 0, 120, 20})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::Console,
+                                                        kernel::display::kConsoleSurfaceId,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::GuiSurface,
+                                                        100,
+                                                        {10, 10, 60, 60})));
+
+    const kernel::display::LayerRepaintPlan plan =
+        compositor.repaint_plan_from(kernel::display::LayerKind::Console, {12, 12, 4, 4});
+
+    ASSERT_EQ(plan.count, 4u);
+    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::Console);
+    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::GuiSurface);
+    EXPECT_EQ(plan.at(2), kernel::display::LayerKind::DebugOverlay);
+    EXPECT_EQ(plan.at(3), kernel::display::LayerKind::MouseCursor);
+}
+
+TEST(DisplayCompositorTest, PlansOnlyHigherIntersectingLayersAfterConsoleUpdate)
+{
+    kernel::display::Compositor compositor({0, 0, 800, 600});
+
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::Console,
+                                                        kernel::display::kConsoleSurfaceId,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::GuiSurface,
+                                                        100,
+                                                        {10, 10, 60, 60})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DebugOverlay,
+                                                        kernel::display::debug_overlay::kSurfaceId,
+                                                        {700, 0, 80, 20})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::MouseCursor,
+                                                        kernel::display::kMouseCursorLayerSurfaceId,
+                                                        {0, 0, 800, 600})));
+
+    const kernel::display::LayerRepaintPlan plan =
+        compositor.repaint_plan_above(kernel::display::LayerKind::Console, {12, 12, 4, 4});
+
+    ASSERT_EQ(plan.count, 2u);
+    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::GuiSurface);
+    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::MouseCursor);
 }
 
 TEST(DisplayCompositorTest, RepaintsOnlyVisibleHigherLayersIntersectingDirtyRect)
