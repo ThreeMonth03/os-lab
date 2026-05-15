@@ -1,6 +1,7 @@
 #include "kernel/display/mouse_cursor.hpp"
 
 #include "kernel/display/compositor.hpp"
+#include "kernel/display/cursor_geometry.hpp"
 #include "kernel/display/display.hpp"
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/input/pointer_state.hpp"
@@ -35,6 +36,7 @@ constexpr char kCursorBitmap[kCursorHeight][kCursorWidth + 1] = {
 struct CursorState
 {
     display::Surface surface;
+    display::CursorGeometry geometry;
     kernel::input::PointerState pointer;
     uint32_t outline = 0;
     uint32_t fill = 0;
@@ -51,8 +53,6 @@ uint32_t pack_rgb(const limine_framebuffer & framebuffer, uint8_t red, uint8_t g
            (static_cast<uint32_t>(blue) << framebuffer.blue_mask_shift);
 }
 
-uint64_t min_u64(uint64_t lhs, uint64_t rhs) { return lhs < rhs ? lhs : rhs; }
-
 display::Rect current_bounds()
 {
     if (!g_state.initialized || !g_state.surface.ready())
@@ -60,31 +60,43 @@ display::Rect current_bounds()
         return {};
     }
 
-    return {
-        g_state.pointer.x(),
-        g_state.pointer.y(),
-        min_u64(kCursorWidth, g_state.surface.width() - g_state.pointer.x()),
-        min_u64(kCursorHeight, g_state.surface.height() - g_state.pointer.y()),
-    };
+    return g_state.geometry.visible_rect(g_state.pointer.x(), g_state.pointer.y());
 }
 
 void draw_bitmap()
 {
-    for (uint64_t row = 0; row < kCursorHeight; ++row)
+    const display::Rect visible = current_bounds();
+    if (visible.empty())
     {
-        for (uint64_t column = 0; column < kCursorWidth; ++column)
+        return;
+    }
+
+    const uint64_t bitmap_row_offset = visible.y - g_state.pointer.y();
+    const uint64_t bitmap_column_offset = visible.x - g_state.pointer.x();
+    for (uint64_t row = 0; row < visible.height; ++row)
+    {
+        for (uint64_t column = 0; column < visible.width; ++column)
         {
-            const char pixel = kCursorBitmap[row][column];
+            const char pixel = kCursorBitmap[row + bitmap_row_offset][column + bitmap_column_offset];
             if (pixel == '#')
             {
-                g_state.surface.put_pixel(g_state.pointer.x() + column, g_state.pointer.y() + row, {g_state.outline});
+                g_state.surface.put_pixel(visible.x + column, visible.y + row, {g_state.outline});
             }
             else if (pixel == 'o')
             {
-                g_state.surface.put_pixel(g_state.pointer.x() + column, g_state.pointer.y() + row, {g_state.fill});
+                g_state.surface.put_pixel(visible.x + column, visible.y + row, {g_state.fill});
             }
         }
     }
+}
+
+bool movement_pushed_against_edge(int16_t delta_x, int16_t delta_y)
+{
+    const int64_t screen_delta_y = -static_cast<int64_t>(delta_y);
+    return g_state.geometry.edge_push(g_state.pointer.x(),
+                                      g_state.pointer.y(),
+                                      static_cast<int64_t>(delta_x),
+                                      screen_delta_y);
 }
 
 void repaint_cursor(display::Rect dirty_rect)
@@ -121,6 +133,9 @@ bool init()
     }
 
     g_state.surface = display::Surface(framebuffer->address, framebuffer->width, framebuffer->height, framebuffer->pitch);
+    g_state.geometry = display::CursorGeometry({0, 0, framebuffer->width, framebuffer->height},
+                                               kCursorWidth,
+                                               kCursorHeight);
     g_state.pointer.reset(framebuffer->width, framebuffer->height);
     g_state.outline = pack_rgb(*framebuffer, 0x00, 0x00, 0x00);
     g_state.fill = pack_rgb(*framebuffer, 0xff, 0xff, 0xff);
@@ -174,6 +189,10 @@ void move_by(int16_t delta_x, int16_t delta_y)
     if (was_visible && (old_bounds.x != new_bounds.x || old_bounds.y != new_bounds.y))
     {
         display::compositor::mark_cursor_move_dirty(old_bounds, new_bounds);
+    }
+    else if (was_visible && movement_pushed_against_edge(delta_x, delta_y))
+    {
+        display::compositor::repaint_layers_from(display::LayerKind::Console, new_bounds);
     }
 }
 
