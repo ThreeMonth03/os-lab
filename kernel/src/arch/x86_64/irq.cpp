@@ -6,6 +6,7 @@
 #include "kernel/arch/x86_64/pic.hpp"
 #include "kernel/drivers/serial.hpp"
 #include "kernel/input/keyboard.hpp"
+#include "kernel/input/mouse.hpp"
 #include "kernel/time/timer.hpp"
 
 namespace
@@ -114,6 +115,10 @@ extern "C" void kernel_x86_64_irq_dispatch(const IrqFrame * frame)
     else if (irq_line == 1)
     {
         kernel::keyboard::handle_irq();
+    }
+    else if (irq_line == 12)
+    {
+        kernel::mouse::handle_irq();
     }
 
     kernel::arch::x86_64::pic::send_eoi(irq_line);

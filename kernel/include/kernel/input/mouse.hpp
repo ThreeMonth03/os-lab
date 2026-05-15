@@ -25,6 +25,7 @@ struct MouseEvent
 [[nodiscard]] bool init();
 [[nodiscard]] bool ready();
 [[nodiscard]] InputMode input_mode();
+void handle_irq();
 [[nodiscard]] bool poll(MouseEvent & event);
 
 } // namespace kernel::mouse

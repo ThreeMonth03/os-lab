@@ -1,5 +1,7 @@
 #include "kernel/input/mouse.hpp"
 
+#include "kernel/arch/x86_64/pic.hpp"
+#include "kernel/input/input.hpp"
 #include "kernel/input/mouse_packet_decoder.hpp"
 #include "kernel/drivers/ps2_controller.hpp"
 
@@ -7,10 +9,12 @@ namespace
 {
 
 constexpr uint8_t kCommandEnableAuxiliary = 0xa8;
+constexpr uint8_t kConfigMouseInterrupt = 0x02;
 constexpr uint8_t kConfigDisableMouseClock = 0x20;
 constexpr uint8_t kMouseSetDefaults = 0xf6;
 constexpr uint8_t kMouseEnableDataReporting = 0xf4;
 constexpr uint8_t kMouseAck = 0xfa;
+constexpr uint8_t kMouseIrqLine = 12;
 constexpr uint32_t kResponseWaitLimit = 100000;
 
 kernel::mouse::MousePacketDecoder g_decoder;
@@ -42,6 +46,40 @@ bool send_mouse_command(uint8_t command)
     return kernel::drivers::ps2::write_mouse_data(command) && wait_for_mouse_ack();
 }
 
+bool configure_controller(bool & irq_configured)
+{
+    irq_configured = false;
+
+    uint8_t config = 0;
+    if (!kernel::drivers::ps2::read_config(config))
+    {
+        return false;
+    }
+
+    config = static_cast<uint8_t>((config | kConfigMouseInterrupt) & ~kConfigDisableMouseClock);
+    if (!kernel::drivers::ps2::write_config(config))
+    {
+        return false;
+    }
+
+    irq_configured = true;
+    return true;
+}
+
+void enqueue_mouse_event(const kernel::mouse::MousePacket & packet)
+{
+    kernel::input::Event event;
+    event.kind = kernel::input::EventKind::MouseMove;
+    event.mouse_move.delta_x = packet.delta_x;
+    event.mouse_move.delta_y = packet.delta_y;
+    event.mouse_move.left_button = packet.left_button;
+    event.mouse_move.right_button = packet.right_button;
+    event.mouse_move.middle_button = packet.middle_button;
+    event.mouse_move.x_overflow = packet.x_overflow;
+    event.mouse_move.y_overflow = packet.y_overflow;
+    (void)kernel::input::enqueue(event);
+}
+
 } // namespace
 
 namespace kernel::mouse
@@ -59,15 +97,8 @@ bool init()
         return false;
     }
 
-    uint8_t config = 0;
-    if (kernel::drivers::ps2::read_config(config))
-    {
-        config = static_cast<uint8_t>(config & ~kConfigDisableMouseClock);
-        if (!kernel::drivers::ps2::write_config(config))
-        {
-            return false;
-        }
-    }
+    bool irq_configured = false;
+    (void)configure_controller(irq_configured);
 
     kernel::drivers::ps2::flush_output();
     if (!send_mouse_command(kMouseSetDefaults))
@@ -80,12 +111,37 @@ bool init()
     }
 
     g_ready = true;
+    if (irq_configured)
+    {
+        kernel::arch::x86_64::pic::unmask(kMouseIrqLine);
+        g_input_mode = InputMode::Irq;
+    }
     return true;
 }
 
 bool ready() { return g_ready; }
 
 InputMode input_mode() { return g_input_mode; }
+
+void handle_irq()
+{
+    if (!g_ready)
+    {
+        return;
+    }
+
+    uint8_t data = 0;
+    if (!kernel::drivers::ps2::read_mouse_data(data))
+    {
+        return;
+    }
+
+    MousePacket packet;
+    if (g_decoder.decode(data, packet))
+    {
+        enqueue_mouse_event(packet);
+    }
+}
 
 bool poll(MouseEvent & event)
 {
