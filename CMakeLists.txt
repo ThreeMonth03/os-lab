@@ -13,6 +13,7 @@ target_compile_options(os_lab_project_warnings INTERFACE
 )
 
 if(OS_LAB_BUILD_KERNEL)
+    enable_language(ASM)
     add_subdirectory(kernel)
 endif()
 

@@ -58,23 +58,28 @@ target_include_directories(os_lab_kernel_compile_settings INTERFACE
     ${PROJECT_SOURCE_DIR}/vendor/limine/include
 )
 target_compile_options(os_lab_kernel_compile_settings INTERFACE
-    -ffreestanding
-    -fno-exceptions
-    -fno-rtti
-    -fno-stack-protector
-    -fno-threadsafe-statics
-    -fno-use-cxa-atexit
-    -fno-pic
-    -fno-pie
-    -ffunction-sections
-    -fdata-sections
-    -mno-red-zone
-    -mcmodel=kernel
-    -mno-mmx
-    -mno-sse
-    -mno-sse2
-    -msoft-float
-    -nostdinc++
+    $<$<COMPILE_LANGUAGE:CXX>:-ffreestanding>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-stack-protector>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-threadsafe-statics>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-use-cxa-atexit>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-pic>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-pie>
+    $<$<COMPILE_LANGUAGE:CXX>:-ffunction-sections>
+    $<$<COMPILE_LANGUAGE:CXX>:-fdata-sections>
+    $<$<COMPILE_LANGUAGE:CXX>:-mno-red-zone>
+    $<$<COMPILE_LANGUAGE:CXX>:-mcmodel=kernel>
+    $<$<COMPILE_LANGUAGE:CXX>:-mno-mmx>
+    $<$<COMPILE_LANGUAGE:CXX>:-mno-sse>
+    $<$<COMPILE_LANGUAGE:CXX>:-mno-sse2>
+    $<$<COMPILE_LANGUAGE:CXX>:-msoft-float>
+    $<$<COMPILE_LANGUAGE:CXX>:-nostdinc++>
+    $<$<COMPILE_LANGUAGE:ASM>:-ffreestanding>
+    $<$<COMPILE_LANGUAGE:ASM>:-fno-pic>
+    $<$<COMPILE_LANGUAGE:ASM>:-fno-pie>
+    $<$<COMPILE_LANGUAGE:ASM>:-mno-red-zone>
+    $<$<COMPILE_LANGUAGE:ASM>:-mcmodel=kernel>
 )
 target_compile_definitions(os_lab_kernel_compile_settings INTERFACE
     OS_LAB_EXCEPTION_SMOKE=${OS_LAB_EXCEPTION_SMOKE_VALUE}
