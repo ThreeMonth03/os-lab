@@ -1,6 +1,7 @@
 add_executable(os_lab_unit_tests
     containers_test.cpp
     display_test.cpp
+    display_target_test.cpp
     editor_test.cpp
     font5x7_test.cpp
     input_queue_test.cpp

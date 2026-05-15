@@ -1,5 +1,6 @@
 set(OS_LAB_HOST_LOGIC_DISPLAY_SOURCES
     ${PROJECT_SOURCE_DIR}/kernel/src/display/display.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/display/display_target.cpp
 )
 
 set(OS_LAB_HOST_LOGIC_ARCH_X86_64_SOURCES
