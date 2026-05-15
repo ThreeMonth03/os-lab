@@ -49,7 +49,7 @@ void write_both_line(kernel::StringView value)
 
 void require_valid_slab(kernel::StringView context)
 {
-    if (!kernel::memory::slab::validate().valid)
+    if (!kernel::memory::slab::validate_all().valid)
     {
         fail(context);
     }
@@ -78,9 +78,18 @@ void run_slab_smoke()
     }
     require_valid_slab("slab validate failed after init");
 
-    auto * first = static_cast<volatile uint64_t *>(kernel::memory::slab::allocate());
-    auto * second = static_cast<volatile uint64_t *>(kernel::memory::slab::allocate());
-    auto * third = static_cast<volatile uint64_t *>(kernel::memory::slab::allocate());
+    const kernel::memory::SlabCacheId cache_id =
+        kernel::memory::slab::create_cache("smoke64",
+                                           kernel::memory::slab::kDefaultObjectSize,
+                                           kernel::memory::slab::kDefaultAlignment);
+    if (cache_id == kernel::memory::kInvalidSlabCacheId)
+    {
+        fail("smoke cache registration failed");
+    }
+
+    auto * first = static_cast<volatile uint64_t *>(kernel::memory::slab::allocate(cache_id));
+    auto * second = static_cast<volatile uint64_t *>(kernel::memory::slab::allocate(cache_id));
+    auto * third = static_cast<volatile uint64_t *>(kernel::memory::slab::allocate(cache_id));
     if (first == nullptr || second == nullptr || third == nullptr)
     {
         fail("allocation returned null");
@@ -100,13 +109,13 @@ void run_slab_smoke()
         fail("sentinel readback failed");
     }
 
-    if (!kernel::memory::slab::free(const_cast<uint64_t *>(first)))
+    if (!kernel::memory::slab::free(cache_id, const_cast<uint64_t *>(first)))
     {
         fail("free failed");
     }
     require_valid_slab("slab validate failed after free");
 
-    void * reused = kernel::memory::slab::allocate();
+    void * reused = kernel::memory::slab::allocate(cache_id);
     if (reused != const_cast<uint64_t *>(first))
     {
         fail("free object reuse failed");
@@ -121,7 +130,10 @@ void run_slab_smoke()
     require_valid_slab("slab validate failed after invalid free");
 
     const kernel::memory::slab::Stats stats = kernel::memory::slab::stats();
-    if (!stats.initialized || stats.cache.slab_count == 0 || stats.cache.allocated_objects != 3)
+    const kernel::memory::SlabRegistryCacheStats cache_stats = kernel::memory::slab::cache_stats(cache_id);
+    if (!stats.initialized || stats.registry.registered_caches < 2 || !cache_stats.registered ||
+        cache_stats.cache.slab_count == 0 || cache_stats.cache.allocated_objects != 3 ||
+        !kernel::memory::slab::validate_all().valid)
     {
         fail("unexpected stats");
     }

@@ -125,6 +125,24 @@ kernel::StringView slab_validation_error_name(kernel::memory::SlabValidationErro
     return "unknown";
 }
 
+kernel::StringView slab_registry_validation_error_name(kernel::memory::SlabRegistryValidationError error)
+{
+    switch (error)
+    {
+    case kernel::memory::SlabRegistryValidationError::None:
+        return "none";
+    case kernel::memory::SlabRegistryValidationError::MissingStorage:
+        return "missing storage";
+    case kernel::memory::SlabRegistryValidationError::DuplicateName:
+        return "duplicate name";
+    case kernel::memory::SlabRegistryValidationError::CacheInvalid:
+        return "cache invalid";
+    case kernel::memory::SlabRegistryValidationError::StatsMismatch:
+        return "stats mismatch";
+    }
+    return "unknown";
+}
+
 void write_input_stats()
 {
     const kernel::input::Stats stats = kernel::input::stats();
@@ -191,7 +209,7 @@ void write_heap_stats()
 void write_slab_stats()
 {
     const kernel::memory::slab::Stats stats = kernel::memory::slab::stats();
-    const kernel::memory::SlabValidationResult validation = kernel::memory::slab::validate();
+    const kernel::memory::SlabRegistryValidationResult validation = kernel::memory::slab::validate_all();
     if (!stats.initialized)
     {
         terminal::write_line("slab stats unavailable");
@@ -202,16 +220,40 @@ void write_slab_stats()
     write_bool_stat("initialized", stats.initialized);
     write_bool_stat("valid", validation.valid);
     terminal::write_string("  validation error: ");
-    terminal::write_line(slab_validation_error_name(validation.error));
-    write_stat("object size", stats.cache.object_size);
-    write_stat("alignment", stats.cache.alignment);
-    write_stat("slab count", stats.cache.slab_count);
-    write_stat("committed bytes", stats.cache.committed_bytes);
-    write_stat("object capacity", stats.cache.object_capacity);
-    write_stat("allocated objects", stats.cache.allocated_objects);
-    write_stat("free objects", stats.cache.free_objects);
-    write_stat("failed allocations", stats.cache.failed_allocations);
+    terminal::write_line(slab_registry_validation_error_name(validation.error));
+    if (validation.error == kernel::memory::SlabRegistryValidationError::CacheInvalid)
+    {
+        write_stat("invalid cache id", validation.cache_id);
+        terminal::write_string("  cache error: ");
+        terminal::write_line(slab_validation_error_name(validation.cache_error));
+    }
+    write_stat("cache capacity", stats.registry.capacity);
+    write_stat("registered caches", stats.registry.registered_caches);
+    write_stat("failed registrations", stats.registry.failed_registrations);
     write_stat("failed backing allocations", stats.failed_backing_allocations);
+
+    for (kernel::memory::SlabCacheId id = 0; id < stats.registry.capacity; ++id)
+    {
+        const kernel::memory::SlabRegistryCacheStats cache = kernel::memory::slab::cache_stats(id);
+        if (!cache.registered)
+        {
+            continue;
+        }
+
+        terminal::write_string("cache ");
+        terminal::write_decimal(id);
+        terminal::write_string(" ");
+        terminal::write_line(cache.name);
+        write_stat("object size", cache.cache.object_size);
+        write_stat("alignment", cache.cache.alignment);
+        write_stat("slab count", cache.cache.slab_count);
+        write_stat("committed bytes", cache.cache.committed_bytes);
+        write_stat("object capacity", cache.cache.object_capacity);
+        write_stat("allocated objects", cache.cache.allocated_objects);
+        write_stat("free objects", cache.cache.free_objects);
+        write_stat("failed allocations", cache.cache.failed_allocations);
+        write_stat("failed backing allocations", cache.failed_backing_allocations);
+    }
 }
 
 } // namespace
