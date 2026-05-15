@@ -32,7 +32,7 @@ public:
     TerminalRepaintState() = default;
 
     void reset();
-    [[nodiscard]] bool begin_batch();
+    void begin_batch();
     [[nodiscard]] TerminalRepaintFlush end_batch();
     [[nodiscard]] TerminalRepaintRequest record_dirty(Rect rect);
     [[nodiscard]] TerminalRepaintRequest record_scroll(Rect bounds, uint64_t visible_rows = 0);

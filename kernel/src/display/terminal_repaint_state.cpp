@@ -9,7 +9,7 @@ void TerminalRepaintState::reset()
     clear_pending();
 }
 
-bool TerminalRepaintState::begin_batch()
+void TerminalRepaintState::begin_batch()
 {
     const bool outermost = update_depth_ == 0;
     if (outermost)
@@ -17,7 +17,6 @@ bool TerminalRepaintState::begin_batch()
         clear_pending();
     }
     ++update_depth_;
-    return outermost;
 }
 
 TerminalRepaintFlush TerminalRepaintState::end_batch()

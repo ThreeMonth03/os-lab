@@ -131,8 +131,8 @@ bool init()
         {0, 0, framebuffer->width, framebuffer->height},
         true,
     });
-    (void)display::compositor::register_repaint_callback(display::LayerKind::MouseCursor,
-                                                         repaint_cursor);
+    (void)display::compositor::register_layer_repaint_callback(display::LayerKind::MouseCursor,
+                                                               repaint_cursor);
     return true;
 }
 

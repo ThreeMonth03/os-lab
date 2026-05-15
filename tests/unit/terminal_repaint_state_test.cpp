@@ -39,7 +39,8 @@ TEST(TerminalRepaintStateTest, NonBatchScrollRequestsImmediatePixelScroll)
 TEST(TerminalRepaintStateTest, BatchScrollDefersPixelScroll)
 {
     kernel::display::TerminalRepaintState state;
-    EXPECT_TRUE(state.begin_batch());
+    state.begin_batch();
+    EXPECT_TRUE(state.in_batch());
 
     const kernel::display::TerminalRepaintRequest request = state.record_scroll({0, 0, 640, 480}, 24);
 
@@ -61,7 +62,8 @@ TEST(TerminalRepaintStateTest, BatchScrollDefersPixelScroll)
 TEST(TerminalRepaintStateTest, MultipleBatchScrollsCollapseToOnePixelScrollPlan)
 {
     kernel::display::TerminalRepaintState state;
-    EXPECT_TRUE(state.begin_batch());
+    state.begin_batch();
+    EXPECT_TRUE(state.in_batch());
 
     expect_no_immediate_repaint(state.record_scroll({0, 0, 640, 480}, 24));
     expect_no_immediate_repaint(state.record_scroll({0, 0, 640, 480}, 24));
@@ -78,7 +80,8 @@ TEST(TerminalRepaintStateTest, MultipleBatchScrollsCollapseToOnePixelScrollPlan)
 TEST(TerminalRepaintStateTest, PendingScrollDominatesSmallerDirtyRects)
 {
     kernel::display::TerminalRepaintState state;
-    EXPECT_TRUE(state.begin_batch());
+    state.begin_batch();
+    EXPECT_TRUE(state.in_batch());
 
     expect_no_immediate_repaint(state.record_scroll({0, 0, 640, 480}, 24));
     expect_no_immediate_repaint(state.record_dirty({10, 10, 8, 8}));
@@ -92,7 +95,8 @@ TEST(TerminalRepaintStateTest, PendingScrollDominatesSmallerDirtyRects)
 TEST(TerminalRepaintStateTest, TooManyBatchScrollsRequestFullRepaintFallback)
 {
     kernel::display::TerminalRepaintState state;
-    EXPECT_TRUE(state.begin_batch());
+    state.begin_batch();
+    EXPECT_TRUE(state.in_batch());
 
     expect_no_immediate_repaint(state.record_scroll({0, 0, 640, 480}, 2));
     expect_no_immediate_repaint(state.record_scroll({0, 0, 640, 480}, 2));
@@ -107,14 +111,16 @@ TEST(TerminalRepaintStateTest, TooManyBatchScrollsRequestFullRepaintFallback)
 TEST(TerminalRepaintStateTest, BatchEndClearsPendingState)
 {
     kernel::display::TerminalRepaintState state;
-    EXPECT_TRUE(state.begin_batch());
+    state.begin_batch();
+    EXPECT_TRUE(state.in_batch());
     expect_no_immediate_repaint(state.record_scroll({0, 0, 640, 480}, 24));
 
     const kernel::display::TerminalRepaintFlush first_flush = state.end_batch();
     EXPECT_TRUE(first_flush.outermost_batch_ended);
     EXPECT_FALSE(state.pending_text_repaint());
 
-    EXPECT_TRUE(state.begin_batch());
+    state.begin_batch();
+    EXPECT_TRUE(state.in_batch());
     const kernel::display::TerminalRepaintFlush second_flush = state.end_batch();
     EXPECT_TRUE(second_flush.outermost_batch_ended);
     EXPECT_FALSE(second_flush.repaint_text_layer);

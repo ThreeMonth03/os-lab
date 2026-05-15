@@ -103,8 +103,6 @@ public:
 
     size_t layer_count() const { return layer_count_; }
     size_t layer_capacity() const { return kMaxCompositorLayers; }
-    size_t dirty_count() const { return dirty_rects_.size(); }
-    bool full_screen_dirty() const { return dirty_rects_.full_screen_dirty(); }
     Rect bounds() const { return dirty_rects_.bounds(); }
 
 private:
@@ -116,32 +114,15 @@ private:
 namespace compositor
 {
 
-using RepaintCallback = void (*)(Rect dirty_rect);
+using LayerRepaintCallback = void (*)(Rect dirty_rect);
 
 void init(Rect bounds);
 [[nodiscard]] bool register_layer(Layer layer);
-[[nodiscard]] bool register_repaint_callback(LayerKind kind, RepaintCallback callback);
+[[nodiscard]] bool register_layer_repaint_callback(LayerKind kind, LayerRepaintCallback callback);
 void mark_dirty(Rect rect);
-size_t dirty_count();
-[[nodiscard]] bool pop_dirty(Rect & rect);
-void begin_redraw(Rect dirty_rect = {});
-void end_redraw();
 void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect);
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds);
-void flush_dirty();
-
-class RedrawGuard
-{
-public:
-    explicit RedrawGuard(Rect dirty_rect = {});
-    ~RedrawGuard();
-
-    RedrawGuard(const RedrawGuard &) = delete;
-    RedrawGuard & operator=(const RedrawGuard &) = delete;
-    RedrawGuard(RedrawGuard &&) = delete;
-    RedrawGuard & operator=(RedrawGuard &&) = delete;
-};
 
 } // namespace compositor
 

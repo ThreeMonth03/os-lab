@@ -116,7 +116,7 @@ bool init(Surface & surface, const GuiSurface & panel, Color border, Color backg
     g_state.foreground = foreground;
     g_state.config = config;
     g_state.initialized = true;
-    (void)compositor::register_repaint_callback(LayerKind::GuiSurface, repaint_panel);
+    (void)compositor::register_layer_repaint_callback(LayerKind::GuiSurface, repaint_panel);
     return true;
 }
 
