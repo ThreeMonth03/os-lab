@@ -19,6 +19,14 @@ kernel::display::Layer layer(kernel::display::LayerKind kind, kernel::display::S
     return {kind, id, {0, 0, 640, 480}, true};
 }
 
+kernel::display::Layer bounded_layer(kernel::display::LayerKind kind,
+                                     kernel::display::SurfaceId id,
+                                     kernel::display::Rect bounds,
+                                     bool visible = true)
+{
+    return {kind, id, bounds, visible};
+}
+
 } // namespace
 
 TEST(DisplayCompositorTest, ClipsDirtyRectsToFramebufferBounds)
@@ -111,4 +119,31 @@ TEST(DisplayCompositorTest, MouseCursorLayerIsTopmost)
     const kernel::display::Layer * top = compositor.top_visible_layer();
     ASSERT_NE(top, nullptr);
     EXPECT_EQ(top->kind, kernel::display::LayerKind::MouseCursor);
+}
+
+TEST(DisplayCompositorTest, RepaintsOnlyVisibleHigherLayersIntersectingDirtyRect)
+{
+    const kernel::display::Layer panel = bounded_layer(kernel::display::LayerKind::GuiSurface,
+                                                       100,
+                                                       {10, 10, 50, 50});
+    const kernel::display::Layer hidden_overlay = bounded_layer(kernel::display::LayerKind::DebugOverlay,
+                                                                2,
+                                                                {0, 0, 80, 20},
+                                                                false);
+    const kernel::display::Layer console = bounded_layer(kernel::display::LayerKind::Console,
+                                                         kernel::display::kConsoleSurfaceId,
+                                                         {0, 0, 800, 600});
+
+    EXPECT_TRUE(kernel::display::should_repaint_layer_after_update(panel,
+                                                                   kernel::display::LayerKind::Console,
+                                                                   {20, 20, 4, 4}));
+    EXPECT_FALSE(kernel::display::should_repaint_layer_after_update(panel,
+                                                                    kernel::display::LayerKind::Console,
+                                                                    {80, 80, 4, 4}));
+    EXPECT_FALSE(kernel::display::should_repaint_layer_after_update(hidden_overlay,
+                                                                    kernel::display::LayerKind::Console,
+                                                                    {1, 1, 4, 4}));
+    EXPECT_FALSE(kernel::display::should_repaint_layer_after_update(console,
+                                                                    kernel::display::LayerKind::DebugOverlay,
+                                                                    {1, 1, 4, 4}));
 }

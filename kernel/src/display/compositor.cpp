@@ -95,6 +95,26 @@ bool layer_above(LayerKind candidate, LayerKind reference)
     return layer_order(candidate) > layer_order(reference);
 }
 
+bool rects_overlap(Rect lhs, Rect rhs)
+{
+    if (lhs.empty() || rhs.empty())
+    {
+        return false;
+    }
+
+    const uint64_t lhs_right = saturating_end(lhs.x, lhs.width);
+    const uint64_t lhs_bottom = saturating_end(lhs.y, lhs.height);
+    const uint64_t rhs_right = saturating_end(rhs.x, rhs.width);
+    const uint64_t rhs_bottom = saturating_end(rhs.y, rhs.height);
+    return lhs.x < rhs_right && rhs.x < lhs_right && lhs.y < rhs_bottom && rhs.y < lhs_bottom;
+}
+
+bool should_repaint_layer_after_update(Layer layer, LayerKind updated_layer, Rect dirty_rect)
+{
+    return layer.visible && layer.valid() && layer_above(layer.kind, updated_layer) &&
+           rects_overlap(layer.bounds, dirty_rect);
+}
+
 void DirtyRectQueue::reset(Rect bounds)
 {
     bounds_ = bounds;

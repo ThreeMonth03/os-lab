@@ -42,6 +42,8 @@ struct Layer
 
 [[nodiscard]] uint8_t layer_order(LayerKind kind);
 [[nodiscard]] bool layer_above(LayerKind candidate, LayerKind reference);
+[[nodiscard]] bool rects_overlap(Rect lhs, Rect rhs);
+[[nodiscard]] bool should_repaint_layer_after_update(Layer layer, LayerKind updated_layer, Rect dirty_rect);
 
 class DirtyRectQueue
 {
@@ -104,6 +106,7 @@ void init(Rect bounds);
 void mark_dirty(Rect rect);
 [[nodiscard]] size_t dirty_count();
 [[nodiscard]] bool pop_dirty(Rect & rect);
+void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect);
 
 class RedrawGuard
 {
