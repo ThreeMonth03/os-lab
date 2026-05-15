@@ -28,6 +28,14 @@ TEST(DisplayTest, ComputesBoundingRect)
     expect_rect(kernel::display::bounding_rect({5, 6, 7, 8}, {}), 5, 6, 7, 8);
 }
 
+TEST(DisplayTest, ComputesIntersectRect)
+{
+    expect_rect(kernel::display::intersect_rect({10, 5, 4, 4}, {12, 8, 8, 2}), 12, 8, 2, 1);
+    expect_rect(kernel::display::intersect_rect({0, 0, 3, 3}, {3, 0, 2, 2}), 0, 0, 0, 0);
+    expect_rect(kernel::display::intersect_rect({}, {1, 2, 3, 4}), 0, 0, 0, 0);
+    expect_rect(kernel::display::intersect_rect({8, 8, 8, 8}, {0, 0, 10, 10}), 8, 8, 2, 2);
+}
+
 TEST(DisplayTest, PutPixelAndFillRectAreClipped)
 {
     uint32_t pixels[12] = {};

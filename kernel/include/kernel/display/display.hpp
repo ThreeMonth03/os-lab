@@ -45,5 +45,6 @@ private:
 
 [[nodiscard]] Rect clip_rect(Rect rect, uint64_t width, uint64_t height);
 [[nodiscard]] Rect bounding_rect(Rect lhs, Rect rhs);
+[[nodiscard]] Rect intersect_rect(Rect lhs, Rect rhs);
 
 } // namespace kernel::display

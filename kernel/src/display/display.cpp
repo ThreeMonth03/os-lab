@@ -148,4 +148,23 @@ Rect bounding_rect(Rect lhs, Rect rhs)
     return {left, top, right - left, bottom - top};
 }
 
+Rect intersect_rect(Rect lhs, Rect rhs)
+{
+    if (lhs.empty() || rhs.empty())
+    {
+        return {};
+    }
+
+    const uint64_t left = max_u64(lhs.x, rhs.x);
+    const uint64_t top = max_u64(lhs.y, rhs.y);
+    const uint64_t right = min_u64(saturating_end(lhs.x, lhs.width), saturating_end(rhs.x, rhs.width));
+    const uint64_t bottom = min_u64(saturating_end(lhs.y, lhs.height), saturating_end(rhs.y, rhs.height));
+    if (right <= left || bottom <= top)
+    {
+        return {};
+    }
+
+    return {left, top, right - left, bottom - top};
+}
+
 } // namespace kernel::display

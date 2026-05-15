@@ -22,6 +22,7 @@ public:
     bool ready() const { return surface_ != nullptr && surface_->ready(); }
 
     void clear_screen();
+    void clear_rect(Rect rect);
     void clear_cell(uint64_t column, uint64_t row);
     void scroll_up_rows(uint64_t rows);
     void draw_glyph(char value, uint64_t column, uint64_t row);

@@ -30,6 +30,16 @@ void TerminalRenderer::clear_screen()
     surface_->fill_rect({0, 0, surface_->width(), surface_->height()}, background_);
 }
 
+void TerminalRenderer::clear_rect(Rect rect)
+{
+    if (!ready())
+    {
+        return;
+    }
+
+    surface_->fill_rect(rect, background_);
+}
+
 void TerminalRenderer::clear_cell(uint64_t column, uint64_t row)
 {
     fill_rect(column * kCellWidth, row * kCellHeight, kCellWidth, kCellHeight, background_);

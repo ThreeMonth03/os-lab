@@ -56,6 +56,16 @@ display::Rect terminal_bounds()
     return {0, 0, g_state.surface.width(), g_state.surface.height()};
 }
 
+uint64_t text_grid_width()
+{
+    return g_state.text_buffer.columns() * kCellWidth;
+}
+
+uint64_t text_grid_height()
+{
+    return g_state.text_buffer.rows() * kCellHeight;
+}
+
 bool terminal_ready()
 {
     return g_state.surface.ready() && g_state.targets.active_target().valid();
@@ -125,6 +135,34 @@ void render_buffer_cell(uint64_t column, uint64_t row)
     render_text_cell(column, row, g_state.text_buffer.glyph_at(column, row));
 }
 
+void clear_gutter_region(display::Rect gutter, display::Rect dirty_rect)
+{
+    const display::Rect clipped = display::intersect_rect(gutter, dirty_rect);
+    if (clipped.empty())
+    {
+        return;
+    }
+
+    g_state.renderer.clear_rect(clipped);
+}
+
+void clear_terminal_gutters(display::Rect dirty_rect)
+{
+    const uint64_t grid_width = text_grid_width();
+    const uint64_t grid_height = text_grid_height();
+
+    if (grid_width < g_state.surface.width())
+    {
+        clear_gutter_region({grid_width, 0, g_state.surface.width() - grid_width, g_state.surface.height()},
+                            dirty_rect);
+    }
+    if (grid_height < g_state.surface.height())
+    {
+        clear_gutter_region({0, grid_height, g_state.surface.width(), g_state.surface.height() - grid_height},
+                            dirty_rect);
+    }
+}
+
 display::Rect render_dirty_text_cells()
 {
     display::Rect dirty_rect;
@@ -173,6 +211,8 @@ void repaint_terminal_text_region(display::Rect dirty_rect)
     {
         return;
     }
+
+    clear_terminal_gutters(dirty_rect);
 
     for (uint64_t row = 0; row < g_state.text_buffer.rows(); ++row)
     {
