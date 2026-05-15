@@ -34,6 +34,17 @@ TEST(GuiPanelTest, ComputesDefaultPanelBounds)
                 kernel::display::gui_panel::kDefaultHeight);
 }
 
+TEST(GuiPanelTest, DefaultConfigKeepsPanelHidden)
+{
+    const kernel::display::gui_panel::Config config = kernel::display::gui_panel::default_config();
+    const kernel::display::GuiSurface panel =
+        kernel::display::gui_panel::make_surface(1280, 720, kernel::display::gui_panel::kGuiSurfaceId, config);
+
+    EXPECT_FALSE(config.visible);
+    EXPECT_FALSE(panel.visible);
+    EXPECT_FALSE(kernel::display::gui_panel::should_redraw(panel));
+}
+
 TEST(GuiPanelTest, ClampsPanelBoundsToAvailableSurface)
 {
     const kernel::display::gui_panel::Config config{
@@ -65,6 +76,18 @@ TEST(GuiPanelTest, HiddenPanelDoesNotRequestRedraw)
     EXPECT_FALSE(panel.focusable);
     EXPECT_FALSE(kernel::display::gui_panel::should_redraw(panel));
     EXPECT_FALSE(panel.layer().visible);
+}
+
+TEST(GuiPanelTest, DebugVisibleConfigRequestsRedraw)
+{
+    kernel::display::gui_panel::Config config = kernel::display::gui_panel::default_config();
+    config.visible = true;
+
+    const kernel::display::GuiSurface panel =
+        kernel::display::gui_panel::make_surface(1280, 720, kernel::display::gui_panel::kGuiSurfaceId, config);
+
+    EXPECT_TRUE(panel.visible);
+    EXPECT_TRUE(kernel::display::gui_panel::should_redraw(panel));
 }
 
 TEST(GuiPanelTest, VisiblePanelSitsBetweenConsoleAndDebugOverlay)

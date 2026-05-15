@@ -1,5 +1,9 @@
 #include "kernel/display/gui_panel.hpp"
 
+#ifndef OS_LAB_GUI_PANEL_VISIBLE
+#define OS_LAB_GUI_PANEL_VISIBLE 0
+#endif
+
 namespace
 {
 
@@ -12,6 +16,13 @@ uint64_t min_u64(uint64_t lhs, uint64_t rhs)
 
 namespace kernel::display::gui_panel
 {
+
+Config default_config()
+{
+    Config config;
+    config.visible = OS_LAB_GUI_PANEL_VISIBLE != 0;
+    return config;
+}
 
 Rect bounds_for(uint64_t surface_width, uint64_t surface_height, Config config)
 {

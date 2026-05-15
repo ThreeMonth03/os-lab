@@ -22,6 +22,7 @@ struct Config
     bool visible = false;
 };
 
+[[nodiscard]] Config default_config();
 [[nodiscard]] Rect bounds_for(uint64_t surface_width, uint64_t surface_height, Config config = {});
 [[nodiscard]] Rect content_bounds(Rect panel_bounds, uint64_t padding = kDefaultPadding);
 [[nodiscard]] GuiSurface make_surface(uint64_t surface_width,

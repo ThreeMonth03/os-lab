@@ -32,6 +32,7 @@ KERNEL_ELF := $(BUILD_DIR)/artifacts/kernel.elf
 ISO_IMAGE := $(BUILD_DIR)/os-lab.iso
 UNIT_BUILD_DIR := $(BUILD_DIR)/unit
 EXCEPTION_SMOKE ?= invalid_opcode
+GUI_PANEL_VISIBLE ?= OFF
 EXCEPTION_BUILD_DIR := $(BUILD_DIR)/exception-smoke/$(EXCEPTION_SMOKE)
 EXCEPTION_KERNEL_ELF := $(EXCEPTION_BUILD_DIR)/artifacts/kernel.elf
 EXCEPTION_ISO_IMAGE := $(EXCEPTION_BUILD_DIR)/os-lab.iso
@@ -57,6 +58,8 @@ help:
 		'  make deps      Install host QEMU on Debian/LMDE' \
 		'  make demo      Build in Docker, then boot headless' \
 		'  make gui       Build in Docker, then boot with a QEMU window' \
+		'  make gui GUI_PANEL_VISIBLE=ON' \
+		'                 Debug-only boot with the minimal GUI panel visible' \
 		'  make test      Build in Docker, then run the QEMU smoke test' \
 		'  make demo-exception EXCEPTION_SMOKE=page_fault' \
 		'                 Build a debug exception ISO and show the exception dump' \
@@ -157,7 +160,8 @@ _configure: _check-native-tools
 	$(CMAKE) -S $(PROJECT_ROOT) -B $(BUILD_DIR) -G $(GENERATOR) \
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
-		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+		-DOS_LAB_GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
 
 _kernel: _configure
 	$(CMAKE) --build $(BUILD_DIR) --target kernel
@@ -170,7 +174,8 @@ _exception-configure: _check-native-tools
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DOS_LAB_EXCEPTION_SMOKE=$(EXCEPTION_SMOKE)
+		-DOS_LAB_EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) \
+		-DOS_LAB_GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
 
 _exception-kernel: _exception-configure
 	$(CMAKE) --build $(EXCEPTION_BUILD_DIR) --target kernel
@@ -183,7 +188,8 @@ _timer-configure: _check-native-tools
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DOS_LAB_TIMER_SMOKE=ON
+		-DOS_LAB_TIMER_SMOKE=ON \
+		-DOS_LAB_GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
 
 _timer-kernel: _timer-configure
 	$(CMAKE) --build $(TIMER_BUILD_DIR) --target kernel
@@ -196,7 +202,8 @@ _paging-configure: _check-native-tools
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DOS_LAB_PAGING_SMOKE=ON
+		-DOS_LAB_PAGING_SMOKE=ON \
+		-DOS_LAB_GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
 
 _paging-kernel: _paging-configure
 	$(CMAKE) --build $(PAGING_BUILD_DIR) --target kernel
@@ -209,7 +216,8 @@ _heap-configure: _check-native-tools
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DOS_LAB_HEAP_SMOKE=ON
+		-DOS_LAB_HEAP_SMOKE=ON \
+		-DOS_LAB_GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
 
 _heap-kernel: _heap-configure
 	$(CMAKE) --build $(HEAP_BUILD_DIR) --target kernel
@@ -222,7 +230,8 @@ _slab-configure: _check-native-tools
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DOS_LAB_SLAB_SMOKE=ON
+		-DOS_LAB_SLAB_SMOKE=ON \
+		-DOS_LAB_GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
 
 _slab-kernel: _slab-configure
 	$(CMAKE) --build $(SLAB_BUILD_DIR) --target kernel
@@ -298,19 +307,19 @@ _docker-image: _check-docker-compose
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) build builder
 
 _docker-iso: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _iso
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
 
 _docker-exception-iso: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _exception-iso EXCEPTION_SMOKE=$(EXCEPTION_SMOKE)
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _exception-iso EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
 
 _docker-timer-iso: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _timer-iso
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _timer-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
 
 _docker-paging-iso: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _paging-iso
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _paging-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
 
 _docker-heap-iso: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _heap-iso
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _heap-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
 
 _docker-slab-iso: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _slab-iso
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _slab-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
