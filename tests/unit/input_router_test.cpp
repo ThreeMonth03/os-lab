@@ -51,6 +51,17 @@ TEST(InputRouterTest, RoutesMouseMoveToPointer)
     EXPECT_EQ(routed.event.kind, kernel::input::EventKind::MouseMove);
 }
 
+TEST(InputRouterTest, MouseMoveDoesNotChangeKeyboardFocus)
+{
+    kernel::input::InputRouter router;
+    router.set_focus(kernel::input::InputFocus::GuiSurface);
+
+    const kernel::input::RoutedEvent routed = router.route(mouse_move_event());
+
+    EXPECT_EQ(routed.target, kernel::input::EventTarget::Pointer);
+    EXPECT_EQ(router.focus(), kernel::input::InputFocus::GuiSurface);
+}
+
 TEST(InputRouterTest, IgnoresNoneEvent)
 {
     const kernel::input::InputRouter router;

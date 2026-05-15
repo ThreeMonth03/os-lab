@@ -203,6 +203,8 @@ void handle_mouse_move_event(const kernel::input::MouseMoveEvent & event)
     if (!event.x_overflow && !event.y_overflow)
     {
         mouse_cursor::move_by(event.delta_x, event.delta_y);
+        const mouse_cursor::Position position = mouse_cursor::position();
+        terminal::update_pointer_target(position.x, position.y);
     }
 }
 

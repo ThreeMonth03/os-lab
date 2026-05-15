@@ -8,6 +8,7 @@
 #include "kernel/display/display_target.hpp"
 #include "kernel/display/gui_panel.hpp"
 #include "kernel/display/gui_surface.hpp"
+#include "kernel/display/hit_test.hpp"
 #include "kernel/display/terminal_renderer.hpp"
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/display/mouse_cursor.hpp"
@@ -28,6 +29,7 @@ struct TerminalState
     display::Surface surface;
     display::DisplayTargetRegistry targets;
     display::GuiSurfaceRegistry gui_surfaces;
+    display::HitTestResult pointer_target;
     display::TerminalRenderer renderer;
     kernel::TextConsole console;
     uint64_t visible_cursor_column = 0;
@@ -230,6 +232,8 @@ uint64_t cursor_column() { return g_state.console.cursor_column(); }
 
 uint64_t cursor_row() { return g_state.console.cursor_row(); }
 
+display::HitTestResult pointer_target() { return g_state.pointer_target; }
+
 void clear()
 {
     if (!ready())
@@ -425,6 +429,17 @@ void write_decimal(uint64_t value)
     {
         write_char(buffer[--index]);
     }
+}
+
+void update_pointer_target(uint64_t x, uint64_t y)
+{
+    if (!ready())
+    {
+        g_state.pointer_target = {};
+        return;
+    }
+
+    g_state.pointer_target = display::hit_test(g_state.targets, g_state.gui_surfaces, x, y);
 }
 
 } // namespace kernel::console::terminal

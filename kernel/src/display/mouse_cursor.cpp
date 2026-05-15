@@ -141,6 +141,16 @@ bool init()
 
 bool ready() { return g_state.initialized; }
 
+Position position()
+{
+    if (!g_state.initialized)
+    {
+        return {};
+    }
+
+    return {g_state.pointer.x(), g_state.pointer.y()};
+}
+
 void show()
 {
     if (!g_state.initialized || g_state.visible)

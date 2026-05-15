@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "kernel/base/string_view.hpp"
+#include "kernel/display/hit_test.hpp"
 
 namespace kernel::console::terminal
 {
@@ -13,6 +14,7 @@ namespace kernel::console::terminal
 [[nodiscard]] uint64_t rows();
 [[nodiscard]] uint64_t cursor_column();
 [[nodiscard]] uint64_t cursor_row();
+[[nodiscard]] kernel::display::HitTestResult pointer_target();
 
 void clear();
 void clear_cell_at(uint64_t column, uint64_t row);
@@ -28,5 +30,6 @@ void write_line(StringView value);
 void write_line(const char * value);
 void write_hex(uint64_t value);
 void write_decimal(uint64_t value);
+void update_pointer_target(uint64_t x, uint64_t y);
 
 } // namespace kernel::console::terminal

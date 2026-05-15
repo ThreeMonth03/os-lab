@@ -193,6 +193,8 @@ void init_mouse_cursor()
     const bool mouse_cursor_ready = mouse_ready && kernel::display::mouse_cursor::init();
     if (mouse_cursor_ready && mouse_ready)
     {
+        const kernel::display::mouse_cursor::Position position = kernel::display::mouse_cursor::position();
+        kernel::console::terminal::update_pointer_target(position.x, position.y);
         kernel::display::mouse_cursor::show();
         kernel::drivers::serial::write_line("os-lab: ps/2 mouse cursor active");
     }

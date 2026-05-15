@@ -90,6 +90,22 @@ kernel::StringView input_focus_name(kernel::input::InputFocus focus)
     return "unknown";
 }
 
+kernel::StringView pointer_target_name(kernel::display::DisplayTargetKind kind)
+{
+    switch (kind)
+    {
+    case kernel::display::DisplayTargetKind::None:
+        return "none";
+    case kernel::display::DisplayTargetKind::Console:
+        return "console";
+    case kernel::display::DisplayTargetKind::DebugOverlay:
+        return "debug overlay";
+    case kernel::display::DisplayTargetKind::GuiSurface:
+        return "gui surface";
+    }
+    return "unknown";
+}
+
 kernel::StringView heap_validation_error_name(kernel::memory::HeapValidationError error)
 {
     switch (error)
@@ -173,10 +189,15 @@ kernel::StringView slab_registry_validation_error_name(kernel::memory::SlabRegis
 void write_input_stats()
 {
     const kernel::input::Stats stats = kernel::input::stats();
+    const kernel::display::HitTestResult pointer_target = terminal::pointer_target();
 
     terminal::write_line("input stats:");
     terminal::write_string("  focus: ");
     terminal::write_line(input_focus_name(kernel::input::focus()));
+    terminal::write_string("  pointer target: ");
+    terminal::write_line(pointer_target_name(pointer_target.target_kind));
+    write_stat("pointer target surface", pointer_target.surface_id);
+    write_stat("pointer gui surface", pointer_target.gui_surface_id);
     terminal::write_string("  keyboard mode: ");
     terminal::write_line(input_device_mode_name(stats.keyboard_mode));
     terminal::write_string("  mouse mode: ");
