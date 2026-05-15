@@ -30,4 +30,13 @@ struct Config
                                       Config config = {});
 [[nodiscard]] bool should_redraw(const GuiSurface & surface);
 
+[[nodiscard]] bool init(Surface & surface,
+                        const GuiSurface & panel,
+                        Color border,
+                        Color background,
+                        Color foreground,
+                        Config config = {});
+[[nodiscard]] bool ready();
+void refresh_now();
+
 } // namespace kernel::display::gui_panel

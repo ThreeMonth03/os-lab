@@ -6,6 +6,7 @@
 #include "kernel/display/debug_overlay.hpp"
 #include "kernel/display/display.hpp"
 #include "kernel/display/display_target.hpp"
+#include "kernel/display/gui_panel.hpp"
 #include "kernel/display/gui_surface.hpp"
 #include "kernel/display/terminal_renderer.hpp"
 #include "kernel/boot/limine_support.hpp"
@@ -17,13 +18,10 @@ namespace
 
 namespace display = kernel::display;
 namespace debug_overlay = kernel::display::debug_overlay;
+namespace gui_panel = kernel::display::gui_panel;
 
 constexpr uint64_t kCellWidth = display::TerminalRenderer::kCellWidth;
 constexpr uint64_t kCellHeight = display::TerminalRenderer::kCellHeight;
-constexpr display::GuiSurfaceId kPrimaryGuiSurfaceId = 1;
-constexpr uint64_t kGuiSurfaceMargin = 16;
-constexpr uint64_t kGuiSurfaceMinWidth = 64;
-constexpr uint64_t kGuiSurfaceMinHeight = 48;
 
 struct TerminalState
 {
@@ -49,23 +47,6 @@ uint32_t pack_rgb(const limine_framebuffer & framebuffer, uint8_t red, uint8_t g
 display::Rect terminal_bounds()
 {
     return {0, 0, g_state.surface.width(), g_state.surface.height()};
-}
-
-display::Rect gui_surface_bounds(const limine_framebuffer & framebuffer)
-{
-    if (framebuffer.width <= kGuiSurfaceMargin * 2 || framebuffer.height <= kGuiSurfaceMargin * 2)
-    {
-        return {};
-    }
-
-    const uint64_t width = framebuffer.width / 3;
-    const uint64_t height = framebuffer.height / 4;
-    if (width < kGuiSurfaceMinWidth || height < kGuiSurfaceMinHeight)
-    {
-        return {};
-    }
-
-    return {kGuiSurfaceMargin, kGuiSurfaceMargin, width, height};
 }
 
 display::Rect cell_rect(uint64_t column, uint64_t row)
@@ -157,31 +138,29 @@ void register_debug_overlay_target(const limine_framebuffer & framebuffer)
     });
 }
 
-void register_hidden_gui_surface_target(const limine_framebuffer & framebuffer)
+void register_gui_panel_target(const limine_framebuffer & framebuffer)
 {
-    const display::Rect bounds = gui_surface_bounds(framebuffer);
-    if (bounds.empty())
-    {
-        return;
-    }
-
-    const display::GuiSurface surface = display::make_gui_surface(
-        kPrimaryGuiSurfaceId,
-        bounds,
-        false,
-        true);
+    const gui_panel::Config config;
+    const display::GuiSurface surface = gui_panel::make_surface(framebuffer.width, framebuffer.height, gui_panel::kGuiSurfaceId, config);
     if (!g_state.gui_surfaces.register_surface(surface))
     {
         return;
     }
 
-    const display::GuiSurface * registered = g_state.gui_surfaces.find(kPrimaryGuiSurfaceId);
+    const display::GuiSurface * registered = g_state.gui_surfaces.find(gui_panel::kGuiSurfaceId);
     if (registered == nullptr || !g_state.targets.register_target(registered->display_target()))
     {
         return;
     }
 
     (void)display::compositor::register_layer(registered->layer());
+    const display::Color border{pack_rgb(framebuffer, 0x6b, 0xd6, 0xff)};
+    const display::Color background{pack_rgb(framebuffer, 0x12, 0x1b, 0x28)};
+    const display::Color foreground{pack_rgb(framebuffer, 0xf5, 0xf5, 0xf5)};
+    if (gui_panel::init(g_state.surface, *registered, border, background, foreground, config))
+    {
+        gui_panel::refresh_now();
+    }
 }
 
 } // namespace
@@ -232,7 +211,7 @@ bool init()
     const display::Color foreground{pack_rgb(*framebuffer, 0xf5, 0xf5, 0xf5)};
     const display::Color background{pack_rgb(*framebuffer, 0x10, 0x14, 0x1c)};
     g_state.renderer.reset(g_state.surface, foreground, background);
-    register_hidden_gui_surface_target(*framebuffer);
+    register_gui_panel_target(*framebuffer);
     register_debug_overlay_target(*framebuffer);
 
     clear();

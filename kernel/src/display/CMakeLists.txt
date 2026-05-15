@@ -6,6 +6,7 @@ add_library(os_lab_kernel_display OBJECT
     display.cpp
     display_target.cpp
     gui_panel.cpp
+    gui_panel_runtime.cpp
     gui_surface.cpp
     mouse_cursor.cpp
     terminal_renderer.cpp
