@@ -1,17 +1,22 @@
 # os-lab
 
-An x86_64 kernel playground that starts from zero, uses Limine as the bootloader,
-leans on C++ for kernel code, and keeps the day-to-day workflow friendly for both
-native Linux and WSL2.
+An x86_64 kernel playground that starts from zero, uses Limine as the
+bootloader, and keeps the day-to-day workflow friendly for both native Linux
+and WSL2.
 
 ## Current Baseline
 
-- A freestanding C++23 kernel built with `clang++-19` and `ld.lld-19`
-- A pinned Limine `v12.2.0` fetch flow with checksum verification
-- A BIOS/UEFI hybrid ISO image builder
-- A host-side QEMU launcher that works on Linux and can bridge to Windows QEMU from WSL2
-- A tiny no-heap framebuffer terminal with early PS/2 keyboard input
-- GitHub Actions for format, build, Docker sanity, and headless QEMU smoke boot
+- Freestanding C++23 kernel code built with `clang++-19` and `ld.lld-19`
+- Pinned Limine `v12.2.0` fetch flow with checksum verification
+- BIOS/UEFI hybrid ISO image builder
+- Docker-first build workflow with host-side QEMU launch
+- WSL2 launcher fallback to Windows QEMU when native Linux QEMU is absent
+- Framebuffer terminal, shell line editor, shell history, and static cursor
+- PS/2 keyboard and mouse input through IRQ paths
+- Software mouse cursor, debug overlay, compositor dirty-region foundation, and
+  opt-in minimal GUI panel
+- Early memory map parsing, frame allocator, paging, heap, and slab foundations
+- Host-side GTest, clang-format, clang-tidy, and QEMU smoke paths
 
 ## Quick Start
 
@@ -22,18 +27,18 @@ Then install the host QEMU dependency needed to boot the ISO:
 make deps
 ```
 
-Build the ISO in Docker and boot it with host QEMU:
+Build the ISO in Docker and boot it headless:
 
 ```bash
 make demo
 ```
 
-`make demo` runs headless and prints the serial log in your terminal. A healthy
-boot should include:
+`make demo` prints the serial log in your terminal. A healthy boot should
+include:
 
 ```text
 os-lab: kernel main entered
-os-lab: bootloader = Limine 12.2.0
+os-lab: framebuffer terminal active
 os-lab: interactive terminal ready
 ```
 
@@ -43,52 +48,52 @@ To see the QEMU window and framebuffer terminal:
 make gui
 ```
 
-The early shell supports `help`, `clear`, `about`, and `halt`. The line editor
-supports left/right arrows, Backspace, Delete, and the `Ctrl+A`, `Ctrl+C`,
-`Ctrl+E`, `Ctrl+L`, and `Ctrl+U` shortcuts. Caps Lock toggles are printed in the
-terminal; keyboard LEDs are not managed yet. The current edit position is shown
-with a static underline cursor.
-
 In headless mode, quit QEMU with `Ctrl+A`, then `X`.
 
-## Daily Workflow
+## Shell
 
-The recommended flow is to build toolchain-sensitive artifacts in Docker and run
-QEMU on the host:
+The early shell currently supports:
+
+```text
+help
+clear
+about
+halt
+mem
+input
+heap
+slab
+```
+
+The line editor supports printable ASCII, Tab expansion, left/right arrows,
+Backspace, Delete, history Up/Down, and `Ctrl+A`, `Ctrl+C`, `Ctrl+E`,
+`Ctrl+L`, and `Ctrl+U`. Caps Lock changes the prompt indicator; keyboard LEDs
+are not managed yet.
+
+## Common Targets
 
 ```bash
 make demo
-```
-
-Useful targets:
-
-```bash
-make demo      # Build in Docker, then boot headless
-make gui       # Build in Docker, then boot with a QEMU window
-make test      # Build in Docker, then run the smoke test
-make demo-exception EXCEPTION_SMOKE=page_fault
-               # Build a debug-only exception ISO and print the exception dump
-make test-exception EXCEPTION_SMOKE=invalid_opcode
-               # Verify a debug-only exception dump
+make gui
+make gui GUI_PANEL_VISIBLE=ON
+make test
+make unit
+make format
+make tidy
+make test-exception EXCEPTION_SMOKE=page_fault
 make test-timer
-               # Verify the debug-only PIT timer smoke path
+make test-paging
+make test-heap
+make test-slab
 make test-smoke
-               # Verify every debug-only smoke path
-make format    # Apply clang-format inside Docker
-make shell     # Open the development container
-make clean     # Remove generated files
+make clean
 ```
 
 `EXCEPTION_SMOKE` accepts `invalid_opcode`, `page_fault`, or `divide_error`.
-Normal `make demo` and `make gui` always build with the trigger disabled.
+Normal `make demo` and `make gui` always build with exception triggers disabled.
 
-## Style Notes
-
-Use `[[nodiscard]]` where ignoring a result is likely to hide a real bug:
-initialization, registration, allocation, mapping, validation, parse/decode, and
-pop/find/lookup style APIs. Avoid it on plain getters and best-effort drawing or
-dirty-region helpers; those should stay quiet when callers intentionally ignore
-the value.
+`GUI_PANEL_VISIBLE=ON` is a debug-only build option for showing the minimal GUI
+panel. It is off by default.
 
 ## Native Toolchain
 
@@ -105,10 +110,10 @@ make _run
 - Keep the repo in the Linux filesystem, for example `/home/<you>/os-lab`.
 - Install Docker with either `docker compose` or `docker-compose`; the Makefile
   will use whichever one is available.
-- Install `QEMU` on Windows and make sure `qemu-system-x86_64.exe` is on the Windows
-  `PATH`, or lives in the default `C:\Program Files\qemu\` location.
-- `make demo` and `make gui` prefer native Linux QEMU, but on WSL2 they will
-  automatically fall back to the Windows executable if needed.
+- Install QEMU on Windows and make sure `qemu-system-x86_64.exe` is on the
+  Windows `PATH`, or lives in `C:\Program Files\qemu\`.
+- `make demo` and `make gui` prefer native Linux QEMU, but on WSL2 they fall
+  back to the Windows executable if needed.
 
 ## Layout
 
@@ -118,13 +123,10 @@ make _run
 ├── config/limine.conf        # boot menu entry
 ├── kernel/                   # freestanding kernel code and linker script
 ├── scripts/                  # build/dev/qemu/smoke helper scripts
+├── tests/                    # host-side GTest coverage
 ├── vendor/limine/            # pinned protocol header metadata
 └── .github/workflows/ci.yml  # format/build/smoke automation
 ```
 
-## Next steps
-
-- Expand IDT coverage and add interrupt/timer support
-- Bring up a physical memory manager from the Limine memory map
-- Expand the early shell and move keyboard input to interrupts
-- Add a raw disk image target for USB boot on real hardware
+More project policy lives in [STYLE.md](STYLE.md). Current direction lives in
+[PLAN.md](PLAN.md).
