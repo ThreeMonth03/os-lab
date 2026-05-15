@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "kernel/input/input_queue.hpp"
+#include "kernel/input/input_stats_tracker.hpp"
 
 namespace
 {
@@ -49,29 +50,60 @@ TEST(InputQueueTest, PushesAndPopsEventsInOrder)
     EXPECT_FALSE(queue.pop(event));
 }
 
-TEST(InputQueueTest, DropsNewestWhenFullAndCountsEvents)
+TEST(InputQueueTest, RejectsNewestWhenFull)
 {
     kernel::input::InputQueue<1> queue;
 
     EXPECT_TRUE(queue.push(key_event('a', kernel::input::EventSource::Irq)));
     EXPECT_FALSE(queue.push(mouse_event(4, 5, kernel::input::EventSource::Irq)));
-
-    const kernel::input::Stats stats = queue.stats();
-    EXPECT_EQ(stats.key_events, 1u);
-    EXPECT_EQ(stats.keyboard_irq_events, 1u);
-    EXPECT_EQ(stats.keyboard_polling_fallback_events, 0u);
-    EXPECT_EQ(stats.mouse_move_events, 1u);
-    EXPECT_EQ(stats.mouse_irq_events, 1u);
-    EXPECT_EQ(stats.mouse_polling_fallback_events, 0u);
-    EXPECT_EQ(stats.dropped_events, 1u);
-    EXPECT_EQ(stats.queued_events, 1u);
-    EXPECT_EQ(stats.queue_capacity, 1u);
-    EXPECT_EQ(stats.queue_available, 0u);
+    EXPECT_TRUE(queue.full());
+    EXPECT_EQ(queue.size(), 1u);
+    EXPECT_EQ(queue.capacity(), 1u);
+    EXPECT_EQ(queue.available(), 0u);
 
     kernel::input::Event event;
     ASSERT_TRUE(queue.pop(event));
     EXPECT_EQ(event.kind, kernel::input::EventKind::Key);
     EXPECT_EQ(event.key.character, 'a');
+}
+
+TEST(InputStatsTrackerTest, CountsInputSourcesAndQueueSnapshot)
+{
+    kernel::input::InputStatsTracker tracker;
+
+    tracker.record_event(key_event('a', kernel::input::EventSource::Irq));
+    tracker.record_event(key_event('b', kernel::input::EventSource::PollingFallback));
+    tracker.record_event(mouse_event(4, 5, kernel::input::EventSource::Irq));
+    tracker.record_event(mouse_event(6, 7, kernel::input::EventSource::PollingFallback));
+    tracker.record_dropped_event();
+
+    const kernel::input::Stats stats = tracker.snapshot(3, 4, 1);
+    EXPECT_EQ(stats.key_events, 2u);
+    EXPECT_EQ(stats.keyboard_irq_events, 1u);
+    EXPECT_EQ(stats.keyboard_polling_fallback_events, 1u);
+    EXPECT_EQ(stats.mouse_move_events, 2u);
+    EXPECT_EQ(stats.mouse_irq_events, 1u);
+    EXPECT_EQ(stats.mouse_polling_fallback_events, 1u);
+    EXPECT_EQ(stats.dropped_events, 1u);
+    EXPECT_EQ(stats.queued_events, 3u);
+    EXPECT_EQ(stats.queue_capacity, 4u);
+    EXPECT_EQ(stats.queue_available, 1u);
+}
+
+TEST(InputStatsTrackerTest, IgnoresUnknownSourcesForSourceBreakdown)
+{
+    kernel::input::InputStatsTracker tracker;
+
+    tracker.record_event(key_event('x'));
+    tracker.record_event(mouse_event(1, 1));
+
+    const kernel::input::Stats stats = tracker.snapshot(2, 3, 1);
+    EXPECT_EQ(stats.key_events, 1u);
+    EXPECT_EQ(stats.keyboard_irq_events, 0u);
+    EXPECT_EQ(stats.keyboard_polling_fallback_events, 0u);
+    EXPECT_EQ(stats.mouse_move_events, 1u);
+    EXPECT_EQ(stats.mouse_irq_events, 0u);
+    EXPECT_EQ(stats.mouse_polling_fallback_events, 0u);
 }
 
 TEST(InputQueueTest, ReportsStatsSnapshot)
@@ -83,23 +115,14 @@ TEST(InputQueueTest, ReportsStatsSnapshot)
     EXPECT_TRUE(queue.push(mouse_event(2, 2, kernel::input::EventSource::PollingFallback)));
     EXPECT_TRUE(queue.push(key_event('y', kernel::input::EventSource::PollingFallback)));
 
-    kernel::input::Stats stats = queue.stats();
-    EXPECT_EQ(stats.key_events, 2u);
-    EXPECT_EQ(stats.keyboard_irq_events, 1u);
-    EXPECT_EQ(stats.keyboard_polling_fallback_events, 1u);
-    EXPECT_EQ(stats.mouse_move_events, 2u);
-    EXPECT_EQ(stats.mouse_irq_events, 1u);
-    EXPECT_EQ(stats.mouse_polling_fallback_events, 1u);
-    EXPECT_EQ(stats.dropped_events, 0u);
-    EXPECT_EQ(stats.queued_events, 4u);
-    EXPECT_EQ(stats.queue_capacity, 4u);
-    EXPECT_EQ(stats.queue_available, 0u);
+    EXPECT_EQ(queue.size(), 4u);
+    EXPECT_EQ(queue.capacity(), 4u);
+    EXPECT_EQ(queue.available(), 0u);
 
     kernel::input::Event event;
     EXPECT_TRUE(queue.pop(event));
-    stats = queue.stats();
-    EXPECT_EQ(stats.queued_events, 3u);
-    EXPECT_EQ(stats.queue_available, 1u);
+    EXPECT_EQ(queue.size(), 3u);
+    EXPECT_EQ(queue.available(), 1u);
 }
 
 } // namespace

@@ -3,6 +3,7 @@
 #include "kernel/arch/x86_64/interrupt_guard.hpp"
 #include "kernel/base/placement_new.hpp"
 #include "kernel/input/input_queue.hpp"
+#include "kernel/input/input_stats_tracker.hpp"
 #include "kernel/input/mouse.hpp"
 
 namespace
@@ -15,6 +16,7 @@ using EventQueue = kernel::input::InputQueue<kEventQueueCapacity>;
 
 alignas(EventQueue) unsigned char g_event_queue_storage[sizeof(EventQueue)] = {};
 bool g_event_queue_initialized = false;
+kernel::input::InputStatsTracker g_stats;
 
 EventQueue & event_queue()
 {
@@ -97,7 +99,14 @@ void pump()
 bool enqueue(const Event & event)
 {
     kernel::arch::x86_64::InterruptGuard guard;
-    return event_queue().push(event);
+    EventQueue & events = event_queue();
+    g_stats.record_event(event);
+    if (!events.push(event))
+    {
+        g_stats.record_dropped_event();
+        return false;
+    }
+    return true;
 }
 
 bool poll(Event & event)
@@ -121,7 +130,8 @@ bool poll(Event & event)
 Stats stats()
 {
     kernel::arch::x86_64::InterruptGuard guard;
-    Stats result = event_queue().stats();
+    EventQueue & events = event_queue();
+    Stats result = g_stats.snapshot(events.size(), events.capacity(), events.available());
     result.keyboard_mode = kernel::keyboard::input_mode();
     result.mouse_mode = kernel::mouse::input_mode();
     return result;
