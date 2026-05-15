@@ -331,6 +331,12 @@ void execute_command(StringView command)
 {
     const ShellCommand parsed = parse_shell_command(command);
 
+    if (parsed.kind == ShellCommandKind::Empty)
+    {
+        return;
+    }
+
+    terminal::ScopedUpdate terminal_update;
     switch (parsed.kind)
     {
     case ShellCommandKind::Empty:
