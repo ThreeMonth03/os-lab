@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+#include "kernel/display/debug_overlay.hpp"
 #include "kernel/display/display.hpp"
 #include "kernel/display/display_target.hpp"
 #include "kernel/display/terminal_renderer.hpp"
@@ -13,6 +14,7 @@ namespace
 {
 
 namespace display = kernel::display;
+namespace debug_overlay = kernel::display::debug_overlay;
 namespace mouse_cursor = kernel::display::mouse_cursor;
 
 constexpr uint64_t kCellWidth = display::TerminalRenderer::kCellWidth;
@@ -81,6 +83,37 @@ void apply_console_update(kernel::TextConsoleUpdate update)
     }
 }
 
+void register_debug_overlay_target(const limine_framebuffer & framebuffer)
+{
+    const display::Rect bounds = debug_overlay::bounds_for(framebuffer.width, framebuffer.height);
+    if (bounds.empty())
+    {
+        return;
+    }
+
+    const bool registered = g_state.targets.register_target({
+        debug_overlay::kSurfaceId,
+        display::DisplayTargetKind::DebugOverlay,
+        bounds,
+        false,
+        false,
+    });
+    if (!registered)
+    {
+        return;
+    }
+
+    const display::SurfaceDescriptor * target = g_state.targets.find(debug_overlay::kSurfaceId);
+    if (target == nullptr)
+    {
+        return;
+    }
+
+    const display::Color foreground{pack_rgb(framebuffer, 0x92, 0xf7, 0xb8)};
+    const display::Color background{pack_rgb(framebuffer, 0x08, 0x0c, 0x12)};
+    (void)debug_overlay::init(g_state.surface, *target, foreground, background);
+}
+
 } // namespace
 
 namespace kernel::console::terminal
@@ -121,6 +154,7 @@ bool init()
     const display::Color foreground{pack_rgb(*framebuffer, 0xf5, 0xf5, 0xf5)};
     const display::Color background{pack_rgb(*framebuffer, 0x10, 0x14, 0x1c)};
     g_state.renderer.reset(g_state.surface, foreground, background);
+    register_debug_overlay_target(*framebuffer);
 
     clear();
     return true;
