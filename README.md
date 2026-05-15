@@ -114,6 +114,10 @@ make _run
   Windows `PATH`, or lives in `C:\Program Files\qemu\`.
 - `make demo` and `make gui` prefer native Linux QEMU, but on WSL2 they fall
   back to the Windows executable if needed.
+- Mouse input currently uses a PS/2 relative mouse. When the QEMU GUI first
+  opens, the host cursor and guest software cursor can start out unsynchronized;
+  moving the mouse a little should settle it. A future absolute pointer path
+  such as USB tablet or virtio input would improve this.
 
 ## Layout
 

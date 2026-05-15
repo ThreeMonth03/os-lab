@@ -28,6 +28,8 @@ design document.
 ## Feature Track
 
 - Improve display/input boundaries before adding real widgets.
+- Add an absolute pointer path, such as USB tablet or virtio input, when PS/2
+  relative mouse behavior becomes the main UX limitation.
 - Add debug-only focus switching only after hit testing and routing remain
   stable.
 - Defer filesystem, scheduler, userspace, and full window management until the
