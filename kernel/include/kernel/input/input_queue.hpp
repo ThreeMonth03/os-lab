@@ -31,14 +31,16 @@ public:
 
     [[nodiscard]] Stats stats() const
     {
-        return {
-            key_events_,
-            mouse_move_events_,
-            dropped_events_,
-            events_.size(),
-            events_.capacity(),
-            events_.available(),
-        };
+        Stats result;
+        result.key_events = key_events_;
+        result.keyboard_irq_events = keyboard_irq_events_;
+        result.keyboard_polling_fallback_events = keyboard_polling_fallback_events_;
+        result.mouse_move_events = mouse_move_events_;
+        result.dropped_events = dropped_events_;
+        result.queued_events = events_.size();
+        result.queue_capacity = events_.capacity();
+        result.queue_available = events_.available();
+        return result;
     }
 
 private:
@@ -48,6 +50,7 @@ private:
         {
         case EventKind::Key:
             ++key_events_;
+            record_key_source(event.key_source);
             break;
         case EventKind::MouseMove:
             ++mouse_move_events_;
@@ -57,8 +60,25 @@ private:
         }
     }
 
+    void record_key_source(KeyEventSource source)
+    {
+        switch (source)
+        {
+        case KeyEventSource::Irq:
+            ++keyboard_irq_events_;
+            break;
+        case KeyEventSource::PollingFallback:
+            ++keyboard_polling_fallback_events_;
+            break;
+        case KeyEventSource::Unknown:
+            break;
+        }
+    }
+
     FixedQueue<Event, Capacity> events_;
     uint64_t key_events_ = 0;
+    uint64_t keyboard_irq_events_ = 0;
+    uint64_t keyboard_polling_fallback_events_ = 0;
     uint64_t mouse_move_events_ = 0;
     uint64_t dropped_events_ = 0;
 };

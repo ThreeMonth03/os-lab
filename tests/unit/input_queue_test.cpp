@@ -5,13 +5,15 @@
 namespace
 {
 
-kernel::input::Event key_event(char character)
+kernel::input::Event key_event(char character,
+                               kernel::input::KeyEventSource source = kernel::input::KeyEventSource::Unknown)
 {
     kernel::input::Event event;
     event.kind = kernel::input::EventKind::Key;
     event.key.key = kernel::keyboard::Key::Character;
     event.key.character = character;
     event.key.pressed = true;
+    event.key_source = source;
     return event;
 }
 
@@ -48,11 +50,13 @@ TEST(InputQueueTest, DropsNewestWhenFullAndCountsEvents)
 {
     kernel::input::InputQueue<1> queue;
 
-    EXPECT_TRUE(queue.push(key_event('a')));
+    EXPECT_TRUE(queue.push(key_event('a', kernel::input::KeyEventSource::Irq)));
     EXPECT_FALSE(queue.push(mouse_event(4, 5)));
 
     const kernel::input::Stats stats = queue.stats();
     EXPECT_EQ(stats.key_events, 1u);
+    EXPECT_EQ(stats.keyboard_irq_events, 1u);
+    EXPECT_EQ(stats.keyboard_polling_fallback_events, 0u);
     EXPECT_EQ(stats.mouse_move_events, 1u);
     EXPECT_EQ(stats.dropped_events, 1u);
     EXPECT_EQ(stats.queued_events, 1u);
@@ -69,12 +73,14 @@ TEST(InputQueueTest, ReportsStatsSnapshot)
 {
     kernel::input::InputQueue<4> queue;
 
-    EXPECT_TRUE(queue.push(key_event('x')));
+    EXPECT_TRUE(queue.push(key_event('x', kernel::input::KeyEventSource::Irq)));
     EXPECT_TRUE(queue.push(mouse_event(1, 1)));
-    EXPECT_TRUE(queue.push(key_event('y')));
+    EXPECT_TRUE(queue.push(key_event('y', kernel::input::KeyEventSource::PollingFallback)));
 
     kernel::input::Stats stats = queue.stats();
     EXPECT_EQ(stats.key_events, 2u);
+    EXPECT_EQ(stats.keyboard_irq_events, 1u);
+    EXPECT_EQ(stats.keyboard_polling_fallback_events, 1u);
     EXPECT_EQ(stats.mouse_move_events, 1u);
     EXPECT_EQ(stats.dropped_events, 0u);
     EXPECT_EQ(stats.queued_events, 3u);

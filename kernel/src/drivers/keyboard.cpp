@@ -36,6 +36,7 @@ bool enqueue_key_event(const kernel::keyboard::KeyEvent & key)
     kernel::input::Event event;
     event.kind = kernel::input::EventKind::Key;
     event.key = key;
+    event.key_source = kernel::input::KeyEventSource::Irq;
     return kernel::input::enqueue(event);
 }
 

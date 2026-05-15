@@ -14,6 +14,13 @@ enum class EventKind
     MouseMove,
 };
 
+enum class KeyEventSource
+{
+    Unknown,
+    Irq,
+    PollingFallback,
+};
+
 struct MouseMoveEvent
 {
     int16_t delta_x = 0;
@@ -29,12 +36,16 @@ struct Event
 {
     EventKind kind = EventKind::None;
     keyboard::KeyEvent key = {};
+    KeyEventSource key_source = KeyEventSource::Unknown;
     MouseMoveEvent mouse_move = {};
 };
 
 struct Stats
 {
+    keyboard::InputMode keyboard_mode = keyboard::InputMode::PollingFallback;
     uint64_t key_events = 0;
+    uint64_t keyboard_irq_events = 0;
+    uint64_t keyboard_polling_fallback_events = 0;
     uint64_t mouse_move_events = 0;
     uint64_t dropped_events = 0;
     uint64_t queued_events = 0;

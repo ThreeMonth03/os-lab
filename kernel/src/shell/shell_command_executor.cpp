@@ -63,6 +63,18 @@ void write_bool_stat(kernel::StringView name, bool value)
     terminal::write_line(value ? "yes" : "no");
 }
 
+kernel::StringView keyboard_input_mode_name(kernel::keyboard::InputMode mode)
+{
+    switch (mode)
+    {
+    case kernel::keyboard::InputMode::PollingFallback:
+        return "polling fallback";
+    case kernel::keyboard::InputMode::Irq:
+        return "irq";
+    }
+    return "unknown";
+}
+
 kernel::StringView heap_validation_error_name(kernel::memory::HeapValidationError error)
 {
     switch (error)
@@ -148,7 +160,11 @@ void write_input_stats()
     const kernel::input::Stats stats = kernel::input::stats();
 
     terminal::write_line("input stats:");
+    terminal::write_string("  keyboard mode: ");
+    terminal::write_line(keyboard_input_mode_name(stats.keyboard_mode));
     write_stat("key events", stats.key_events);
+    write_stat("keyboard IRQ events", stats.keyboard_irq_events);
+    write_stat("keyboard polling fallback events", stats.keyboard_polling_fallback_events);
     write_stat("mouse move events", stats.mouse_move_events);
     write_stat("dropped events", stats.dropped_events);
     write_stat("queued events", stats.queued_events);

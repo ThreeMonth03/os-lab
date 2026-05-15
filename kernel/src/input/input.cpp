@@ -51,6 +51,7 @@ bool poll_keyboard()
     kernel::input::Event event;
     event.kind = kernel::input::EventKind::Key;
     event.key = key;
+    event.key_source = kernel::input::KeyEventSource::PollingFallback;
     return kernel::input::enqueue(event);
 }
 
@@ -119,7 +120,9 @@ bool poll(Event & event)
 Stats stats()
 {
     kernel::arch::x86_64::InterruptGuard guard;
-    return event_queue().stats();
+    Stats result = event_queue().stats();
+    result.keyboard_mode = kernel::keyboard::input_mode();
+    return result;
 }
 
 } // namespace kernel::input
