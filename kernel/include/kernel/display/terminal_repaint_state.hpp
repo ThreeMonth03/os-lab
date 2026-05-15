@@ -39,7 +39,6 @@ public:
 
     bool in_batch() const { return update_depth_ > 0; }
     bool pending_text_repaint() const { return pending_full_repaint_ || pending_scroll_rows_ > 0; }
-    bool pending_full_repaint() const { return pending_text_repaint(); }
     bool pending_full_text_repaint() const { return pending_full_repaint_; }
     uint64_t pending_scroll_rows() const { return pending_scroll_rows_; }
     uint32_t update_depth() const { return update_depth_; }
