@@ -29,12 +29,12 @@ void draw_glyph(char value, uint64_t x, uint64_t y)
         return;
     }
 
-    const kernel::Glyph5x7 & glyph = kernel::Font5x7::glyph_for(value);
-    for (uint64_t glyph_row = 0; glyph_row < kernel::Glyph5x7::height; ++glyph_row)
+    const kernel::text::Glyph5x7 & glyph = kernel::text::Font5x7::glyph_for(value);
+    for (uint64_t glyph_row = 0; glyph_row < kernel::text::Glyph5x7::height; ++glyph_row)
     {
-        for (uint64_t glyph_column = 0; glyph_column < kernel::Glyph5x7::width; ++glyph_column)
+        for (uint64_t glyph_column = 0; glyph_column < kernel::text::Glyph5x7::width; ++glyph_column)
         {
-            const uint8_t mask = static_cast<uint8_t>(1u << (kernel::Glyph5x7::width - glyph_column - 1));
+            const uint8_t mask = static_cast<uint8_t>(1u << (kernel::text::Glyph5x7::width - glyph_column - 1));
             if ((glyph.rows[glyph_row] & mask) != 0)
             {
                 g_state.surface->put_pixel(x + glyph_column, y + glyph_row, g_state.foreground);
@@ -52,10 +52,10 @@ void draw_text(const char * text, kernel::display::Rect bounds)
 
     uint64_t x = bounds.x;
     const uint64_t right = bounds.x + bounds.width;
-    while (*text != '\0' && x + kernel::Glyph5x7::width <= right)
+    while (*text != '\0' && x + kernel::text::Glyph5x7::width <= right)
     {
         draw_glyph(*text, x, bounds.y);
-        x += kernel::Glyph5x7::width + kGlyphSpacing;
+        x += kernel::text::Glyph5x7::width + kGlyphSpacing;
         ++text;
     }
 }

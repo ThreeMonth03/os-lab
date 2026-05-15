@@ -35,7 +35,7 @@ char lowercase(char value)
     return value;
 }
 
-bool handle_control_shortcut(const kernel::keyboard::KeyEvent & event, kernel::LineEditor & line, kernel::shell::EditorView & view, bool caps_lock, kernel::History & history)
+bool handle_control_shortcut(const kernel::keyboard::KeyEvent & event, kernel::text::LineEditor & line, kernel::shell::EditorView & view, bool caps_lock, kernel::text::History & history)
 {
     if (!event.control || event.key != kernel::keyboard::Key::Character)
     {
@@ -46,10 +46,10 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent & event, kernel::L
     {
     case 'a':
     {
-        const kernel::EditorSnapshot before = view.snapshot(line, caps_lock);
+        const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         if (line.move_to_start())
         {
-            view.redraw_change(line, caps_lock, kernel::EditorEditKind::CursorMove, before);
+            view.redraw_change(line, caps_lock, kernel::text::EditorEditKind::CursorMove, before);
         }
         break;
     }
@@ -64,10 +64,10 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent & event, kernel::L
         break;
     case 'e':
     {
-        const kernel::EditorSnapshot before = view.snapshot(line, caps_lock);
+        const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         if (line.move_to_end())
         {
-            view.redraw_change(line, caps_lock, kernel::EditorEditKind::CursorMove, before);
+            view.redraw_change(line, caps_lock, kernel::text::EditorEditKind::CursorMove, before);
         }
         break;
     }
@@ -88,7 +88,7 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent & event, kernel::L
     return true;
 }
 
-void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::LineEditor & line, kernel::shell::EditorView & view, bool & caps_lock, kernel::History & history)
+void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::text::LineEditor & line, kernel::shell::EditorView & view, bool & caps_lock, kernel::text::History & history)
 {
     if (!event.pressed)
     {
@@ -104,42 +104,42 @@ void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::LineEdit
     {
     case kernel::keyboard::Key::Character:
     {
-        const kernel::EditorSnapshot before = view.snapshot(line, caps_lock);
+        const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         if (line.insert(event.character))
         {
             history.reset_browse();
-            view.redraw_change(line, caps_lock, kernel::EditorEditKind::Insert, before);
+            view.redraw_change(line, caps_lock, kernel::text::EditorEditKind::Insert, before);
         }
         break;
     }
     case kernel::keyboard::Key::Tab:
     {
-        const kernel::EditorSnapshot before = view.snapshot(line, caps_lock);
-        const size_t spaces = kernel::LineEditor::spaces_to_next_tab_stop(line.cursor());
+        const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
+        const size_t spaces = kernel::text::LineEditor::spaces_to_next_tab_stop(line.cursor());
         if (line.insert_spaces(spaces))
         {
             history.reset_browse();
-            view.redraw_change(line, caps_lock, kernel::EditorEditKind::Insert, before);
+            view.redraw_change(line, caps_lock, kernel::text::EditorEditKind::Insert, before);
         }
         break;
     }
     case kernel::keyboard::Key::Backspace:
     {
-        const kernel::EditorSnapshot before = view.snapshot(line, caps_lock);
+        const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         if (line.backspace())
         {
             history.reset_browse();
-            view.redraw_change(line, caps_lock, kernel::EditorEditKind::Backspace, before);
+            view.redraw_change(line, caps_lock, kernel::text::EditorEditKind::Backspace, before);
         }
         break;
     }
     case kernel::keyboard::Key::Delete:
     {
-        const kernel::EditorSnapshot before = view.snapshot(line, caps_lock);
+        const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         if (line.delete_forward())
         {
             history.reset_browse();
-            view.redraw_change(line, caps_lock, kernel::EditorEditKind::DeleteForward, before);
+            view.redraw_change(line, caps_lock, kernel::text::EditorEditKind::DeleteForward, before);
         }
         break;
     }
@@ -157,19 +157,19 @@ void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::LineEdit
     }
     case kernel::keyboard::Key::LeftArrow:
     {
-        const kernel::EditorSnapshot before = view.snapshot(line, caps_lock);
+        const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         if (line.move_left())
         {
-            view.redraw_change(line, caps_lock, kernel::EditorEditKind::CursorMove, before);
+            view.redraw_change(line, caps_lock, kernel::text::EditorEditKind::CursorMove, before);
         }
         break;
     }
     case kernel::keyboard::Key::RightArrow:
     {
-        const kernel::EditorSnapshot before = view.snapshot(line, caps_lock);
+        const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         if (line.move_right())
         {
-            view.redraw_change(line, caps_lock, kernel::EditorEditKind::CursorMove, before);
+            view.redraw_change(line, caps_lock, kernel::text::EditorEditKind::CursorMove, before);
         }
         break;
     }
@@ -188,9 +188,9 @@ void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::LineEdit
         break;
     case kernel::keyboard::Key::CapsLock:
     {
-        const kernel::EditorSnapshot before = view.snapshot(line, caps_lock);
+        const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         caps_lock = event.caps_lock;
-        view.redraw_change(line, caps_lock, kernel::EditorEditKind::PromptChange, before);
+        view.redraw_change(line, caps_lock, kernel::text::EditorEditKind::PromptChange, before);
         break;
     }
     default:
@@ -208,7 +208,7 @@ void handle_mouse_move_event(const kernel::input::MouseMoveEvent & event)
     }
 }
 
-void handle_routed_event(const kernel::input::RoutedEvent & routed, kernel::LineEditor & line, kernel::shell::EditorView & view, bool & caps_lock, kernel::History & history)
+void handle_routed_event(const kernel::input::RoutedEvent & routed, kernel::text::LineEditor & line, kernel::shell::EditorView & view, bool & caps_lock, kernel::text::History & history)
 {
     switch (routed.target)
     {
@@ -238,8 +238,8 @@ namespace kernel::shell
 
 [[noreturn]] void run()
 {
-    LineEditor line;
-    History history;
+    text::LineEditor line;
+    text::History history;
     EditorView view;
     bool caps_lock = false;
 

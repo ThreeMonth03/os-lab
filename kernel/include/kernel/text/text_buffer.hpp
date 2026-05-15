@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace kernel
+namespace kernel::text
 {
 
 inline constexpr uint64_t kTextBufferMaxColumns = 320;
@@ -36,6 +36,6 @@ private:
     char cells_[kTextBufferMaxColumns * kTextBufferMaxRows] = {};
     uint64_t columns_ = 0;
     uint64_t rows_ = 0;
-};
+}; // end class TextBuffer
 
-} // namespace kernel
+} // namespace kernel::text

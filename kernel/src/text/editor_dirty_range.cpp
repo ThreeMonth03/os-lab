@@ -1,6 +1,6 @@
 #include "kernel/text/editor_dirty_range.hpp"
 
-namespace kernel
+namespace kernel::text
 {
 
 namespace
@@ -61,4 +61,4 @@ EditorDirtyRange editor_dirty_range(EditorEditKind edit, EditorSnapshot before, 
     return full_redraw();
 }
 
-} // namespace kernel
+} // namespace kernel::text

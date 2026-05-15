@@ -1,6 +1,6 @@
 #include "kernel/text/history.hpp"
 
-namespace kernel
+namespace kernel::text
 {
 
 bool History::Entry::assign(StringView value)
@@ -96,4 +96,4 @@ void History::reset_browse()
     browse_index_ = 0;
 }
 
-} // namespace kernel
+} // namespace kernel::text

@@ -3,11 +3,11 @@
 namespace
 {
 
-using kernel::Glyph5x7;
+using kernel::text::Glyph5x7;
 
 constexpr Glyph5x7 kFallbackGlyph{{0x1f, 0x11, 0x15, 0x15, 0x15, 0x11, 0x1f}};
 
-constexpr Glyph5x7 kPrintableGlyphs[kernel::Font5x7::printable_count] = {
+constexpr Glyph5x7 kPrintableGlyphs[kernel::text::Font5x7::printable_count] = {
     {{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}, // space
     {{0x04, 0x04, 0x04, 0x04, 0x04, 0x00, 0x04}}, // !
     {{0x0a, 0x0a, 0x0a, 0x00, 0x00, 0x00, 0x00}}, // "
@@ -106,13 +106,13 @@ constexpr Glyph5x7 kPrintableGlyphs[kernel::Font5x7::printable_count] = {
 };
 
 static_assert(sizeof(kPrintableGlyphs) / sizeof(kPrintableGlyphs[0]) ==
-              kernel::Font5x7::printable_count);
+              kernel::text::Font5x7::printable_count);
 
 uint8_t code_unit(char value) { return static_cast<uint8_t>(value); }
 
 } // namespace
 
-namespace kernel
+namespace kernel::text
 {
 
 bool Font5x7::has_glyph(char value)
@@ -133,4 +133,4 @@ const Glyph5x7 & Font5x7::glyph_for(char value)
 
 const Glyph5x7 & Font5x7::fallback_glyph() { return kFallbackGlyph; }
 
-} // namespace kernel
+} // namespace kernel::text

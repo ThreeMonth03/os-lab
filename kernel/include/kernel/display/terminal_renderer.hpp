@@ -12,8 +12,8 @@ class TerminalRenderer
 {
 public:
     static constexpr uint64_t kGlyphScale = 2;
-    static constexpr uint64_t kCellWidth = (Glyph5x7::width + 1) * kGlyphScale;
-    static constexpr uint64_t kCellHeight = (Glyph5x7::height + 2) * kGlyphScale;
+    static constexpr uint64_t kCellWidth = (text::Glyph5x7::width + 1) * kGlyphScale;
+    static constexpr uint64_t kCellHeight = (text::Glyph5x7::height + 2) * kGlyphScale;
 
     TerminalRenderer() = default;
 
@@ -29,7 +29,7 @@ public:
     void erase_cursor(uint64_t column, uint64_t row);
 
 private:
-    static constexpr uint64_t kCursorTop = (Glyph5x7::height * kGlyphScale) + 1;
+    static constexpr uint64_t kCursorTop = (text::Glyph5x7::height * kGlyphScale) + 1;
     static constexpr uint64_t kCursorHeight = kGlyphScale;
 
     void fill_rect(uint64_t x, uint64_t y, uint64_t width, uint64_t height, Color color);

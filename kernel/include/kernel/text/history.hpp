@@ -6,7 +6,7 @@
 #include "kernel/shell/shell_limits.hpp"
 #include "kernel/base/string_view.hpp"
 
-namespace kernel
+namespace kernel::text
 {
 
 enum class HistoryResult
@@ -43,6 +43,6 @@ private:
     size_t count_ = 0;
     size_t browse_index_ = 0;
     bool browsing_ = false;
-};
+}; // end class History
 
-} // namespace kernel
+} // namespace kernel::text

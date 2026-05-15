@@ -2,7 +2,7 @@
 
 #include <stddef.h>
 
-namespace kernel
+namespace kernel::text
 {
 
 enum class EditorEditKind
@@ -40,4 +40,4 @@ struct EditorDirtyRange
 
 [[nodiscard]] EditorDirtyRange editor_dirty_range(EditorEditKind edit, EditorSnapshot before, EditorSnapshot after);
 
-} // namespace kernel
+} // namespace kernel::text

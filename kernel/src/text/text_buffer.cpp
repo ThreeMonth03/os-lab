@@ -1,6 +1,6 @@
 #include "kernel/text/text_buffer.hpp"
 
-namespace kernel
+namespace kernel::text
 {
 
 bool TextBuffer::reset(uint64_t columns, uint64_t rows)
@@ -88,4 +88,4 @@ size_t TextBuffer::index_of(uint64_t column, uint64_t row) const
     return static_cast<size_t>((row * columns_) + column);
 }
 
-} // namespace kernel
+} // namespace kernel::text

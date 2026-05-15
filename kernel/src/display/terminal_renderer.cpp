@@ -61,15 +61,15 @@ void TerminalRenderer::draw_glyph(char value, uint64_t column, uint64_t row)
 
     clear_cell(column, row);
 
-    const Glyph5x7 & glyph = Font5x7::glyph_for(value);
+    const text::Glyph5x7 & glyph = text::Font5x7::glyph_for(value);
     const uint64_t origin_x = column * kCellWidth;
     const uint64_t origin_y = row * kCellHeight;
 
-    for (uint64_t glyph_row = 0; glyph_row < Glyph5x7::height; ++glyph_row)
+    for (uint64_t glyph_row = 0; glyph_row < text::Glyph5x7::height; ++glyph_row)
     {
-        for (uint64_t glyph_column = 0; glyph_column < Glyph5x7::width; ++glyph_column)
+        for (uint64_t glyph_column = 0; glyph_column < text::Glyph5x7::width; ++glyph_column)
         {
-            const uint8_t mask = static_cast<uint8_t>(1u << (Glyph5x7::width - glyph_column - 1));
+            const uint8_t mask = static_cast<uint8_t>(1u << (text::Glyph5x7::width - glyph_column - 1));
             if ((glyph.rows[glyph_row] & mask) == 0)
             {
                 continue;
@@ -90,12 +90,12 @@ void TerminalRenderer::draw_glyph(char value, uint64_t column, uint64_t row)
 
 void TerminalRenderer::draw_cursor(uint64_t column, uint64_t row)
 {
-    fill_rect(column * kCellWidth, (row * kCellHeight) + kCursorTop, Glyph5x7::width * kGlyphScale, kCursorHeight, foreground_);
+    fill_rect(column * kCellWidth, (row * kCellHeight) + kCursorTop, text::Glyph5x7::width * kGlyphScale, kCursorHeight, foreground_);
 }
 
 void TerminalRenderer::erase_cursor(uint64_t column, uint64_t row)
 {
-    fill_rect(column * kCellWidth, (row * kCellHeight) + kCursorTop, Glyph5x7::width * kGlyphScale, kCursorHeight, background_);
+    fill_rect(column * kCellWidth, (row * kCellHeight) + kCursorTop, text::Glyph5x7::width * kGlyphScale, kCursorHeight, background_);
 }
 
 } // namespace kernel::display

@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-namespace kernel
+namespace kernel::input
 {
 
 class PointerState
@@ -31,6 +31,6 @@ private:
     uint64_t pointer_height_ = 0;
     uint64_t x_ = 0;
     uint64_t y_ = 0;
-};
+}; // end class PointerState
 
-} // namespace kernel
+} // namespace kernel::input

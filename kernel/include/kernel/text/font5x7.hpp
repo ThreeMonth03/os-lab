@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace kernel
+namespace kernel::text
 {
 
 struct Glyph5x7
@@ -24,6 +24,6 @@ public:
     [[nodiscard]] static bool has_glyph(char value);
     [[nodiscard]] static const Glyph5x7 & glyph_for(char value);
     [[nodiscard]] static const Glyph5x7 & fallback_glyph();
-};
+}; // end class Font5x7
 
-} // namespace kernel
+} // namespace kernel::text

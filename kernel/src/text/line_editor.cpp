@@ -1,6 +1,6 @@
 #include "kernel/text/line_editor.hpp"
 
-namespace kernel
+namespace kernel::text
 {
 
 size_t LineEditor::spaces_to_next_tab_stop(size_t column)
@@ -147,4 +147,4 @@ void LineEditor::clear()
     cursor_ = 0;
 }
 
-} // namespace kernel
+} // namespace kernel::text

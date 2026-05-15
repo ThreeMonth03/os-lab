@@ -5,7 +5,7 @@ namespace kernel::display
 
 bool TerminalRenderCache::reset(uint64_t columns, uint64_t rows)
 {
-    if (columns == 0 || rows == 0 || columns > kTextBufferMaxColumns || rows > kTextBufferMaxRows)
+    if (columns == 0 || rows == 0 || columns > text::kTextBufferMaxColumns || rows > text::kTextBufferMaxRows)
     {
         columns_ = 0;
         rows_ = 0;
@@ -30,13 +30,13 @@ void TerminalRenderCache::clear_rendered()
     {
         for (uint64_t column = 0; column < columns_; ++column)
         {
-            cells_[index_of(column, row)] = kTextBufferBlank;
+            cells_[index_of(column, row)] = text::kTextBufferBlank;
         }
     }
     valid_ = ready();
 }
 
-void TerminalRenderCache::synchronize_from(const TextBuffer & logical)
+void TerminalRenderCache::synchronize_from(const text::TextBuffer & logical)
 {
     if (!ready() || !logical.ready() || logical.columns() != columns_ || logical.rows() != rows_)
     {
@@ -90,14 +90,14 @@ bool TerminalRenderCache::scroll_up(uint64_t rows)
     {
         for (uint64_t column = 0; column < columns_; ++column)
         {
-            cells_[index_of(column, row)] = kTextBufferBlank;
+            cells_[index_of(column, row)] = text::kTextBufferBlank;
         }
     }
 
     return true;
 }
 
-bool TerminalRenderCache::needs_render(const TextBuffer & logical, uint64_t column, uint64_t row) const
+bool TerminalRenderCache::needs_render(const text::TextBuffer & logical, uint64_t column, uint64_t row) const
 {
     if (!valid_ || !in_bounds(column, row))
     {
@@ -107,7 +107,7 @@ bool TerminalRenderCache::needs_render(const TextBuffer & logical, uint64_t colu
     return logical.glyph_at(column, row) != cells_[index_of(column, row)];
 }
 
-uint64_t TerminalRenderCache::count_dirty_cells(const TextBuffer & logical) const
+uint64_t TerminalRenderCache::count_dirty_cells(const text::TextBuffer & logical) const
 {
     if (!valid_ || !ready() || !logical.ready() || logical.columns() != columns_ || logical.rows() != rows_)
     {
@@ -132,7 +132,7 @@ char TerminalRenderCache::glyph_at(uint64_t column, uint64_t row) const
 {
     if (!valid_ || !in_bounds(column, row))
     {
-        return kTextBufferBlank;
+        return text::kTextBufferBlank;
     }
 
     return cells_[index_of(column, row)];

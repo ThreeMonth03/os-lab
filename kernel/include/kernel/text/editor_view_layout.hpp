@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace kernel
+namespace kernel::text
 {
 
 struct EditorViewCell
@@ -30,6 +30,6 @@ private:
     uint64_t columns_ = 0;
     uint64_t prompt_column_ = 0;
     uint64_t prompt_width_ = 0;
-};
+}; // end class EditorViewLayout
 
-} // namespace kernel
+} // namespace kernel::text

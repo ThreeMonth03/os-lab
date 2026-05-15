@@ -12,7 +12,7 @@ namespace
 namespace debug_overlay = kernel::display::debug_overlay;
 constexpr uint64_t kPadding = 2;
 constexpr uint64_t kGlyphSpacing = 1;
-constexpr uint64_t kLineHeight = kernel::Glyph5x7::height + 2;
+constexpr uint64_t kLineHeight = kernel::text::Glyph5x7::height + 2;
 
 struct OverlayState
 {
@@ -34,12 +34,12 @@ void draw_glyph(char value, uint64_t x, uint64_t y)
         return;
     }
 
-    const kernel::Glyph5x7 & glyph = kernel::Font5x7::glyph_for(value);
-    for (uint64_t glyph_row = 0; glyph_row < kernel::Glyph5x7::height; ++glyph_row)
+    const kernel::text::Glyph5x7 & glyph = kernel::text::Font5x7::glyph_for(value);
+    for (uint64_t glyph_row = 0; glyph_row < kernel::text::Glyph5x7::height; ++glyph_row)
     {
-        for (uint64_t glyph_column = 0; glyph_column < kernel::Glyph5x7::width; ++glyph_column)
+        for (uint64_t glyph_column = 0; glyph_column < kernel::text::Glyph5x7::width; ++glyph_column)
         {
-            const uint8_t mask = static_cast<uint8_t>(1u << (kernel::Glyph5x7::width - glyph_column - 1));
+            const uint8_t mask = static_cast<uint8_t>(1u << (kernel::text::Glyph5x7::width - glyph_column - 1));
             if ((glyph.rows[glyph_row] & mask) != 0)
             {
                 g_state.surface->put_pixel(x + glyph_column, y + glyph_row, g_state.foreground);
@@ -56,10 +56,10 @@ void draw_line(const char * line, uint64_t x, uint64_t y)
     }
 
     const uint64_t right = g_state.target.bounds.x + g_state.target.bounds.width;
-    while (*line != '\0' && x + kernel::Glyph5x7::width <= right)
+    while (*line != '\0' && x + kernel::text::Glyph5x7::width <= right)
     {
         draw_glyph(*line, x, y);
-        x += kernel::Glyph5x7::width + kGlyphSpacing;
+        x += kernel::text::Glyph5x7::width + kGlyphSpacing;
         ++line;
     }
 }
@@ -90,13 +90,13 @@ void paint_overlay(const debug_overlay::Snapshot & snapshot)
     const uint64_t text_x = g_state.target.bounds.x + kPadding;
     uint64_t text_y = g_state.target.bounds.y + kPadding;
     const uint64_t bottom = g_state.target.bounds.y + g_state.target.bounds.height;
-    if (text_y + kernel::Glyph5x7::height <= bottom)
+    if (text_y + kernel::text::Glyph5x7::height <= bottom)
     {
         draw_line(lines.first, text_x, text_y);
     }
 
     text_y += kLineHeight;
-    if (text_y + kernel::Glyph5x7::height <= bottom)
+    if (text_y + kernel::text::Glyph5x7::height <= bottom)
     {
         draw_line(lines.second, text_x, text_y);
     }

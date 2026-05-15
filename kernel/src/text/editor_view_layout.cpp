@@ -1,6 +1,6 @@
 #include "kernel/text/editor_view_layout.hpp"
 
-namespace kernel
+namespace kernel::text
 {
 
 EditorViewLayout::EditorViewLayout(uint64_t columns, uint64_t prompt_column, uint64_t prompt_width)
@@ -31,4 +31,4 @@ uint64_t EditorViewLayout::visual_rows(size_t text_length) const
     return position_for(text_length).row + 1;
 }
 
-} // namespace kernel
+} // namespace kernel::text

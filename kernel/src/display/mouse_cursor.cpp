@@ -35,7 +35,7 @@ constexpr char kCursorBitmap[kCursorHeight][kCursorWidth + 1] = {
 struct CursorState
 {
     display::Surface surface;
-    kernel::PointerState pointer;
+    kernel::input::PointerState pointer;
     uint32_t outline = 0;
     uint32_t fill = 0;
     bool initialized = false;

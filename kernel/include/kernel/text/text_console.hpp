@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-namespace kernel
+namespace kernel::text
 {
 
 struct ConsoleCell
@@ -53,6 +53,6 @@ private:
     uint64_t rows_ = 0;
     uint64_t cursor_column_ = 0;
     uint64_t cursor_row_ = 0;
-};
+}; // end class TextConsole
 
-} // namespace kernel
+} // namespace kernel::text

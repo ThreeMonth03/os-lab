@@ -17,7 +17,7 @@ uint64_t max_u64(uint64_t left, uint64_t right) { return left > right ? left : r
 namespace kernel::shell
 {
 
-EditorSnapshot EditorView::snapshot(const LineEditor & line, bool caps_lock) const
+text::EditorSnapshot EditorView::snapshot(const text::LineEditor & line, bool caps_lock) const
 {
     return {line.cursor(), line.size(), prompt_for_caps(caps_lock).size()};
 }
@@ -27,7 +27,7 @@ StringView EditorView::prompt_for_caps(bool caps_lock)
     return caps_lock ? kCapsPrompt : kDefaultPrompt;
 }
 
-EditorViewLayout EditorView::layout(bool caps_lock) const
+text::EditorViewLayout EditorView::layout(bool caps_lock) const
 {
     return {terminal::columns(), position_.prompt_column, prompt_for_caps(caps_lock).size()};
 }
@@ -68,34 +68,34 @@ void EditorView::clear_rendered_area(uint64_t rows_to_clear) const
 
 void EditorView::set_cursor(bool caps_lock, size_t index) const
 {
-    const EditorViewCell cell = layout(caps_lock).position_for(index);
+    const text::EditorViewCell cell = layout(caps_lock).position_for(index);
     terminal::set_cursor(cell.column, position_.prompt_row + cell.row);
 }
 
-void EditorView::draw_text_range(StringView text, const EditorViewLayout & current_layout, size_t start, size_t end) const
+void EditorView::draw_text_range(StringView text, const text::EditorViewLayout & current_layout, size_t start, size_t end) const
 {
     for (size_t index = start; index < end && index < text.size(); ++index)
     {
-        const EditorViewCell cell = current_layout.position_for(index);
+        const text::EditorViewCell cell = current_layout.position_for(index);
         terminal::draw_char_at(cell.column, position_.prompt_row + cell.row, text[index]);
     }
 }
 
-void EditorView::clear_text_range(const EditorViewLayout & current_layout, size_t start, size_t end) const
+void EditorView::clear_text_range(const text::EditorViewLayout & current_layout, size_t start, size_t end) const
 {
     for (size_t index = start; index < end; ++index)
     {
-        const EditorViewCell cell = current_layout.position_for(index);
+        const text::EditorViewCell cell = current_layout.position_for(index);
         terminal::clear_cell_at(cell.column, position_.prompt_row + cell.row);
     }
 }
 
-void EditorView::redraw_prompt_and_line(const LineEditor & line, bool caps_lock)
+void EditorView::redraw_prompt_and_line(const text::LineEditor & line, bool caps_lock)
 {
     terminal::hide_cursor();
 
     const StringView prompt = prompt_for_caps(caps_lock);
-    const EditorViewLayout current_layout = layout(caps_lock);
+    const text::EditorViewLayout current_layout = layout(caps_lock);
     const uint64_t rows_needed = current_layout.visual_rows(line.view().size());
 
     scroll_to_fit(rows_needed);
@@ -112,26 +112,26 @@ void EditorView::redraw_prompt_and_line(const LineEditor & line, bool caps_lock)
     terminal::show_cursor();
 }
 
-void EditorView::redraw_dirty_range(const LineEditor & line, bool caps_lock, EditorDirtyRange dirty)
+void EditorView::redraw_dirty_range(const text::LineEditor & line, bool caps_lock, text::EditorDirtyRange dirty)
 {
     switch (dirty.kind)
     {
-    case EditorDirtyKind::None:
+    case text::EditorDirtyKind::None:
         return;
-    case EditorDirtyKind::CursorOnly:
+    case text::EditorDirtyKind::CursorOnly:
         set_cursor(caps_lock, line.cursor());
         terminal::show_cursor();
         return;
-    case EditorDirtyKind::Full:
+    case text::EditorDirtyKind::Full:
         redraw_prompt_and_line(line, caps_lock);
         return;
-    case EditorDirtyKind::Partial:
+    case text::EditorDirtyKind::Partial:
         break;
     }
 
     terminal::hide_cursor();
 
-    const EditorViewLayout current_layout = layout(caps_lock);
+    const text::EditorViewLayout current_layout = layout(caps_lock);
     const uint64_t rows_needed = current_layout.visual_rows(line.view().size());
 
     scroll_to_fit(rows_needed);
@@ -143,13 +143,13 @@ void EditorView::redraw_dirty_range(const LineEditor & line, bool caps_lock, Edi
     terminal::show_cursor();
 }
 
-void EditorView::redraw_change(const LineEditor & line, bool caps_lock, EditorEditKind edit, EditorSnapshot before)
+void EditorView::redraw_change(const text::LineEditor & line, bool caps_lock, text::EditorEditKind edit, text::EditorSnapshot before)
 {
-    const EditorSnapshot after = snapshot(line, caps_lock);
+    const text::EditorSnapshot after = snapshot(line, caps_lock);
     redraw_dirty_range(line, caps_lock, editor_dirty_range(edit, before, after));
 }
 
-void EditorView::write_new_prompt_and_line(const LineEditor & line, bool caps_lock)
+void EditorView::write_new_prompt_and_line(const text::LineEditor & line, bool caps_lock)
 {
     position_.prompt_column = terminal::cursor_column();
     position_.prompt_row = terminal::cursor_row();
@@ -157,26 +157,26 @@ void EditorView::write_new_prompt_and_line(const LineEditor & line, bool caps_lo
     redraw_prompt_and_line(line, caps_lock);
 }
 
-void EditorView::move_to_line_end(const LineEditor & line, bool caps_lock) const
+void EditorView::move_to_line_end(const text::LineEditor & line, bool caps_lock) const
 {
     set_cursor(caps_lock, line.view().size());
 }
 
-void EditorView::redraw_history_result(HistoryResult result, StringView command, LineEditor & line, bool caps_lock)
+void EditorView::redraw_history_result(text::HistoryResult result, StringView command, text::LineEditor & line, bool caps_lock)
 {
     switch (result)
     {
-    case HistoryResult::Command:
+    case text::HistoryResult::Command:
         if (line.replace(command))
         {
             redraw_prompt_and_line(line, caps_lock);
         }
         break;
-    case HistoryResult::Blank:
+    case text::HistoryResult::Blank:
         line.clear();
         redraw_prompt_and_line(line, caps_lock);
         break;
-    case HistoryResult::None:
+    case text::HistoryResult::None:
         break;
     }
 }

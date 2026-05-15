@@ -1,6 +1,6 @@
 #include "kernel/text/text_console.hpp"
 
-namespace kernel
+namespace kernel::text
 {
 
 TextConsole::TextConsole(uint64_t columns, uint64_t rows) { reset(columns, rows); }
@@ -97,4 +97,4 @@ void TextConsole::set_cursor(uint64_t column, uint64_t row)
     cursor_row_ = row < rows_ ? row : rows_ - 1;
 }
 
-} // namespace kernel
+} // namespace kernel::text

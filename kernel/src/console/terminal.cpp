@@ -33,8 +33,8 @@ struct TerminalState
     display::GuiSurfaceRegistry gui_surfaces;
     display::HitTestResult pointer_target;
     display::TerminalRenderer renderer;
-    kernel::TextConsole console;
-    kernel::TextBuffer text_buffer;
+    kernel::text::TextConsole console;
+    kernel::text::TextBuffer text_buffer;
     display::TerminalRenderCache render_cache;
     display::TerminalRepaintState repaint;
     uint64_t visible_cursor_column = 0;
@@ -98,7 +98,7 @@ void repaint_text_layer()
         for (uint64_t column = 0; column < g_state.text_buffer.columns(); ++column)
         {
             const char glyph = g_state.text_buffer.glyph_at(column, row);
-            if (glyph != kernel::kTextBufferBlank)
+            if (glyph != kernel::text::kTextBufferBlank)
             {
                 g_state.renderer.draw_glyph(glyph, column, row);
             }
@@ -109,7 +109,7 @@ void repaint_text_layer()
 
 void render_text_cell(uint64_t column, uint64_t row, char glyph)
 {
-    if (glyph == kernel::kTextBufferBlank)
+    if (glyph == kernel::text::kTextBufferBlank)
     {
         g_state.renderer.clear_cell(column, row);
     }
@@ -230,14 +230,14 @@ void record_console_dirty(display::Rect dirty_rect)
     apply_repaint_request(g_state.repaint.record_dirty(dirty_rect));
 }
 
-display::Rect apply_console_update(kernel::TextConsoleUpdate update)
+display::Rect apply_console_update(kernel::text::TextConsoleUpdate update)
 {
     display::Rect dirty_rect;
     const bool draw_immediately = !update.scroll && !g_state.repaint.pending_text_repaint() &&
                                   g_state.render_cache.valid();
     switch (update.action)
     {
-    case kernel::TextConsoleAction::DrawGlyph:
+    case kernel::text::TextConsoleAction::DrawGlyph:
         g_state.text_buffer.put(update.cell.column, update.cell.row, update.glyph);
         if (draw_immediately)
         {
@@ -246,16 +246,16 @@ display::Rect apply_console_update(kernel::TextConsoleUpdate update)
             display::compositor::mark_dirty(dirty_rect);
         }
         break;
-    case kernel::TextConsoleAction::ClearCell:
+    case kernel::text::TextConsoleAction::ClearCell:
         g_state.text_buffer.clear_cell(update.cell.column, update.cell.row);
         if (draw_immediately)
         {
-            render_text_cell(update.cell.column, update.cell.row, kernel::kTextBufferBlank);
+            render_text_cell(update.cell.column, update.cell.row, kernel::text::kTextBufferBlank);
             dirty_rect = cell_rect(update.cell.column, update.cell.row);
             display::compositor::mark_dirty(dirty_rect);
         }
         break;
-    case kernel::TextConsoleAction::None:
+    case kernel::text::TextConsoleAction::None:
         break;
     }
 
@@ -452,7 +452,7 @@ void clear_cell_at(uint64_t column, uint64_t row)
     }
 
     g_state.text_buffer.clear_cell(column, row);
-    render_text_cell(column, row, kernel::kTextBufferBlank);
+    render_text_cell(column, row, kernel::text::kTextBufferBlank);
     record_console_dirty(cell_rect(column, row));
 }
 
@@ -467,7 +467,7 @@ void clear_row_from(uint64_t column, uint64_t row)
     while (column < g_state.console.columns())
     {
         g_state.text_buffer.clear_cell(column, row);
-        render_text_cell(column, row, kernel::kTextBufferBlank);
+        render_text_cell(column, row, kernel::text::kTextBufferBlank);
         ++column;
     }
     record_console_dirty(dirty_rect);

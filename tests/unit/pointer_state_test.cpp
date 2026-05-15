@@ -6,7 +6,7 @@ namespace
 
 TEST(PointerStateTest, InitializesAtCenteredPosition)
 {
-    const kernel::PointerState pointer(100, 80, 10, 16);
+    const kernel::input::PointerState pointer(100, 80, 10, 16);
 
     EXPECT_EQ(pointer.x(), 45u);
     EXPECT_EQ(pointer.y(), 32u);
@@ -14,7 +14,7 @@ TEST(PointerStateTest, InitializesAtCenteredPosition)
 
 TEST(PointerStateTest, AppliesMouseDeltasWithInvertedY)
 {
-    kernel::PointerState pointer(100, 80, 10, 16);
+    kernel::input::PointerState pointer(100, 80, 10, 16);
 
     pointer.move_by(5, 7);
 
@@ -24,7 +24,7 @@ TEST(PointerStateTest, AppliesMouseDeltasWithInvertedY)
 
 TEST(PointerStateTest, ClampsToBounds)
 {
-    kernel::PointerState pointer(100, 80, 10, 16);
+    kernel::input::PointerState pointer(100, 80, 10, 16);
 
     pointer.move_by(-200, 200);
     EXPECT_EQ(pointer.x(), 0u);
@@ -37,7 +37,7 @@ TEST(PointerStateTest, ClampsToBounds)
 
 TEST(PointerStateTest, HandlesPointerLargerThanBounds)
 {
-    kernel::PointerState pointer(8, 8, 10, 16);
+    kernel::input::PointerState pointer(8, 8, 10, 16);
 
     pointer.move_by(10, -10);
 

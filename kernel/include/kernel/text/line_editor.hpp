@@ -4,7 +4,7 @@
 #include "kernel/shell/shell_limits.hpp"
 #include "kernel/base/string_view.hpp"
 
-namespace kernel
+namespace kernel::text
 {
 
 class LineEditor
@@ -35,6 +35,6 @@ public:
 private:
     FixedVector<char, capacity> buffer_;
     size_t cursor_ = 0;
-};
+}; // end class LineEditor
 
-} // namespace kernel
+} // namespace kernel::text

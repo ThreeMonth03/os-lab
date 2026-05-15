@@ -24,7 +24,7 @@ uint64_t clamp_position(int64_t value, uint64_t max)
 
 } // namespace
 
-namespace kernel
+namespace kernel::input
 {
 
 PointerState::PointerState(uint64_t width, uint64_t height, uint64_t pointer_width, uint64_t pointer_height)
@@ -58,4 +58,4 @@ uint64_t PointerState::clamp_y(int64_t value) const
     return clamp_position(value, max_position(height_, pointer_height_));
 }
 
-} // namespace kernel
+} // namespace kernel::input

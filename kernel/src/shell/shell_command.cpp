@@ -39,47 +39,47 @@ bool has_trailing_tokens(kernel::StringView input, kernel::StringView name)
     return !trim(remaining).empty();
 }
 
-kernel::ShellCommandKind command_kind(kernel::StringView name)
+kernel::shell::ShellCommandKind command_kind(kernel::StringView name)
 {
     if (name == "help")
     {
-        return kernel::ShellCommandKind::Help;
+        return kernel::shell::ShellCommandKind::Help;
     }
     if (name == "clear")
     {
-        return kernel::ShellCommandKind::Clear;
+        return kernel::shell::ShellCommandKind::Clear;
     }
     if (name == "about")
     {
-        return kernel::ShellCommandKind::About;
+        return kernel::shell::ShellCommandKind::About;
     }
     if (name == "input")
     {
-        return kernel::ShellCommandKind::Input;
+        return kernel::shell::ShellCommandKind::Input;
     }
     if (name == "mem")
     {
-        return kernel::ShellCommandKind::Mem;
+        return kernel::shell::ShellCommandKind::Mem;
     }
     if (name == "heap")
     {
-        return kernel::ShellCommandKind::Heap;
+        return kernel::shell::ShellCommandKind::Heap;
     }
     if (name == "slab")
     {
-        return kernel::ShellCommandKind::Slab;
+        return kernel::shell::ShellCommandKind::Slab;
     }
     if (name == "halt")
     {
-        return kernel::ShellCommandKind::Halt;
+        return kernel::shell::ShellCommandKind::Halt;
     }
 
-    return kernel::ShellCommandKind::Unknown;
+    return kernel::shell::ShellCommandKind::Unknown;
 }
 
 } // namespace
 
-namespace kernel
+namespace kernel::shell
 {
 
 ShellCommand parse_shell_command(StringView input)
@@ -100,4 +100,4 @@ ShellCommand parse_shell_command(StringView input)
     return {kind, text, name};
 }
 
-} // namespace kernel
+} // namespace kernel::shell
