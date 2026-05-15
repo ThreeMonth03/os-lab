@@ -216,6 +216,8 @@ void handle_routed_event(const kernel::input::RoutedEvent & routed, kernel::Line
             handle_key_event(routed.event.key, line, view, caps_lock, history);
         }
         break;
+    case kernel::input::EventTarget::GuiSurface:
+        break;
     case kernel::input::EventTarget::Pointer:
         if (routed.event.kind == kernel::input::EventKind::MouseMove)
         {

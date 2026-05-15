@@ -73,4 +73,18 @@ TEST(InputRouterTest, CanDisableShellFocus)
     EXPECT_EQ(mouse.target, kernel::input::EventTarget::Pointer);
 }
 
+TEST(InputRouterTest, RoutesKeyboardEventToGuiSurfaceWhenFocused)
+{
+    kernel::input::InputRouter router;
+    router.set_focus(kernel::input::InputFocus::GuiSurface);
+
+    const kernel::input::RoutedEvent key = router.route(key_event());
+    const kernel::input::RoutedEvent mouse = router.route(mouse_move_event());
+
+    EXPECT_EQ(router.focus(), kernel::input::InputFocus::GuiSurface);
+    EXPECT_EQ(key.target, kernel::input::EventTarget::GuiSurface);
+    EXPECT_EQ(key.event.kind, kernel::input::EventKind::Key);
+    EXPECT_EQ(mouse.target, kernel::input::EventTarget::Pointer);
+}
+
 } // namespace

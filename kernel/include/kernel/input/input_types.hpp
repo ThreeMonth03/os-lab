@@ -20,12 +20,14 @@ enum class InputFocus
 {
     None,
     Shell,
+    GuiSurface,
 };
 
 enum class EventTarget
 {
     None,
     Shell,
+    GuiSurface,
     Pointer,
 };
 

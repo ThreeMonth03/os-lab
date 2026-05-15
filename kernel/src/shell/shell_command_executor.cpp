@@ -84,6 +84,8 @@ kernel::StringView input_focus_name(kernel::input::InputFocus focus)
         return "none";
     case kernel::input::InputFocus::Shell:
         return "shell";
+    case kernel::input::InputFocus::GuiSurface:
+        return "gui surface";
     }
     return "unknown";
 }

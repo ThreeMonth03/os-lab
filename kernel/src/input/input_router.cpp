@@ -22,6 +22,10 @@ RoutedEvent InputRouter::route(const Event & event) const
         {
             routed.target = EventTarget::Shell;
         }
+        else if (focus_ == InputFocus::GuiSurface)
+        {
+            routed.target = EventTarget::GuiSurface;
+        }
         break;
     case EventKind::MouseMove:
         routed.target = EventTarget::Pointer;
