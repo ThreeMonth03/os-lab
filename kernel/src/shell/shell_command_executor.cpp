@@ -75,6 +75,18 @@ kernel::StringView keyboard_input_mode_name(kernel::keyboard::InputMode mode)
     return "unknown";
 }
 
+kernel::StringView mouse_input_mode_name(kernel::mouse::InputMode mode)
+{
+    switch (mode)
+    {
+    case kernel::mouse::InputMode::PollingFallback:
+        return "polling fallback";
+    case kernel::mouse::InputMode::Irq:
+        return "irq";
+    }
+    return "unknown";
+}
+
 kernel::StringView heap_validation_error_name(kernel::memory::HeapValidationError error)
 {
     switch (error)
@@ -162,10 +174,14 @@ void write_input_stats()
     terminal::write_line("input stats:");
     terminal::write_string("  keyboard mode: ");
     terminal::write_line(keyboard_input_mode_name(stats.keyboard_mode));
+    terminal::write_string("  mouse mode: ");
+    terminal::write_line(mouse_input_mode_name(stats.mouse_mode));
     write_stat("key events", stats.key_events);
     write_stat("keyboard IRQ events", stats.keyboard_irq_events);
     write_stat("keyboard polling fallback events", stats.keyboard_polling_fallback_events);
     write_stat("mouse move events", stats.mouse_move_events);
+    write_stat("mouse IRQ events", stats.mouse_irq_events);
+    write_stat("mouse polling fallback events", stats.mouse_polling_fallback_events);
     write_stat("dropped events", stats.dropped_events);
     write_stat("queued events", stats.queued_events);
     write_stat("queue available", stats.queue_available);

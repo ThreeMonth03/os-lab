@@ -36,6 +36,8 @@ public:
         result.keyboard_irq_events = keyboard_irq_events_;
         result.keyboard_polling_fallback_events = keyboard_polling_fallback_events_;
         result.mouse_move_events = mouse_move_events_;
+        result.mouse_irq_events = mouse_irq_events_;
+        result.mouse_polling_fallback_events = mouse_polling_fallback_events_;
         result.dropped_events = dropped_events_;
         result.queued_events = events_.size();
         result.queue_capacity = events_.capacity();
@@ -54,6 +56,7 @@ private:
             break;
         case EventKind::MouseMove:
             ++mouse_move_events_;
+            record_mouse_source(event.mouse_source);
             break;
         case EventKind::None:
             break;
@@ -75,11 +78,28 @@ private:
         }
     }
 
+    void record_mouse_source(MouseEventSource source)
+    {
+        switch (source)
+        {
+        case MouseEventSource::Irq:
+            ++mouse_irq_events_;
+            break;
+        case MouseEventSource::PollingFallback:
+            ++mouse_polling_fallback_events_;
+            break;
+        case MouseEventSource::Unknown:
+            break;
+        }
+    }
+
     FixedQueue<Event, Capacity> events_;
     uint64_t key_events_ = 0;
     uint64_t keyboard_irq_events_ = 0;
     uint64_t keyboard_polling_fallback_events_ = 0;
     uint64_t mouse_move_events_ = 0;
+    uint64_t mouse_irq_events_ = 0;
+    uint64_t mouse_polling_fallback_events_ = 0;
     uint64_t dropped_events_ = 0;
 };
 

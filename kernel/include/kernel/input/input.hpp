@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "kernel/input/keyboard.hpp"
+#include "kernel/input/mouse.hpp"
 
 namespace kernel::input
 {
@@ -15,6 +16,13 @@ enum class EventKind
 };
 
 enum class KeyEventSource
+{
+    Unknown,
+    Irq,
+    PollingFallback,
+};
+
+enum class MouseEventSource
 {
     Unknown,
     Irq,
@@ -38,15 +46,19 @@ struct Event
     keyboard::KeyEvent key = {};
     KeyEventSource key_source = KeyEventSource::Unknown;
     MouseMoveEvent mouse_move = {};
+    MouseEventSource mouse_source = MouseEventSource::Unknown;
 };
 
 struct Stats
 {
     keyboard::InputMode keyboard_mode = keyboard::InputMode::PollingFallback;
+    mouse::InputMode mouse_mode = mouse::InputMode::PollingFallback;
     uint64_t key_events = 0;
     uint64_t keyboard_irq_events = 0;
     uint64_t keyboard_polling_fallback_events = 0;
     uint64_t mouse_move_events = 0;
+    uint64_t mouse_irq_events = 0;
+    uint64_t mouse_polling_fallback_events = 0;
     uint64_t dropped_events = 0;
     uint64_t queued_events = 0;
     uint64_t queue_capacity = 0;

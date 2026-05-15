@@ -72,6 +72,7 @@ bool poll_mouse()
     event.mouse_move.middle_button = mouse.middle_button;
     event.mouse_move.x_overflow = mouse.x_overflow;
     event.mouse_move.y_overflow = mouse.y_overflow;
+    event.mouse_source = kernel::input::MouseEventSource::PollingFallback;
     return kernel::input::enqueue(event);
 }
 
@@ -122,6 +123,7 @@ Stats stats()
     kernel::arch::x86_64::InterruptGuard guard;
     Stats result = event_queue().stats();
     result.keyboard_mode = kernel::keyboard::input_mode();
+    result.mouse_mode = kernel::mouse::input_mode();
     return result;
 }
 

@@ -77,6 +77,7 @@ void enqueue_mouse_event(const kernel::mouse::MousePacket & packet)
     event.mouse_move.middle_button = packet.middle_button;
     event.mouse_move.x_overflow = packet.x_overflow;
     event.mouse_move.y_overflow = packet.y_overflow;
+    event.mouse_source = kernel::input::MouseEventSource::Irq;
     (void)kernel::input::enqueue(event);
 }
 
