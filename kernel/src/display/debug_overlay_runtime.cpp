@@ -1,5 +1,6 @@
 #include "kernel/display/debug_overlay.hpp"
 
+#include "kernel/display/compositor.hpp"
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/memory/memory.hpp"
@@ -10,8 +11,6 @@ namespace
 {
 
 namespace debug_overlay = kernel::display::debug_overlay;
-namespace mouse_cursor = kernel::display::mouse_cursor;
-
 constexpr uint64_t kPadding = 2;
 constexpr uint64_t kGlyphSpacing = 1;
 constexpr uint64_t kLineHeight = kernel::Glyph5x7::height + 2;
@@ -28,18 +27,6 @@ struct OverlayState
 };
 
 OverlayState g_state;
-
-class MouseCursorGuard
-{
-public:
-    MouseCursorGuard() { mouse_cursor::hide(); }
-    ~MouseCursorGuard() { mouse_cursor::show(); }
-
-    MouseCursorGuard(const MouseCursorGuard &) = delete;
-    MouseCursorGuard & operator=(const MouseCursorGuard &) = delete;
-    MouseCursorGuard(MouseCursorGuard &&) = delete;
-    MouseCursorGuard & operator=(MouseCursorGuard &&) = delete;
-};
 
 void draw_glyph(char value, uint64_t x, uint64_t y)
 {
@@ -145,7 +132,7 @@ void refresh_now(const Snapshot & snapshot)
     Lines lines;
     format_snapshot(snapshot, lines);
 
-    MouseCursorGuard mouse_cursor;
+    compositor::RedrawGuard redraw(g_state.target.bounds);
     g_state.surface->fill_rect(g_state.target.bounds, g_state.background);
 
     const uint64_t text_x = g_state.target.bounds.x + kPadding;

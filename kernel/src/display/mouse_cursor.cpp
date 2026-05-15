@@ -1,5 +1,6 @@
 #include "kernel/display/mouse_cursor.hpp"
 
+#include "kernel/display/compositor.hpp"
 #include "kernel/display/display.hpp"
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/input/pointer_state.hpp"
@@ -129,6 +130,12 @@ bool init()
     g_state.outline = pack_rgb(*framebuffer, 0x00, 0x00, 0x00);
     g_state.fill = pack_rgb(*framebuffer, 0xff, 0xff, 0xff);
     g_state.initialized = true;
+    (void)display::compositor::register_layer({
+        display::LayerKind::MouseCursor,
+        display::kMouseCursorLayerSurfaceId,
+        {0, 0, framebuffer->width, framebuffer->height},
+        true,
+    });
     return true;
 }
 

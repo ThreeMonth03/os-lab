@@ -1,5 +1,6 @@
 add_library(os_lab_kernel_display OBJECT
     compositor.cpp
+    compositor_runtime.cpp
     debug_overlay.cpp
     debug_overlay_runtime.cpp
     display.cpp
