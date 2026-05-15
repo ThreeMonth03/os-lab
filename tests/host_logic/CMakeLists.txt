@@ -37,6 +37,7 @@ set(OS_LAB_HOST_LOGIC_TEXT_SOURCES
     ${PROJECT_SOURCE_DIR}/kernel/src/text/font5x7.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/text/history.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/text/line_editor.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/text/text_buffer.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/text/text_console.cpp
 )
 

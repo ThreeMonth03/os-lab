@@ -122,6 +122,18 @@ void refresh_if_due()
     g_state.last_refresh_ticks = current_ticks;
 }
 
+void refresh_now()
+{
+    if (!ready())
+    {
+        return;
+    }
+
+    const Snapshot snapshot = make_snapshot();
+    refresh_now(snapshot);
+    g_state.last_refresh_ticks = snapshot.ticks;
+}
+
 void refresh_now(const Snapshot & snapshot)
 {
     if (!ready())

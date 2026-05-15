@@ -1,6 +1,5 @@
 #include "kernel/console/terminal.hpp"
 
-#include <stddef.h>
 #include <stdint.h>
 
 #include "kernel/display/compositor.hpp"
@@ -13,6 +12,7 @@
 #include "kernel/display/terminal_renderer.hpp"
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/display/mouse_cursor.hpp"
+#include "kernel/text/text_buffer.hpp"
 #include "kernel/text/text_console.hpp"
 
 namespace
@@ -33,6 +33,7 @@ struct TerminalState
     display::HitTestResult pointer_target;
     display::TerminalRenderer renderer;
     kernel::TextConsole console;
+    kernel::TextBuffer text_buffer;
     uint64_t visible_cursor_column = 0;
     uint64_t visible_cursor_row = 0;
     bool cursor_visible = false;
@@ -81,27 +82,33 @@ void hide_text_cursor()
     g_state.cursor_visible = false;
 }
 
-void clear_visible_gui_surfaces_before_scroll()
+void repaint_text_layer()
 {
-    for (size_t index = 0; index < g_state.gui_surfaces.size(); ++index)
+    g_state.renderer.clear_screen();
+    for (uint64_t row = 0; row < g_state.text_buffer.rows(); ++row)
     {
-        const display::GuiSurface * surface = g_state.gui_surfaces.at(index);
-        if (surface != nullptr && surface->visible && surface->valid())
+        for (uint64_t column = 0; column < g_state.text_buffer.columns(); ++column)
         {
-            g_state.renderer.clear_rect(surface->bounds);
+            const char glyph = g_state.text_buffer.glyph_at(column, row);
+            if (glyph != kernel::kTextBufferBlank)
+            {
+                g_state.renderer.draw_glyph(glyph, column, row);
+            }
         }
     }
 }
 
-void apply_console_update(kernel::TextConsoleUpdate update)
+bool apply_console_update(kernel::TextConsoleUpdate update)
 {
     switch (update.action)
     {
     case kernel::TextConsoleAction::DrawGlyph:
+        (void)g_state.text_buffer.put(update.cell.column, update.cell.row, update.glyph);
         g_state.renderer.draw_glyph(update.glyph, update.cell.column, update.cell.row);
         display::compositor::mark_dirty(cell_rect(update.cell.column, update.cell.row));
         break;
     case kernel::TextConsoleAction::ClearCell:
+        (void)g_state.text_buffer.clear_cell(update.cell.column, update.cell.row);
         g_state.renderer.clear_cell(update.cell.column, update.cell.row);
         display::compositor::mark_dirty(cell_rect(update.cell.column, update.cell.row));
         break;
@@ -111,15 +118,24 @@ void apply_console_update(kernel::TextConsoleUpdate update)
 
     if (update.scroll)
     {
-        clear_visible_gui_surfaces_before_scroll();
-        g_state.renderer.scroll();
+        (void)g_state.text_buffer.scroll_up();
+        repaint_text_layer();
         display::compositor::mark_dirty(terminal_bounds());
+        return true;
     }
+
+    return false;
 }
 
 void refresh_gui_panel()
 {
     gui_panel::refresh_now();
+}
+
+void refresh_display_overlays()
+{
+    gui_panel::refresh_now();
+    debug_overlay::refresh_now();
 }
 
 void register_debug_overlay_target(const limine_framebuffer & framebuffer)
@@ -225,7 +241,13 @@ bool init()
         true,
     });
 
-    g_state.console.reset(framebuffer->width / kCellWidth, framebuffer->height / kCellHeight);
+    const uint64_t columns = framebuffer->width / kCellWidth;
+    const uint64_t rows = framebuffer->height / kCellHeight;
+    if (!g_state.text_buffer.reset(columns, rows))
+    {
+        return false;
+    }
+    g_state.console.reset(columns, rows);
     const display::Color foreground{pack_rgb(*framebuffer, 0xf5, 0xf5, 0xf5)};
     const display::Color background{pack_rgb(*framebuffer, 0x10, 0x14, 0x1c)};
     g_state.renderer.reset(g_state.surface, foreground, background);
@@ -260,8 +282,9 @@ void clear()
         display::compositor::RedrawGuard redraw(terminal_bounds());
         g_state.renderer.clear_screen();
         g_state.console.clear();
+        g_state.text_buffer.clear();
     }
-    refresh_gui_panel();
+    refresh_display_overlays();
 }
 
 void clear_cell_at(uint64_t column, uint64_t row)
@@ -273,6 +296,7 @@ void clear_cell_at(uint64_t column, uint64_t row)
 
     {
         display::compositor::RedrawGuard redraw(cell_rect(column, row));
+        (void)g_state.text_buffer.clear_cell(column, row);
         g_state.renderer.clear_cell(column, row);
     }
     refresh_gui_panel();
@@ -289,6 +313,7 @@ void clear_row_from(uint64_t column, uint64_t row)
         display::compositor::RedrawGuard redraw(row_tail_rect(column, row));
         while (column < g_state.console.columns())
         {
+            (void)g_state.text_buffer.clear_cell(column, row);
             g_state.renderer.clear_cell(column, row);
             ++column;
         }
@@ -305,6 +330,7 @@ void draw_char_at(uint64_t column, uint64_t row, char value)
 
     {
         display::compositor::RedrawGuard redraw(cell_rect(column, row));
+        (void)g_state.text_buffer.put(column, row, value);
         g_state.renderer.draw_glyph(value, column, row);
     }
     refresh_gui_panel();
@@ -371,25 +397,33 @@ void write_char(char value)
         break;
     }
 
+    bool repainted_text_layer = false;
     {
         display::compositor::RedrawGuard redraw;
         switch (value)
         {
         case '\n':
-            apply_console_update(g_state.console.newline());
+            repainted_text_layer = apply_console_update(g_state.console.newline());
             break;
         case '\r':
             g_state.console.carriage_return();
             break;
         case '\b':
-            apply_console_update(g_state.console.backspace());
+            repainted_text_layer = apply_console_update(g_state.console.backspace());
             break;
         default:
-            apply_console_update(g_state.console.write_char(value));
+            repainted_text_layer = apply_console_update(g_state.console.write_char(value));
             break;
         }
     }
-    refresh_gui_panel();
+    if (repainted_text_layer)
+    {
+        refresh_display_overlays();
+    }
+    else
+    {
+        refresh_gui_panel();
+    }
 }
 
 void write_string(StringView value)
