@@ -25,6 +25,7 @@ enum class LayerKind
 {
     None,
     Console,
+    GuiSurface,
     DebugOverlay,
     MouseCursor,
 };

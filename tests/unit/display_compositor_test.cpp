@@ -66,8 +66,10 @@ TEST(DisplayCompositorTest, FallsBackToFullscreenDirtyWhenQueueIsFull)
 
 TEST(DisplayCompositorTest, OrdersConsoleOverlayAndMouseCursorLayers)
 {
-    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::DebugOverlay,
+    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::GuiSurface,
                                              kernel::display::LayerKind::Console));
+    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::DebugOverlay,
+                                             kernel::display::LayerKind::GuiSurface));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::MouseCursor,
                                              kernel::display::LayerKind::DebugOverlay));
     EXPECT_FALSE(kernel::display::layer_above(kernel::display::LayerKind::Console,
@@ -80,12 +82,14 @@ TEST(DisplayCompositorTest, RegistersConsoleAndOverlayLayers)
 
     EXPECT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::Console,
                                                 kernel::display::kConsoleSurfaceId)));
+    EXPECT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::GuiSurface, 100)));
     EXPECT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::DebugOverlay,
                                                 kernel::display::debug_overlay::kSurfaceId)));
     EXPECT_FALSE(compositor.register_layer(layer(kernel::display::LayerKind::DebugOverlay, 42)));
 
-    EXPECT_EQ(compositor.layer_count(), 2u);
+    EXPECT_EQ(compositor.layer_count(), 3u);
     ASSERT_NE(compositor.find_layer(kernel::display::LayerKind::Console), nullptr);
+    ASSERT_NE(compositor.find_layer(kernel::display::LayerKind::GuiSurface), nullptr);
     ASSERT_NE(compositor.find_layer(kernel::display::LayerKind::DebugOverlay), nullptr);
 
     const kernel::display::Layer * top = compositor.top_visible_layer();

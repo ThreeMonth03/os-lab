@@ -6,6 +6,7 @@ add_executable(os_lab_unit_tests
     display_target_test.cpp
     editor_test.cpp
     font5x7_test.cpp
+    gui_surface_test.cpp
     input_queue_test.cpp
     input_router_test.cpp
     keyboard_decoder_test.cpp
