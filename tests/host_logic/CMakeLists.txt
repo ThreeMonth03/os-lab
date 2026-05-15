@@ -1,4 +1,5 @@
 set(OS_LAB_HOST_LOGIC_DISPLAY_SOURCES
+    ${PROJECT_SOURCE_DIR}/kernel/src/display/compositor.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/debug_overlay.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/display.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/display_target.cpp
