@@ -18,42 +18,34 @@ elif command -v docker-compose >/dev/null 2>&1; then \
 fi)
 DOCKER_RUN_ENV := LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g)
 
-CREATE_ISO := ./scripts/build/create_iso.sh
 INSTALL_DEPS := ./scripts/dev/install-deps-debian.sh
 FORMAT_SOURCES := ./scripts/dev/format_sources.sh
 RUN_TIDY := ./scripts/dev/run_tidy.sh
 RUN_QEMU := ./scripts/qemu/run_qemu.sh
+BUILD_SMOKE_ISO := ./scripts/smoke/build_iso.sh
+BUILD_SMOKE_SUITE := ./scripts/smoke/build_all.sh
 SMOKE_DEMO := ./scripts/smoke/smoke_demo.sh
 SMOKE_EXCEPTION := ./scripts/smoke/smoke_exception.sh
 SMOKE_HEAP := ./scripts/smoke/smoke_heap.sh
 SMOKE_PAGING := ./scripts/smoke/smoke_paging.sh
 SMOKE_SLAB := ./scripts/smoke/smoke_slab.sh
 SMOKE_TIMER := ./scripts/smoke/smoke_timer.sh
+RUN_SMOKE_SUITE := ./scripts/smoke/run_all.sh
 
 TOOLCHAIN_FILE := $(PROJECT_ROOT)/cmake/toolchains/x86_64-none-clang.cmake
-KERNEL_ELF := $(BUILD_DIR)/artifacts/kernel.elf
+SMOKE_BUILD_ENV = BUILD_DIR=$(BUILD_DIR) CMAKE=$(CMAKE) GENERATOR=$(GENERATOR) TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
 ISO_IMAGE := $(BUILD_DIR)/os-lab.iso
 UNIT_BUILD_DIR := $(BUILD_DIR)/unit
 EXCEPTION_SMOKE ?= invalid_opcode
 GUI_PANEL_VISIBLE ?= OFF
-EXCEPTION_BUILD_DIR := $(BUILD_DIR)/exception-smoke/$(EXCEPTION_SMOKE)
-EXCEPTION_KERNEL_ELF := $(EXCEPTION_BUILD_DIR)/artifacts/kernel.elf
-EXCEPTION_ISO_IMAGE := $(EXCEPTION_BUILD_DIR)/os-lab.iso
-TIMER_BUILD_DIR := $(BUILD_DIR)/timer-smoke
-TIMER_KERNEL_ELF := $(TIMER_BUILD_DIR)/artifacts/kernel.elf
-TIMER_ISO_IMAGE := $(TIMER_BUILD_DIR)/os-lab.iso
-PAGING_BUILD_DIR := $(BUILD_DIR)/paging-smoke
-PAGING_KERNEL_ELF := $(PAGING_BUILD_DIR)/artifacts/kernel.elf
-PAGING_ISO_IMAGE := $(PAGING_BUILD_DIR)/os-lab.iso
-HEAP_BUILD_DIR := $(BUILD_DIR)/heap-smoke
-HEAP_KERNEL_ELF := $(HEAP_BUILD_DIR)/artifacts/kernel.elf
-HEAP_ISO_IMAGE := $(HEAP_BUILD_DIR)/os-lab.iso
-SLAB_BUILD_DIR := $(BUILD_DIR)/slab-smoke
-SLAB_KERNEL_ELF := $(SLAB_BUILD_DIR)/artifacts/kernel.elf
-SLAB_ISO_IMAGE := $(SLAB_BUILD_DIR)/os-lab.iso
+EXCEPTION_ISO_IMAGE := $(BUILD_DIR)/exception-smoke/$(EXCEPTION_SMOKE)/os-lab.iso
+TIMER_ISO_IMAGE := $(BUILD_DIR)/timer-smoke/os-lab.iso
+PAGING_ISO_IMAGE := $(BUILD_DIR)/paging-smoke/os-lab.iso
+HEAP_ISO_IMAGE := $(BUILD_DIR)/heap-smoke/os-lab.iso
+SLAB_ISO_IMAGE := $(BUILD_DIR)/slab-smoke/os-lab.iso
 
-.PHONY: help deps demo gui test demo-exception test-exception demo-timer test-timer test-paging test-heap test-slab unit format tidy shell clean ci
-.PHONY: _check-native-tools _check-clang-format _check-clang-tidy _check-docker-compose _configure _kernel _iso _run _run-gui _smoke _exception-configure _exception-kernel _exception-iso _run-exception _smoke-exception _timer-configure _timer-kernel _timer-iso _run-timer _smoke-timer _paging-configure _paging-kernel _paging-iso _smoke-paging _heap-configure _heap-kernel _heap-iso _smoke-heap _slab-configure _slab-kernel _slab-iso _smoke-slab _unit _format _format-check _tidy _docker-image _docker-iso _docker-exception-iso _docker-timer-iso _docker-paging-iso _docker-heap-iso _docker-slab-iso
+.PHONY: help deps demo gui test demo-exception test-exception demo-timer test-timer test-paging test-heap test-slab test-smoke unit format tidy shell clean ci
+.PHONY: _check-native-tools _check-clang-format _check-clang-tidy _check-docker-compose _iso _run _run-gui _smoke _exception-iso _run-exception _smoke-exception _timer-iso _run-timer _smoke-timer _paging-iso _smoke-paging _heap-iso _smoke-heap _slab-iso _smoke-slab _smoke-isos _smoke-all _unit _format _format-check _tidy _docker-image _docker-iso _docker-exception-iso _docker-timer-iso _docker-paging-iso _docker-heap-iso _docker-slab-iso _docker-smoke-isos
 
 help:
 	@printf '%s\n' \
@@ -76,6 +68,8 @@ help:
 		'                 Build and verify the debug kernel heap smoke path' \
 		'  make test-slab' \
 		'                 Build and verify the debug kernel slab smoke path' \
+		'  make test-smoke' \
+		'                 Build and verify every debug smoke path' \
 		'  make unit      Run host-side unit tests' \
 		'  make format    Apply clang-format inside Docker' \
 		'  make tidy      Run clang-tidy on host-side pure logic' \
@@ -104,6 +98,9 @@ test-paging: _docker-paging-iso _smoke-paging
 test-heap: _docker-heap-iso _smoke-heap
 
 test-slab: _docker-slab-iso _smoke-slab
+
+test-smoke: _docker-smoke-isos
+	$(MAKE) _smoke-all EXCEPTION_SMOKE=$(EXCEPTION_SMOKE)
 
 unit: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _unit
@@ -159,88 +156,26 @@ _check-docker-compose:
 		exit 1; \
 	fi
 
-_configure: _check-native-tools
-	$(CMAKE) -S $(PROJECT_ROOT) -B $(BUILD_DIR) -G $(GENERATOR) \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
-		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DOS_LAB_GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
+_iso: _check-native-tools
+	$(SMOKE_BUILD_ENV) $(BUILD_SMOKE_ISO) demo
 
-_kernel: _configure
-	$(CMAKE) --build $(BUILD_DIR) --target kernel
+_exception-iso: _check-native-tools
+	$(SMOKE_BUILD_ENV) EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) $(BUILD_SMOKE_ISO) exception
 
-_iso: _kernel
-	$(CREATE_ISO) $(KERNEL_ELF) $(ISO_IMAGE)
+_timer-iso: _check-native-tools
+	$(SMOKE_BUILD_ENV) $(BUILD_SMOKE_ISO) timer
 
-_exception-configure: _check-native-tools
-	$(CMAKE) -S $(PROJECT_ROOT) -B $(EXCEPTION_BUILD_DIR) -G $(GENERATOR) \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
-		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DOS_LAB_EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) \
-		-DOS_LAB_GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
+_paging-iso: _check-native-tools
+	$(SMOKE_BUILD_ENV) $(BUILD_SMOKE_ISO) paging
 
-_exception-kernel: _exception-configure
-	$(CMAKE) --build $(EXCEPTION_BUILD_DIR) --target kernel
+_heap-iso: _check-native-tools
+	$(SMOKE_BUILD_ENV) $(BUILD_SMOKE_ISO) heap
 
-_exception-iso: _exception-kernel
-	$(CREATE_ISO) $(EXCEPTION_KERNEL_ELF) $(EXCEPTION_ISO_IMAGE)
+_slab-iso: _check-native-tools
+	$(SMOKE_BUILD_ENV) $(BUILD_SMOKE_ISO) slab
 
-_timer-configure: _check-native-tools
-	$(CMAKE) -S $(PROJECT_ROOT) -B $(TIMER_BUILD_DIR) -G $(GENERATOR) \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
-		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DOS_LAB_TIMER_SMOKE=ON \
-		-DOS_LAB_GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
-
-_timer-kernel: _timer-configure
-	$(CMAKE) --build $(TIMER_BUILD_DIR) --target kernel
-
-_timer-iso: _timer-kernel
-	$(CREATE_ISO) $(TIMER_KERNEL_ELF) $(TIMER_ISO_IMAGE)
-
-_paging-configure: _check-native-tools
-	$(CMAKE) -S $(PROJECT_ROOT) -B $(PAGING_BUILD_DIR) -G $(GENERATOR) \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
-		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DOS_LAB_PAGING_SMOKE=ON \
-		-DOS_LAB_GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
-
-_paging-kernel: _paging-configure
-	$(CMAKE) --build $(PAGING_BUILD_DIR) --target kernel
-
-_paging-iso: _paging-kernel
-	$(CREATE_ISO) $(PAGING_KERNEL_ELF) $(PAGING_ISO_IMAGE)
-
-_heap-configure: _check-native-tools
-	$(CMAKE) -S $(PROJECT_ROOT) -B $(HEAP_BUILD_DIR) -G $(GENERATOR) \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
-		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DOS_LAB_HEAP_SMOKE=ON \
-		-DOS_LAB_GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
-
-_heap-kernel: _heap-configure
-	$(CMAKE) --build $(HEAP_BUILD_DIR) --target kernel
-
-_heap-iso: _heap-kernel
-	$(CREATE_ISO) $(HEAP_KERNEL_ELF) $(HEAP_ISO_IMAGE)
-
-_slab-configure: _check-native-tools
-	$(CMAKE) -S $(PROJECT_ROOT) -B $(SLAB_BUILD_DIR) -G $(GENERATOR) \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
-		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DOS_LAB_SLAB_SMOKE=ON \
-		-DOS_LAB_GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
-
-_slab-kernel: _slab-configure
-	$(CMAKE) --build $(SLAB_BUILD_DIR) --target kernel
-
-_slab-iso: _slab-kernel
-	$(CREATE_ISO) $(SLAB_KERNEL_ELF) $(SLAB_ISO_IMAGE)
+_smoke-isos: _check-native-tools
+	$(SMOKE_BUILD_ENV) EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) $(BUILD_SMOKE_SUITE)
 
 _run:
 	@if [[ ! -f "$(ISO_IMAGE)" ]]; then $(MAKE) _iso; fi
@@ -288,6 +223,9 @@ _smoke-slab:
 	@if [[ ! -f "$(SLAB_ISO_IMAGE)" ]]; then $(MAKE) _slab-iso; fi
 	$(SMOKE_SLAB) $(SLAB_ISO_IMAGE)
 
+_smoke-all:
+	EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) BUILD_DIR=$(BUILD_DIR) $(RUN_SMOKE_SUITE)
+
 _unit:
 	$(CMAKE) -S $(PROJECT_ROOT) -B $(UNIT_BUILD_DIR) -G $(GENERATOR) \
 		-DCMAKE_BUILD_TYPE=Debug \
@@ -326,3 +264,6 @@ _docker-heap-iso: _docker-image
 
 _docker-slab-iso: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _slab-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
+
+_docker-smoke-isos: _docker-image
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _smoke-isos EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)

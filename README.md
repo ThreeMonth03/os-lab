@@ -72,6 +72,8 @@ make test-exception EXCEPTION_SMOKE=invalid_opcode
                # Verify a debug-only exception dump
 make test-timer
                # Verify the debug-only PIT timer smoke path
+make test-smoke
+               # Verify every debug-only smoke path
 make format    # Apply clang-format inside Docker
 make shell     # Open the development container
 make clean     # Remove generated files
