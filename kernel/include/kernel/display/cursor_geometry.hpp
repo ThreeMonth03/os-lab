@@ -14,6 +14,7 @@ public:
     CursorGeometry(Rect surface_bounds, uint64_t bitmap_width, uint64_t bitmap_height);
 
     Rect visible_rect(uint64_t hotspot_x, uint64_t hotspot_y) const;
+    Rect damage_rect(uint64_t hotspot_x, uint64_t hotspot_y) const;
     bool edge_push(uint64_t hotspot_x, uint64_t hotspot_y, int64_t delta_x, int64_t delta_y) const;
 
     Rect surface_bounds() const { return surface_bounds_; }

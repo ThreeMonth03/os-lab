@@ -63,6 +63,16 @@ display::Rect current_bounds()
     return g_state.geometry.visible_rect(g_state.pointer.x(), g_state.pointer.y());
 }
 
+display::Rect current_damage_bounds()
+{
+    if (!g_state.initialized || !g_state.surface.ready())
+    {
+        return {};
+    }
+
+    return g_state.geometry.damage_rect(g_state.pointer.x(), g_state.pointer.y());
+}
+
 void draw_bitmap()
 {
     const display::Rect visible = current_bounds();
@@ -182,10 +192,10 @@ void move_by(int16_t delta_x, int16_t delta_y)
     }
 
     const bool was_visible = g_state.visible;
-    const display::Rect old_bounds = current_bounds();
+    const display::Rect old_bounds = current_damage_bounds();
 
     g_state.pointer.move_by(delta_x, delta_y);
-    const display::Rect new_bounds = current_bounds();
+    const display::Rect new_bounds = current_damage_bounds();
     if (was_visible && (old_bounds.x != new_bounds.x || old_bounds.y != new_bounds.y))
     {
         display::compositor::mark_cursor_move_dirty(old_bounds, new_bounds);

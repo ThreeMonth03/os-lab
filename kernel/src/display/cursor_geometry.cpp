@@ -56,6 +56,23 @@ Rect CursorGeometry::visible_rect(uint64_t hotspot_x, uint64_t hotspot_y) const
     return {left, top, right - left, bottom - top};
 }
 
+Rect CursorGeometry::damage_rect(uint64_t hotspot_x, uint64_t hotspot_y) const
+{
+    if (surface_bounds_.empty() || bitmap_width_ == 0 || bitmap_height_ == 0)
+    {
+        return {};
+    }
+
+    const uint64_t surface_right = saturating_end(surface_bounds_.x, surface_bounds_.width);
+    const uint64_t surface_bottom = saturating_end(surface_bounds_.y, surface_bounds_.height);
+    const uint64_t max_x = surface_bounds_.width > bitmap_width_ ? surface_right - bitmap_width_ : surface_bounds_.x;
+    const uint64_t max_y = surface_bounds_.height > bitmap_height_ ? surface_bottom - bitmap_height_ : surface_bounds_.y;
+    const uint64_t x = hotspot_x < max_x ? hotspot_x : max_x;
+    const uint64_t y = hotspot_y < max_y ? hotspot_y : max_y;
+
+    return visible_rect(x, y);
+}
+
 bool CursorGeometry::edge_push(uint64_t hotspot_x, uint64_t hotspot_y, int64_t delta_x, int64_t delta_y) const
 {
     if (surface_bounds_.empty())

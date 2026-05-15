@@ -30,11 +30,27 @@ TEST(CursorGeometryTest, ClipsVisibleRectAtRightAndBottomEdges)
     expect_rect(geometry.visible_rect(99, 49), 99, 49, 1, 1);
 }
 
+TEST(CursorGeometryTest, KeepsDamageRectCursorSizedAtRightAndBottomEdges)
+{
+    const kernel::display::CursorGeometry geometry({0, 0, 100, 50}, 10, 16);
+
+    expect_rect(geometry.damage_rect(95, 45), 90, 34, 10, 16);
+    expect_rect(geometry.damage_rect(99, 49), 90, 34, 10, 16);
+}
+
+TEST(CursorGeometryTest, ClampsDamageRectWhenBitmapIsLargerThanSurface)
+{
+    const kernel::display::CursorGeometry geometry({0, 0, 8, 8}, 10, 16);
+
+    expect_rect(geometry.damage_rect(7, 7), 0, 0, 8, 8);
+}
+
 TEST(CursorGeometryTest, ClipsVisibleRectToNonZeroSurfaceOrigin)
 {
     const kernel::display::CursorGeometry geometry({10, 20, 100, 50}, 10, 16);
 
     expect_rect(geometry.visible_rect(105, 65), 105, 65, 5, 5);
+    expect_rect(geometry.damage_rect(105, 65), 100, 54, 10, 16);
     EXPECT_TRUE(geometry.visible_rect(0, 0).empty());
 }
 
