@@ -3,6 +3,7 @@ add_executable(os_lab_unit_tests
     display_test.cpp
     editor_test.cpp
     font5x7_test.cpp
+    input_queue_test.cpp
     keyboard_decoder_test.cpp
     memory_test.cpp
     mouse_packet_decoder_test.cpp

@@ -43,6 +43,7 @@ struct Stats
 };
 
 void pump();
+[[nodiscard]] bool enqueue(const Event & event);
 [[nodiscard]] bool poll(Event & event);
 [[nodiscard]] Stats stats();
 

@@ -1,8 +1,9 @@
 #include "kernel/input/input.hpp"
 
-#include "kernel/base/fixed_queue.hpp"
-#include "kernel/input/mouse.hpp"
+#include "kernel/arch/x86_64/interrupt_guard.hpp"
 #include "kernel/base/placement_new.hpp"
+#include "kernel/input/input_queue.hpp"
+#include "kernel/input/mouse.hpp"
 
 namespace
 {
@@ -10,13 +11,10 @@ namespace
 constexpr size_t kEventQueueCapacity = 32;
 constexpr int kMaxPollsPerPump = 16;
 
-using EventQueue = kernel::FixedQueue<kernel::input::Event, kEventQueueCapacity>;
+using EventQueue = kernel::input::InputQueue<kEventQueueCapacity>;
 
 alignas(EventQueue) unsigned char g_event_queue_storage[sizeof(EventQueue)] = {};
 bool g_event_queue_initialized = false;
-uint64_t g_key_events = 0;
-uint64_t g_mouse_move_events = 0;
-uint64_t g_dropped_events = 0;
 
 EventQueue & event_queue()
 {
@@ -30,16 +28,11 @@ EventQueue & event_queue()
     return *queue;
 }
 
-bool push_event(const kernel::input::Event & event)
+bool queue_full()
 {
+    kernel::arch::x86_64::InterruptGuard guard;
     EventQueue & events = event_queue();
-    if (events.full())
-    {
-        ++g_dropped_events;
-        return false;
-    }
-
-    return events.push(event);
+    return events.full();
 }
 
 bool poll_keyboard()
@@ -53,8 +46,7 @@ bool poll_keyboard()
     kernel::input::Event event;
     event.kind = kernel::input::EventKind::Key;
     event.key = key;
-    ++g_key_events;
-    return push_event(event);
+    return kernel::input::enqueue(event);
 }
 
 bool poll_mouse()
@@ -74,8 +66,7 @@ bool poll_mouse()
     event.mouse_move.middle_button = mouse.middle_button;
     event.mouse_move.x_overflow = mouse.x_overflow;
     event.mouse_move.y_overflow = mouse.y_overflow;
-    ++g_mouse_move_events;
-    return push_event(event);
+    return kernel::input::enqueue(event);
 }
 
 } // namespace
@@ -85,8 +76,7 @@ namespace kernel::input
 
 void pump()
 {
-    EventQueue & events = event_queue();
-    for (int poll_count = 0; poll_count < kMaxPollsPerPump && !events.full(); ++poll_count)
+    for (int poll_count = 0; poll_count < kMaxPollsPerPump && !queue_full(); ++poll_count)
     {
         const bool pushed_key = poll_keyboard();
         const bool pushed_mouse = poll_mouse();
@@ -97,23 +87,34 @@ void pump()
     }
 }
 
+bool enqueue(const Event & event)
+{
+    kernel::arch::x86_64::InterruptGuard guard;
+    return event_queue().push(event);
+}
+
 bool poll(Event & event)
 {
     event = {};
-    EventQueue & events = event_queue();
-    if (events.pop(event))
     {
-        return true;
+        kernel::arch::x86_64::InterruptGuard guard;
+        if (event_queue().pop(event))
+        {
+            return true;
+        }
     }
 
     pump();
-    return events.pop(event);
+    {
+        kernel::arch::x86_64::InterruptGuard guard;
+        return event_queue().pop(event);
+    }
 }
 
 Stats stats()
 {
-    EventQueue & events = event_queue();
-    return {g_key_events, g_mouse_move_events, g_dropped_events, events.size(), events.capacity(), events.available()};
+    kernel::arch::x86_64::InterruptGuard guard;
+    return event_queue().stats();
 }
 
 } // namespace kernel::input
