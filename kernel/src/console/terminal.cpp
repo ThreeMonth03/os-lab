@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "kernel/display/display.hpp"
+#include "kernel/display/display_target.hpp"
 #include "kernel/display/terminal_renderer.hpp"
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/display/mouse_cursor.hpp"
@@ -20,6 +21,7 @@ constexpr uint64_t kCellHeight = display::TerminalRenderer::kCellHeight;
 struct TerminalState
 {
     display::Surface surface;
+    display::DisplayTargetRegistry targets;
     display::TerminalRenderer renderer;
     kernel::TextConsole console;
     uint64_t visible_cursor_column = 0;
@@ -101,6 +103,20 @@ bool init()
     }
 
     g_state.surface = display::Surface(framebuffer->address, framebuffer->width, framebuffer->height, framebuffer->pitch);
+    g_state.targets.clear();
+    const bool target_registered = g_state.targets.register_target({
+        display::kConsoleSurfaceId,
+        display::DisplayTargetKind::Console,
+        {0, 0, framebuffer->width, framebuffer->height},
+        false,
+        false,
+    });
+    if (!target_registered || !g_state.targets.set_active(display::kConsoleSurfaceId) ||
+        !g_state.targets.set_focused(display::kConsoleSurfaceId))
+    {
+        return false;
+    }
+
     g_state.console.reset(framebuffer->width / kCellWidth, framebuffer->height / kCellHeight);
     const display::Color foreground{pack_rgb(*framebuffer, 0xf5, 0xf5, 0xf5)};
     const display::Color background{pack_rgb(*framebuffer, 0x10, 0x14, 0x1c)};
@@ -110,7 +126,7 @@ bool init()
     return true;
 }
 
-bool ready() { return g_state.surface.ready(); }
+bool ready() { return g_state.surface.ready() && g_state.targets.active_target().valid(); }
 
 uint64_t columns() { return g_state.console.columns(); }
 
