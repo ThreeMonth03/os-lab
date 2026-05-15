@@ -121,7 +121,7 @@ bool init()
     }
 
     g_state.surface = display::Surface(framebuffer->address, framebuffer->width, framebuffer->height, framebuffer->pitch);
-    g_state.pointer.reset(framebuffer->width, framebuffer->height, kCursorWidth, kCursorHeight);
+    g_state.pointer.reset(framebuffer->width, framebuffer->height);
     g_state.outline = pack_rgb(*framebuffer, 0x00, 0x00, 0x00);
     g_state.fill = pack_rgb(*framebuffer, 0xff, 0xff, 0xff);
     g_state.initialized = true;

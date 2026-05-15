@@ -27,6 +27,7 @@ mapfile -d '' sources < <(
     printf '%s\0' \
         "${project_root}/kernel/src/arch/x86_64/paging.cpp" \
         "${project_root}/kernel/src/display/compositor.cpp" \
+        "${project_root}/kernel/src/display/cursor_geometry.cpp" \
         "${project_root}/kernel/src/display/debug_overlay.cpp" \
         "${project_root}/kernel/src/display/display.cpp" \
         "${project_root}/kernel/src/display/display_target.cpp" \

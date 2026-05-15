@@ -6,38 +6,38 @@ namespace
 
 TEST(PointerStateTest, InitializesAtCenteredPosition)
 {
-    const kernel::input::PointerState pointer(100, 80, 10, 16);
+    const kernel::input::PointerState pointer(100, 80);
 
-    EXPECT_EQ(pointer.x(), 45u);
-    EXPECT_EQ(pointer.y(), 32u);
+    EXPECT_EQ(pointer.x(), 50u);
+    EXPECT_EQ(pointer.y(), 40u);
 }
 
 TEST(PointerStateTest, AppliesMouseDeltasWithInvertedY)
 {
-    kernel::input::PointerState pointer(100, 80, 10, 16);
+    kernel::input::PointerState pointer(100, 80);
 
     pointer.move_by(5, 7);
 
-    EXPECT_EQ(pointer.x(), 50u);
-    EXPECT_EQ(pointer.y(), 25u);
+    EXPECT_EQ(pointer.x(), 55u);
+    EXPECT_EQ(pointer.y(), 33u);
 }
 
 TEST(PointerStateTest, ClampsToBounds)
 {
-    kernel::input::PointerState pointer(100, 80, 10, 16);
+    kernel::input::PointerState pointer(100, 80);
 
     pointer.move_by(-200, 200);
     EXPECT_EQ(pointer.x(), 0u);
     EXPECT_EQ(pointer.y(), 0u);
 
     pointer.move_by(300, -300);
-    EXPECT_EQ(pointer.x(), 90u);
-    EXPECT_EQ(pointer.y(), 64u);
+    EXPECT_EQ(pointer.x(), 99u);
+    EXPECT_EQ(pointer.y(), 79u);
 }
 
-TEST(PointerStateTest, HandlesPointerLargerThanBounds)
+TEST(PointerStateTest, HandlesEmptyBounds)
 {
-    kernel::input::PointerState pointer(8, 8, 10, 16);
+    kernel::input::PointerState pointer(0, 0);
 
     pointer.move_by(10, -10);
 

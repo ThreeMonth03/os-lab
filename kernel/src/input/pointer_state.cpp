@@ -3,9 +3,9 @@
 namespace
 {
 
-uint64_t max_position(uint64_t extent, uint64_t pointer_extent)
+uint64_t max_position(uint64_t extent)
 {
-    return extent > pointer_extent ? extent - pointer_extent : 0;
+    return extent > 0 ? extent - 1 : 0;
 }
 
 uint64_t clamp_position(int64_t value, uint64_t max)
@@ -27,19 +27,17 @@ uint64_t clamp_position(int64_t value, uint64_t max)
 namespace kernel::input
 {
 
-PointerState::PointerState(uint64_t width, uint64_t height, uint64_t pointer_width, uint64_t pointer_height)
+PointerState::PointerState(uint64_t width, uint64_t height)
 {
-    reset(width, height, pointer_width, pointer_height);
+    reset(width, height);
 }
 
-void PointerState::reset(uint64_t width, uint64_t height, uint64_t pointer_width, uint64_t pointer_height)
+void PointerState::reset(uint64_t width, uint64_t height)
 {
     width_ = width;
     height_ = height;
-    pointer_width_ = pointer_width;
-    pointer_height_ = pointer_height;
-    x_ = max_position(width_, pointer_width_) / 2;
-    y_ = max_position(height_, pointer_height_) / 2;
+    x_ = width_ / 2;
+    y_ = height_ / 2;
 }
 
 void PointerState::move_by(int16_t delta_x, int16_t delta_y)
@@ -50,12 +48,12 @@ void PointerState::move_by(int16_t delta_x, int16_t delta_y)
 
 uint64_t PointerState::clamp_x(int64_t value) const
 {
-    return clamp_position(value, max_position(width_, pointer_width_));
+    return clamp_position(value, max_position(width_));
 }
 
 uint64_t PointerState::clamp_y(int64_t value) const
 {
-    return clamp_position(value, max_position(height_, pointer_height_));
+    return clamp_position(value, max_position(height_));
 }
 
 } // namespace kernel::input

@@ -9,17 +9,15 @@ class PointerState
 {
 public:
     PointerState() = default;
-    PointerState(uint64_t width, uint64_t height, uint64_t pointer_width, uint64_t pointer_height);
+    PointerState(uint64_t width, uint64_t height);
 
-    void reset(uint64_t width, uint64_t height, uint64_t pointer_width, uint64_t pointer_height);
+    void reset(uint64_t width, uint64_t height);
     void move_by(int16_t delta_x, int16_t delta_y);
 
     uint64_t x() const { return x_; }
     uint64_t y() const { return y_; }
     uint64_t width() const { return width_; }
     uint64_t height() const { return height_; }
-    uint64_t pointer_width() const { return pointer_width_; }
-    uint64_t pointer_height() const { return pointer_height_; }
 
 private:
     [[nodiscard]] uint64_t clamp_x(int64_t value) const;
@@ -27,8 +25,6 @@ private:
 
     uint64_t width_ = 0;
     uint64_t height_ = 0;
-    uint64_t pointer_width_ = 0;
-    uint64_t pointer_height_ = 0;
     uint64_t x_ = 0;
     uint64_t y_ = 0;
 }; // end class PointerState
