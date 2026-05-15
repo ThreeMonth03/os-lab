@@ -63,25 +63,13 @@ void write_bool_stat(kernel::StringView name, bool value)
     terminal::write_line(value ? "yes" : "no");
 }
 
-kernel::StringView keyboard_input_mode_name(kernel::keyboard::InputMode mode)
+kernel::StringView input_device_mode_name(kernel::input::DeviceMode mode)
 {
     switch (mode)
     {
-    case kernel::keyboard::InputMode::PollingFallback:
+    case kernel::input::DeviceMode::PollingFallback:
         return "polling fallback";
-    case kernel::keyboard::InputMode::Irq:
-        return "irq";
-    }
-    return "unknown";
-}
-
-kernel::StringView mouse_input_mode_name(kernel::mouse::InputMode mode)
-{
-    switch (mode)
-    {
-    case kernel::mouse::InputMode::PollingFallback:
-        return "polling fallback";
-    case kernel::mouse::InputMode::Irq:
+    case kernel::input::DeviceMode::Irq:
         return "irq";
     }
     return "unknown";
@@ -173,9 +161,9 @@ void write_input_stats()
 
     terminal::write_line("input stats:");
     terminal::write_string("  keyboard mode: ");
-    terminal::write_line(keyboard_input_mode_name(stats.keyboard_mode));
+    terminal::write_line(input_device_mode_name(stats.keyboard_mode));
     terminal::write_string("  mouse mode: ");
-    terminal::write_line(mouse_input_mode_name(stats.mouse_mode));
+    terminal::write_line(input_device_mode_name(stats.mouse_mode));
     write_stat("key events", stats.key_events);
     write_stat("keyboard IRQ events", stats.keyboard_irq_events);
     write_stat("keyboard polling fallback events", stats.keyboard_polling_fallback_events);

@@ -16,7 +16,7 @@ constexpr uint8_t kConfigDisableKeyboardClock = 0x10;
 constexpr uint8_t kKeyboardIrqLine = 1;
 
 kernel::keyboard::KeyboardDecoder g_decoder;
-kernel::keyboard::InputMode g_input_mode = kernel::keyboard::InputMode::PollingFallback;
+kernel::input::DeviceMode g_input_mode = kernel::input::DeviceMode::PollingFallback;
 
 bool read_decoded_key(kernel::keyboard::KeyEvent & event)
 {
@@ -35,8 +35,8 @@ bool enqueue_key_event(const kernel::keyboard::KeyEvent & key)
 {
     kernel::input::Event event;
     event.kind = kernel::input::EventKind::Key;
+    event.source = kernel::input::EventSource::Irq;
     event.key = key;
-    event.key_source = kernel::input::KeyEventSource::Irq;
     return kernel::input::enqueue(event);
 }
 
@@ -51,23 +51,23 @@ bool init_irq()
     if (!kernel::drivers::ps2::write_command(kCommandEnableKeyboard) ||
         !kernel::drivers::ps2::read_config(config))
     {
-        g_input_mode = InputMode::PollingFallback;
+        g_input_mode = kernel::input::DeviceMode::PollingFallback;
         return false;
     }
 
     config = static_cast<uint8_t>((config | kConfigKeyboardInterrupt) & ~kConfigDisableKeyboardClock);
     if (!kernel::drivers::ps2::write_config(config))
     {
-        g_input_mode = InputMode::PollingFallback;
+        g_input_mode = kernel::input::DeviceMode::PollingFallback;
         return false;
     }
 
     kernel::arch::x86_64::pic::unmask(kKeyboardIrqLine);
-    g_input_mode = InputMode::Irq;
+    g_input_mode = kernel::input::DeviceMode::Irq;
     return true;
 }
 
-InputMode input_mode() { return g_input_mode; }
+kernel::input::DeviceMode input_mode() { return g_input_mode; }
 
 void handle_irq()
 {

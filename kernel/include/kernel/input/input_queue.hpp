@@ -52,43 +52,43 @@ private:
         {
         case EventKind::Key:
             ++key_events_;
-            record_key_source(event.key_source);
+            record_key_source(event.source);
             break;
         case EventKind::MouseMove:
             ++mouse_move_events_;
-            record_mouse_source(event.mouse_source);
+            record_mouse_source(event.source);
             break;
         case EventKind::None:
             break;
         }
     }
 
-    void record_key_source(KeyEventSource source)
+    void record_key_source(EventSource source)
     {
         switch (source)
         {
-        case KeyEventSource::Irq:
+        case EventSource::Irq:
             ++keyboard_irq_events_;
             break;
-        case KeyEventSource::PollingFallback:
+        case EventSource::PollingFallback:
             ++keyboard_polling_fallback_events_;
             break;
-        case KeyEventSource::Unknown:
+        case EventSource::Unknown:
             break;
         }
     }
 
-    void record_mouse_source(MouseEventSource source)
+    void record_mouse_source(EventSource source)
     {
         switch (source)
         {
-        case MouseEventSource::Irq:
+        case EventSource::Irq:
             ++mouse_irq_events_;
             break;
-        case MouseEventSource::PollingFallback:
+        case EventSource::PollingFallback:
             ++mouse_polling_fallback_events_;
             break;
-        case MouseEventSource::Unknown:
+        case EventSource::Unknown:
             break;
         }
     }

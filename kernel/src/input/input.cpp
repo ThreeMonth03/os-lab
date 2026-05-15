@@ -37,7 +37,7 @@ bool queue_full()
 
 bool poll_keyboard()
 {
-    if (kernel::keyboard::input_mode() == kernel::keyboard::InputMode::Irq)
+    if (kernel::keyboard::input_mode() == kernel::input::DeviceMode::Irq)
     {
         return false;
     }
@@ -50,8 +50,8 @@ bool poll_keyboard()
 
     kernel::input::Event event;
     event.kind = kernel::input::EventKind::Key;
+    event.source = kernel::input::EventSource::PollingFallback;
     event.key = key;
-    event.key_source = kernel::input::KeyEventSource::PollingFallback;
     return kernel::input::enqueue(event);
 }
 
@@ -65,6 +65,7 @@ bool poll_mouse()
 
     kernel::input::Event event;
     event.kind = kernel::input::EventKind::MouseMove;
+    event.source = kernel::input::EventSource::PollingFallback;
     event.mouse_move.delta_x = mouse.delta_x;
     event.mouse_move.delta_y = mouse.delta_y;
     event.mouse_move.left_button = mouse.left_button;
@@ -72,7 +73,6 @@ bool poll_mouse()
     event.mouse_move.middle_button = mouse.middle_button;
     event.mouse_move.x_overflow = mouse.x_overflow;
     event.mouse_move.y_overflow = mouse.y_overflow;
-    event.mouse_source = kernel::input::MouseEventSource::PollingFallback;
     return kernel::input::enqueue(event);
 }
 

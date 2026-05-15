@@ -19,7 +19,7 @@ constexpr uint32_t kResponseWaitLimit = 100000;
 
 kernel::mouse::MousePacketDecoder g_decoder;
 bool g_ready = false;
-kernel::mouse::InputMode g_input_mode = kernel::mouse::InputMode::PollingFallback;
+kernel::input::DeviceMode g_input_mode = kernel::input::DeviceMode::PollingFallback;
 
 bool wait_for_mouse_ack()
 {
@@ -70,6 +70,7 @@ void enqueue_mouse_event(const kernel::mouse::MousePacket & packet)
 {
     kernel::input::Event event;
     event.kind = kernel::input::EventKind::MouseMove;
+    event.source = kernel::input::EventSource::Irq;
     event.mouse_move.delta_x = packet.delta_x;
     event.mouse_move.delta_y = packet.delta_y;
     event.mouse_move.left_button = packet.left_button;
@@ -77,7 +78,6 @@ void enqueue_mouse_event(const kernel::mouse::MousePacket & packet)
     event.mouse_move.middle_button = packet.middle_button;
     event.mouse_move.x_overflow = packet.x_overflow;
     event.mouse_move.y_overflow = packet.y_overflow;
-    event.mouse_source = kernel::input::MouseEventSource::Irq;
     (void)kernel::input::enqueue(event);
 }
 
@@ -89,7 +89,7 @@ namespace kernel::mouse
 bool init()
 {
     g_ready = false;
-    g_input_mode = InputMode::PollingFallback;
+    g_input_mode = kernel::input::DeviceMode::PollingFallback;
     g_decoder.reset();
 
     kernel::drivers::ps2::flush_output();
@@ -115,14 +115,14 @@ bool init()
     if (irq_configured)
     {
         kernel::arch::x86_64::pic::unmask(kMouseIrqLine);
-        g_input_mode = InputMode::Irq;
+        g_input_mode = kernel::input::DeviceMode::Irq;
     }
     return true;
 }
 
 bool ready() { return g_ready; }
 
-InputMode input_mode() { return g_input_mode; }
+kernel::input::DeviceMode input_mode() { return g_input_mode; }
 
 void handle_irq()
 {
@@ -147,7 +147,7 @@ void handle_irq()
 bool poll(MouseEvent & event)
 {
     event = {};
-    if (!g_ready || g_input_mode == InputMode::Irq)
+    if (!g_ready || g_input_mode == kernel::input::DeviceMode::Irq)
     {
         return false;
     }

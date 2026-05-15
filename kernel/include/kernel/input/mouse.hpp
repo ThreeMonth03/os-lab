@@ -2,14 +2,10 @@
 
 #include <stdint.h>
 
+#include "kernel/input/input_types.hpp"
+
 namespace kernel::mouse
 {
-
-enum class InputMode
-{
-    PollingFallback,
-    Irq,
-};
 
 struct MouseEvent
 {
@@ -24,7 +20,7 @@ struct MouseEvent
 
 [[nodiscard]] bool init();
 [[nodiscard]] bool ready();
-[[nodiscard]] InputMode input_mode();
+[[nodiscard]] input::DeviceMode input_mode();
 void handle_irq();
 [[nodiscard]] bool poll(MouseEvent & event);
 

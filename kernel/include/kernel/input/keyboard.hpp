@@ -1,5 +1,7 @@
 #pragma once
 
+#include "kernel/input/input_types.hpp"
+
 namespace kernel::keyboard
 {
 
@@ -21,12 +23,6 @@ enum class Key
     Delete,
 };
 
-enum class InputMode
-{
-    PollingFallback,
-    Irq,
-};
-
 struct KeyEvent
 {
     Key key = Key::Unknown;
@@ -40,7 +36,7 @@ struct KeyEvent
 };
 
 [[nodiscard]] bool init_irq();
-[[nodiscard]] InputMode input_mode();
+[[nodiscard]] input::DeviceMode input_mode();
 void handle_irq();
 [[nodiscard]] bool poll_key(KeyEvent & event);
 
