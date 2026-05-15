@@ -26,4 +26,8 @@ private:
     InputFocus focus_ = InputFocus::Shell;
 };
 
+[[nodiscard]] InputFocus focus();
+void set_focus(InputFocus focus);
+[[nodiscard]] RoutedEvent route(const Event & event);
+
 } // namespace kernel::input

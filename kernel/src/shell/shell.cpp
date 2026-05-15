@@ -6,6 +6,7 @@
 #include "shell_command_executor.hpp"
 #include "shell_editor_view.hpp"
 
+#include "kernel/input/input_router.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/input/keyboard.hpp"
 #include "kernel/display/mouse_cursor.hpp"
@@ -203,17 +204,23 @@ void handle_mouse_move_event(const kernel::input::MouseMoveEvent & event)
     }
 }
 
-void handle_input_event(const kernel::input::Event & event, kernel::LineEditor & line, kernel::shell::EditorView & view, bool & caps_lock, kernel::History & history)
+void handle_routed_event(const kernel::input::RoutedEvent & routed, kernel::LineEditor & line, kernel::shell::EditorView & view, bool & caps_lock, kernel::History & history)
 {
-    switch (event.kind)
+    switch (routed.target)
     {
-    case kernel::input::EventKind::Key:
-        handle_key_event(event.key, line, view, caps_lock, history);
+    case kernel::input::EventTarget::Shell:
+        if (routed.event.kind == kernel::input::EventKind::Key)
+        {
+            handle_key_event(routed.event.key, line, view, caps_lock, history);
+        }
         break;
-    case kernel::input::EventKind::MouseMove:
-        handle_mouse_move_event(event.mouse_move);
+    case kernel::input::EventTarget::Pointer:
+        if (routed.event.kind == kernel::input::EventKind::MouseMove)
+        {
+            handle_mouse_move_event(routed.event.mouse_move);
+        }
         break;
-    case kernel::input::EventKind::None:
+    case kernel::input::EventTarget::None:
         break;
     }
 }
@@ -241,7 +248,7 @@ namespace kernel::shell
         input::Event event;
         if (input::poll(event))
         {
-            handle_input_event(event, line, view, caps_lock, history);
+            handle_routed_event(input::route(event), line, view, caps_lock, history);
         }
         else
         {

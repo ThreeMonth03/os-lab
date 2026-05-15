@@ -4,6 +4,7 @@
 
 #include "kernel/core/halt.hpp"
 #include "kernel/input/input.hpp"
+#include "kernel/input/input_router.hpp"
 #include "kernel/memory/heap.hpp"
 #include "kernel/memory/memory.hpp"
 #include "kernel/memory/slab.hpp"
@@ -71,6 +72,18 @@ kernel::StringView input_device_mode_name(kernel::input::DeviceMode mode)
         return "polling fallback";
     case kernel::input::DeviceMode::Irq:
         return "irq";
+    }
+    return "unknown";
+}
+
+kernel::StringView input_focus_name(kernel::input::InputFocus focus)
+{
+    switch (focus)
+    {
+    case kernel::input::InputFocus::None:
+        return "none";
+    case kernel::input::InputFocus::Shell:
+        return "shell";
     }
     return "unknown";
 }
@@ -160,6 +173,8 @@ void write_input_stats()
     const kernel::input::Stats stats = kernel::input::stats();
 
     terminal::write_line("input stats:");
+    terminal::write_string("  focus: ");
+    terminal::write_line(input_focus_name(kernel::input::focus()));
     terminal::write_string("  keyboard mode: ");
     terminal::write_line(input_device_mode_name(stats.keyboard_mode));
     terminal::write_string("  mouse mode: ");
