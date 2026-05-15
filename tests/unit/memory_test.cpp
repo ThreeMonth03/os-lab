@@ -7,6 +7,7 @@
 #include "kernel/memory/physical_frame_allocator.hpp"
 #include "kernel/memory/slab_cache.hpp"
 #include "kernel/memory/slab_registry.hpp"
+#include "kernel/memory/typed_slab_cache.hpp"
 
 namespace
 {
@@ -529,6 +530,73 @@ TEST(SlabRegistryTest, ValidatesAllRegisteredCaches)
     const kernel::memory::SlabRegistryCacheStats large_stats = registry.cache_stats(1);
     EXPECT_EQ(small_stats.cache.allocated_objects, 1u);
     EXPECT_EQ(large_stats.cache.allocated_objects, 0u);
+}
+
+struct alignas(32) TypedSlabTestObject
+{
+    unsigned char bytes[24];
+};
+
+TEST(TypedSlabCacheTest, UsesObjectSizeAndAlignment)
+{
+    alignas(32) unsigned char storage[512] = {};
+    kernel::memory::TypedSlabCache<TypedSlabTestObject> cache;
+
+    ASSERT_TRUE(cache.init());
+    ASSERT_TRUE(cache.add_slab(storage, sizeof(storage)));
+
+    TypedSlabTestObject * object = cache.allocate_uninitialized();
+    ASSERT_NE(object, nullptr);
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(object) % alignof(TypedSlabTestObject), 0u);
+
+    const kernel::memory::SlabCacheStats stats = cache.stats();
+    EXPECT_TRUE(stats.initialized);
+    EXPECT_EQ(stats.object_size, sizeof(TypedSlabTestObject));
+    EXPECT_EQ(stats.alignment, alignof(TypedSlabTestObject));
+    EXPECT_EQ(stats.allocated_objects, 1u);
+    EXPECT_TRUE(cache.validate().valid);
+}
+
+TEST(TypedSlabCacheTest, AllocatesFreesAndReusesRawStorage)
+{
+    alignas(32) unsigned char storage[512] = {};
+    kernel::memory::TypedSlabCache<TypedSlabTestObject> cache;
+
+    ASSERT_TRUE(cache.init());
+    ASSERT_TRUE(cache.add_slab(storage, sizeof(storage)));
+
+    auto * first = static_cast<TypedSlabTestObject *>(cache.allocate_raw());
+    TypedSlabTestObject * second = cache.allocate_uninitialized();
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+
+    first->bytes[0] = 0x11;
+    first->bytes[sizeof(first->bytes) - 1] = 0x22;
+    EXPECT_EQ(first->bytes[0], 0x11u);
+    EXPECT_EQ(first->bytes[sizeof(first->bytes) - 1], 0x22u);
+
+    EXPECT_TRUE(cache.free_raw(first));
+    EXPECT_EQ(cache.allocate_uninitialized(), first);
+    EXPECT_TRUE(cache.free_uninitialized(second));
+    EXPECT_TRUE(cache.validate().valid);
+}
+
+TEST(TypedSlabCacheTest, RejectsInvalidAndDoubleFree)
+{
+    alignas(32) unsigned char storage[512] = {};
+    kernel::memory::TypedSlabCache<TypedSlabTestObject> cache;
+
+    ASSERT_TRUE(cache.init());
+    ASSERT_TRUE(cache.add_slab(storage, sizeof(storage)));
+
+    TypedSlabTestObject * object = cache.allocate_uninitialized();
+    ASSERT_NE(object, nullptr);
+    EXPECT_TRUE(cache.free_uninitialized(object));
+    EXPECT_FALSE(cache.free_uninitialized(object));
+
+    TypedSlabTestObject outside_cache;
+    EXPECT_FALSE(cache.free_uninitialized(&outside_cache));
+    EXPECT_TRUE(cache.validate().valid);
 }
 
 } // namespace
