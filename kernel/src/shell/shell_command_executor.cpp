@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "kernel/core/halt.hpp"
+#include "kernel/display/mouse_cursor.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/input/input_router.hpp"
 #include "kernel/memory/heap.hpp"
@@ -16,6 +17,7 @@ namespace
 {
 
 namespace serial = kernel::drivers::serial;
+namespace mouse_cursor = kernel::display::mouse_cursor;
 namespace terminal = kernel::console::terminal;
 
 void write_help()
@@ -190,14 +192,20 @@ void write_input_stats()
 {
     const kernel::input::Stats stats = kernel::input::stats();
     const kernel::display::HitTestResult pointer_target = terminal::pointer_target();
+    const mouse_cursor::Position pointer_position = mouse_cursor::position();
 
     terminal::write_line("input stats:");
     terminal::write_string("  focus: ");
     terminal::write_line(input_focus_name(kernel::input::focus()));
-    terminal::write_string("  pointer target: ");
+    terminal::write_string("  pointer target kind: ");
     terminal::write_line(pointer_target_name(pointer_target.target_kind));
-    write_stat("pointer target surface", pointer_target.surface_id);
-    write_stat("pointer gui surface", pointer_target.gui_surface_id);
+    write_stat("pointer x", pointer_position.x);
+    write_stat("pointer y", pointer_position.y);
+    write_stat("pointer display surface id", pointer_target.surface_id);
+    if (pointer_target.target_kind == kernel::display::DisplayTargetKind::GuiSurface)
+    {
+        write_stat("pointer gui surface id", pointer_target.gui_surface_id);
+    }
     terminal::write_string("  keyboard mode: ");
     terminal::write_line(input_device_mode_name(stats.keyboard_mode));
     terminal::write_string("  mouse mode: ");
