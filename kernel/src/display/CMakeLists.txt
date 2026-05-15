@@ -10,6 +10,7 @@ add_library(os_lab_kernel_display OBJECT
     gui_surface.cpp
     hit_test.cpp
     mouse_cursor.cpp
+    terminal_repaint_state.cpp
     terminal_renderer.cpp
 )
 os_lab_configure_kernel_object(os_lab_kernel_display)

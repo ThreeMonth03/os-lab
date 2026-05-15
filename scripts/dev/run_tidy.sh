@@ -33,6 +33,7 @@ mapfile -d '' sources < <(
         "${project_root}/kernel/src/display/gui_panel.cpp" \
         "${project_root}/kernel/src/display/gui_surface.cpp" \
         "${project_root}/kernel/src/display/hit_test.cpp" \
+        "${project_root}/kernel/src/display/terminal_repaint_state.cpp" \
         "${project_root}/kernel/src/input/input_router.cpp" \
         "${project_root}/kernel/src/input/keyboard_decoder.cpp" \
         "${project_root}/kernel/src/input/mouse_packet_decoder.cpp" \

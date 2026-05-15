@@ -18,6 +18,7 @@ add_executable(os_lab_unit_tests
     pointer_state_test.cpp
     shell_command_test.cpp
     string_view_test.cpp
+    terminal_repaint_state_test.cpp
     text_buffer_test.cpp
     text_console_test.cpp
 )
