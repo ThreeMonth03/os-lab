@@ -21,6 +21,12 @@ enum class Key
     Delete,
 };
 
+enum class InputMode
+{
+    PollingFallback,
+    Irq,
+};
+
 struct KeyEvent
 {
     Key key = Key::Unknown;
@@ -34,7 +40,7 @@ struct KeyEvent
 };
 
 [[nodiscard]] bool init_irq();
-[[nodiscard]] bool irq_enabled();
+[[nodiscard]] InputMode input_mode();
 void handle_irq();
 [[nodiscard]] bool poll_key(KeyEvent & event);
 

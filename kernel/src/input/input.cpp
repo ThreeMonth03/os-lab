@@ -37,7 +37,7 @@ bool queue_full()
 
 bool poll_keyboard()
 {
-    if (kernel::keyboard::irq_enabled())
+    if (kernel::keyboard::input_mode() == kernel::keyboard::InputMode::Irq)
     {
         return false;
     }
