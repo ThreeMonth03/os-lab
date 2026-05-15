@@ -36,9 +36,6 @@ struct CursorState
 {
     display::Surface surface;
     kernel::PointerState pointer;
-    uint64_t saved_width = 0;
-    uint64_t saved_height = 0;
-    uint32_t saved_pixels[kCursorWidth * kCursorHeight] = {};
     uint32_t outline = 0;
     uint32_t fill = 0;
     bool initialized = false;
@@ -56,31 +53,19 @@ uint32_t pack_rgb(const limine_framebuffer & framebuffer, uint8_t red, uint8_t g
 
 uint64_t min_u64(uint64_t lhs, uint64_t rhs) { return lhs < rhs ? lhs : rhs; }
 
-void save_background()
+display::Rect current_bounds()
 {
-    g_state.saved_width = min_u64(kCursorWidth, g_state.surface.width() - g_state.pointer.x());
-    g_state.saved_height = min_u64(kCursorHeight, g_state.surface.height() - g_state.pointer.y());
-
-    for (uint64_t row = 0; row < g_state.saved_height; ++row)
+    if (!g_state.initialized || !g_state.surface.ready())
     {
-        for (uint64_t column = 0; column < g_state.saved_width; ++column)
-        {
-            g_state.saved_pixels[(row * kCursorWidth) + column] =
-                g_state.surface.pixel(g_state.pointer.x() + column, g_state.pointer.y() + row)
-                    .value;
-        }
+        return {};
     }
-}
 
-void restore_background()
-{
-    for (uint64_t row = 0; row < g_state.saved_height; ++row)
-    {
-        for (uint64_t column = 0; column < g_state.saved_width; ++column)
-        {
-            g_state.surface.put_pixel(g_state.pointer.x() + column, g_state.pointer.y() + row, {g_state.saved_pixels[(row * kCursorWidth) + column]});
-        }
-    }
+    return {
+        g_state.pointer.x(),
+        g_state.pointer.y(),
+        min_u64(kCursorWidth, g_state.surface.width() - g_state.pointer.x()),
+        min_u64(kCursorHeight, g_state.surface.height() - g_state.pointer.y()),
+    };
 }
 
 void draw_bitmap()
@@ -100,6 +85,16 @@ void draw_bitmap()
             }
         }
     }
+}
+
+void repaint_cursor(display::Rect dirty_rect)
+{
+    if (!g_state.initialized || !g_state.visible || !display::rects_overlap(current_bounds(), dirty_rect))
+    {
+        return;
+    }
+
+    draw_bitmap();
 }
 
 } // namespace
@@ -136,6 +131,8 @@ bool init()
         {0, 0, framebuffer->width, framebuffer->height},
         true,
     });
+    (void)display::compositor::register_repaint_callback(display::LayerKind::MouseCursor,
+                                                         repaint_cursor);
     return true;
 }
 
@@ -158,9 +155,8 @@ void show()
         return;
     }
 
-    save_background();
-    draw_bitmap();
     g_state.visible = true;
+    display::compositor::repaint_layers_from(display::LayerKind::MouseCursor, current_bounds());
 }
 
 void hide()
@@ -170,8 +166,9 @@ void hide()
         return;
     }
 
-    restore_background();
+    const display::Rect old_bounds = current_bounds();
     g_state.visible = false;
+    display::compositor::repaint_layers_from(display::LayerKind::Console, old_bounds);
 }
 
 void move_by(int16_t delta_x, int16_t delta_y)
@@ -182,16 +179,13 @@ void move_by(int16_t delta_x, int16_t delta_y)
     }
 
     const bool was_visible = g_state.visible;
-    if (was_visible)
-    {
-        hide();
-    }
+    const display::Rect old_bounds = current_bounds();
 
     g_state.pointer.move_by(delta_x, delta_y);
-
-    if (was_visible)
+    const display::Rect new_bounds = current_bounds();
+    if (was_visible && (old_bounds.x != new_bounds.x || old_bounds.y != new_bounds.y))
     {
-        show();
+        display::compositor::mark_cursor_move_dirty(old_bounds, new_bounds);
     }
 }
 

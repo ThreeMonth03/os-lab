@@ -13,7 +13,6 @@
 #include "kernel/display/terminal_renderer.hpp"
 #include "kernel/display/terminal_repaint_state.hpp"
 #include "kernel/boot/limine_support.hpp"
-#include "kernel/display/mouse_cursor.hpp"
 #include "kernel/text/text_buffer.hpp"
 #include "kernel/text/text_console.hpp"
 
@@ -157,6 +156,43 @@ display::Rect render_text_repaint(bool full_repaint, uint64_t scroll_rows)
     }
 
     return display::bounding_rect(dirty_rect, render_dirty_text_cells());
+}
+
+void repaint_console_region(display::Rect dirty_rect)
+{
+    if (!terminal_ready() || dirty_rect.empty())
+    {
+        return;
+    }
+
+    for (uint64_t row = 0; row < g_state.text_buffer.rows(); ++row)
+    {
+        for (uint64_t column = 0; column < g_state.text_buffer.columns(); ++column)
+        {
+            if (!display::rects_overlap(cell_rect(column, row), dirty_rect))
+            {
+                continue;
+            }
+
+            const char glyph = g_state.text_buffer.glyph_at(column, row);
+            if (glyph == kernel::kTextBufferBlank)
+            {
+                g_state.renderer.clear_cell(column, row);
+            }
+            else
+            {
+                g_state.renderer.draw_glyph(glyph, column, row);
+            }
+            (void)g_state.render_cache.mark_rendered(column, row, glyph);
+        }
+    }
+
+    if (g_state.cursor_visible &&
+        display::rects_overlap(cell_rect(g_state.visible_cursor_column, g_state.visible_cursor_row),
+                               dirty_rect))
+    {
+        g_state.renderer.draw_cursor(g_state.visible_cursor_column, g_state.visible_cursor_row);
+    }
 }
 
 void apply_repaint_request(display::TerminalRepaintRequest request)
@@ -337,6 +373,8 @@ bool init()
         {0, 0, framebuffer->width, framebuffer->height},
         true,
     });
+    (void)display::compositor::register_repaint_callback(display::LayerKind::Console,
+                                                         repaint_console_region);
 
     const uint64_t columns = framebuffer->width / kCellWidth;
     const uint64_t rows = framebuffer->height / kCellHeight;

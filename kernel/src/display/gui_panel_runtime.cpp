@@ -73,6 +73,29 @@ void draw_border(kernel::display::Rect bounds)
     g_state.surface->fill_rect({bounds.x + bounds.width - 1, bounds.y, 1, bounds.height}, g_state.border);
 }
 
+void paint_panel()
+{
+    if (!kernel::display::gui_panel::ready() ||
+        !kernel::display::gui_panel::should_redraw(g_state.panel))
+    {
+        return;
+    }
+
+    g_state.surface->fill_rect(g_state.panel.bounds, g_state.background);
+    draw_border(g_state.panel.bounds);
+    draw_text(kTitle, kernel::display::gui_panel::content_bounds(g_state.panel.bounds));
+}
+
+void repaint_panel(kernel::display::Rect dirty_rect)
+{
+    if (!kernel::display::rects_overlap(g_state.panel.bounds, dirty_rect))
+    {
+        return;
+    }
+
+    paint_panel();
+}
+
 } // namespace
 
 namespace kernel::display::gui_panel
@@ -93,6 +116,7 @@ bool init(Surface & surface, const GuiSurface & panel, Color border, Color backg
     g_state.foreground = foreground;
     g_state.config = config;
     g_state.initialized = true;
+    (void)compositor::register_repaint_callback(LayerKind::GuiSurface, repaint_panel);
     return true;
 }
 
@@ -108,10 +132,9 @@ void refresh_now()
         return;
     }
 
-    compositor::RedrawGuard redraw(g_state.panel.bounds);
-    g_state.surface->fill_rect(g_state.panel.bounds, g_state.background);
-    draw_border(g_state.panel.bounds);
-    draw_text(kTitle, content_bounds(g_state.panel.bounds));
+    paint_panel();
+    compositor::mark_dirty(g_state.panel.bounds);
+    compositor::repaint_layers_above(LayerKind::GuiSurface, g_state.panel.bounds);
 }
 
 } // namespace kernel::display::gui_panel

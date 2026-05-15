@@ -1,7 +1,6 @@
 #include "kernel/display/debug_overlay.hpp"
 
 #include "kernel/display/compositor.hpp"
-#include "kernel/display/mouse_cursor.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/memory/memory.hpp"
 #include "kernel/text/font5x7.hpp"
@@ -81,6 +80,38 @@ debug_overlay::Snapshot make_snapshot()
     return snapshot;
 }
 
+void paint_overlay(const debug_overlay::Snapshot & snapshot)
+{
+    debug_overlay::Lines lines;
+    debug_overlay::format_snapshot(snapshot, lines);
+
+    g_state.surface->fill_rect(g_state.target.bounds, g_state.background);
+
+    const uint64_t text_x = g_state.target.bounds.x + kPadding;
+    uint64_t text_y = g_state.target.bounds.y + kPadding;
+    const uint64_t bottom = g_state.target.bounds.y + g_state.target.bounds.height;
+    if (text_y + kernel::Glyph5x7::height <= bottom)
+    {
+        draw_line(lines.first, text_x, text_y);
+    }
+
+    text_y += kLineHeight;
+    if (text_y + kernel::Glyph5x7::height <= bottom)
+    {
+        draw_line(lines.second, text_x, text_y);
+    }
+}
+
+void repaint_overlay(kernel::display::Rect dirty_rect)
+{
+    if (!kernel::display::debug_overlay::ready() || !kernel::display::rects_overlap(g_state.target.bounds, dirty_rect))
+    {
+        return;
+    }
+
+    paint_overlay(make_snapshot());
+}
+
 } // namespace
 
 namespace kernel::display::debug_overlay
@@ -100,6 +131,7 @@ bool init(Surface & surface, const SurfaceDescriptor & target, Color foreground,
     g_state.background = background;
     g_state.config = config;
     g_state.initialized = true;
+    (void)compositor::register_repaint_callback(LayerKind::DebugOverlay, repaint_overlay);
     return true;
 }
 
@@ -141,25 +173,9 @@ void refresh_now(const Snapshot & snapshot)
         return;
     }
 
-    Lines lines;
-    format_snapshot(snapshot, lines);
-
-    compositor::RedrawGuard redraw(g_state.target.bounds);
-    g_state.surface->fill_rect(g_state.target.bounds, g_state.background);
-
-    const uint64_t text_x = g_state.target.bounds.x + kPadding;
-    uint64_t text_y = g_state.target.bounds.y + kPadding;
-    const uint64_t bottom = g_state.target.bounds.y + g_state.target.bounds.height;
-    if (text_y + Glyph5x7::height <= bottom)
-    {
-        draw_line(lines.first, text_x, text_y);
-    }
-
-    text_y += kLineHeight;
-    if (text_y + Glyph5x7::height <= bottom)
-    {
-        draw_line(lines.second, text_x, text_y);
-    }
+    paint_overlay(snapshot);
+    compositor::mark_dirty(g_state.target.bounds);
+    compositor::repaint_layers_above(LayerKind::DebugOverlay, g_state.target.bounds);
 }
 
 } // namespace kernel::display::debug_overlay
