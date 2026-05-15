@@ -6,6 +6,7 @@
 #include "kernel/memory/memory_map.hpp"
 #include "kernel/memory/physical_frame_allocator.hpp"
 #include "kernel/memory/slab_cache.hpp"
+#include "kernel/memory/slab_registry.hpp"
 
 namespace
 {
@@ -436,6 +437,98 @@ TEST(SlabCacheTest, ValidatesAfterMultipleSlabs)
     EXPECT_TRUE(validation.valid);
     EXPECT_EQ(validation.observed.slab_count, 2u);
     EXPECT_EQ(validation.observed.allocated_objects, 1u);
+}
+
+TEST(SlabRegistryTest, RegistersAndLooksUpNamedCaches)
+{
+    kernel::memory::SlabRegistry::Entry entries[2] = {};
+    kernel::memory::SlabRegistry registry;
+    registry.reset(entries, 2);
+
+    kernel::memory::SlabCacheId id = kernel::memory::kInvalidSlabCacheId;
+    EXPECT_TRUE(registry.register_cache("objects16", 16, 16, id));
+    EXPECT_EQ(id, 0u);
+    EXPECT_EQ(registry.find("objects16"), id);
+    EXPECT_NE(registry.lookup(id), nullptr);
+    EXPECT_EQ(registry.name(id), kernel::StringView("objects16"));
+
+    alignas(16) unsigned char storage[256] = {};
+    ASSERT_TRUE(registry.add_slab(id, storage, sizeof(storage)));
+
+    void * object = registry.allocate(id);
+    ASSERT_NE(object, nullptr);
+    EXPECT_TRUE(registry.free(id, object));
+
+    const kernel::memory::SlabRegistryCacheStats cache_stats = registry.cache_stats(id);
+    EXPECT_TRUE(cache_stats.registered);
+    EXPECT_EQ(cache_stats.name, kernel::StringView("objects16"));
+    EXPECT_EQ(cache_stats.cache.allocated_objects, 0u);
+    EXPECT_TRUE(registry.validate_all().valid);
+}
+
+TEST(SlabRegistryTest, RejectsDuplicateNameAndId)
+{
+    kernel::memory::SlabRegistry::Entry entries[2] = {};
+    kernel::memory::SlabRegistry registry;
+    registry.reset(entries, 2);
+
+    EXPECT_TRUE(registry.register_cache(1, "explicit", 32, 16));
+    EXPECT_FALSE(registry.register_cache(1, "other", 32, 16));
+
+    kernel::memory::SlabCacheId duplicate_name = kernel::memory::kInvalidSlabCacheId;
+    EXPECT_FALSE(registry.register_cache("explicit", 32, 16, duplicate_name));
+
+    const kernel::memory::SlabRegistryStats stats = registry.stats();
+    EXPECT_EQ(stats.registered_caches, 1u);
+    EXPECT_EQ(stats.failed_registrations, 2u);
+    EXPECT_TRUE(registry.validate_all().valid);
+}
+
+TEST(SlabRegistryTest, RejectsCapacityFull)
+{
+    kernel::memory::SlabRegistry::Entry entries[1] = {};
+    kernel::memory::SlabRegistry registry;
+    registry.reset(entries, 1);
+
+    kernel::memory::SlabCacheId first = kernel::memory::kInvalidSlabCacheId;
+    kernel::memory::SlabCacheId second = kernel::memory::kInvalidSlabCacheId;
+    EXPECT_TRUE(registry.register_cache("first", 16, 16, first));
+    EXPECT_FALSE(registry.register_cache("second", 16, 16, second));
+    EXPECT_EQ(second, kernel::memory::kInvalidSlabCacheId);
+
+    const kernel::memory::SlabRegistryStats stats = registry.stats();
+    EXPECT_EQ(stats.capacity, 1u);
+    EXPECT_EQ(stats.registered_caches, 1u);
+    EXPECT_EQ(stats.failed_registrations, 1u);
+}
+
+TEST(SlabRegistryTest, ValidatesAllRegisteredCaches)
+{
+    kernel::memory::SlabRegistry::Entry entries[2] = {};
+    kernel::memory::SlabRegistry registry;
+    registry.reset(entries, 2);
+    EXPECT_TRUE(registry.register_cache(0, "small", 16, 16));
+    EXPECT_TRUE(registry.register_cache(1, "large", 64, 16));
+
+    alignas(16) unsigned char small_storage[256] = {};
+    alignas(16) unsigned char large_storage[512] = {};
+    ASSERT_TRUE(registry.add_slab(0, small_storage, sizeof(small_storage)));
+    ASSERT_TRUE(registry.add_slab(1, large_storage, sizeof(large_storage)));
+
+    void * small = registry.allocate(0);
+    void * large = registry.allocate(1);
+    ASSERT_NE(small, nullptr);
+    ASSERT_NE(large, nullptr);
+    EXPECT_TRUE(registry.free(large));
+
+    const kernel::memory::SlabRegistryValidationResult validation = registry.validate_all();
+    EXPECT_TRUE(validation.valid);
+    EXPECT_EQ(validation.validated_caches, 2u);
+
+    const kernel::memory::SlabRegistryCacheStats small_stats = registry.cache_stats(0);
+    const kernel::memory::SlabRegistryCacheStats large_stats = registry.cache_stats(1);
+    EXPECT_EQ(small_stats.cache.allocated_objects, 1u);
+    EXPECT_EQ(large_stats.cache.allocated_objects, 0u);
 }
 
 } // namespace
