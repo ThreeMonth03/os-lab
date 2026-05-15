@@ -3,7 +3,6 @@
 #include "kernel/display/compositor.hpp"
 #include "kernel/display/debug_overlay.hpp"
 #include "kernel/display/gui_panel.hpp"
-#include "kernel/display/mouse_cursor.hpp"
 
 namespace
 {

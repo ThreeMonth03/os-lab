@@ -159,18 +159,6 @@ void show()
     display::compositor::repaint_layers_from(display::LayerKind::MouseCursor, current_bounds());
 }
 
-void hide()
-{
-    if (!g_state.initialized || !g_state.visible)
-    {
-        return;
-    }
-
-    const display::Rect old_bounds = current_bounds();
-    g_state.visible = false;
-    display::compositor::repaint_layers_from(display::LayerKind::Console, old_bounds);
-}
-
 void move_by(int16_t delta_x, int16_t delta_y)
 {
     if (!g_state.initialized)

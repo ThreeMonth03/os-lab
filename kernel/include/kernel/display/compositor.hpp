@@ -102,7 +102,6 @@ public:
     [[nodiscard]] bool pop_dirty(Rect & rect) { return dirty_rects_.pop(rect); }
 
     size_t layer_count() const { return layer_count_; }
-    size_t layer_capacity() const { return kMaxCompositorLayers; }
     Rect bounds() const { return dirty_rects_.bounds(); }
 
 private:
