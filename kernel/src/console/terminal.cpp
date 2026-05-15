@@ -107,6 +107,24 @@ void repaint_text_layer()
     g_state.render_cache.synchronize_from(g_state.text_buffer);
 }
 
+void render_text_cell(uint64_t column, uint64_t row, char glyph)
+{
+    if (glyph == kernel::kTextBufferBlank)
+    {
+        g_state.renderer.clear_cell(column, row);
+    }
+    else
+    {
+        g_state.renderer.draw_glyph(glyph, column, row);
+    }
+    (void)g_state.render_cache.mark_rendered(column, row, glyph);
+}
+
+void render_buffer_cell(uint64_t column, uint64_t row)
+{
+    render_text_cell(column, row, g_state.text_buffer.glyph_at(column, row));
+}
+
 display::Rect render_dirty_text_cells()
 {
     display::Rect dirty_rect;
@@ -119,16 +137,7 @@ display::Rect render_dirty_text_cells()
                 continue;
             }
 
-            const char glyph = g_state.text_buffer.glyph_at(column, row);
-            if (glyph == kernel::kTextBufferBlank)
-            {
-                g_state.renderer.clear_cell(column, row);
-            }
-            else
-            {
-                g_state.renderer.draw_glyph(glyph, column, row);
-            }
-            (void)g_state.render_cache.mark_rendered(column, row, glyph);
+            render_buffer_cell(column, row);
             dirty_rect = display::bounding_rect(dirty_rect, cell_rect(column, row));
         }
     }
@@ -158,7 +167,7 @@ display::Rect render_text_repaint(bool full_repaint, uint64_t scroll_rows)
     return display::bounding_rect(dirty_rect, render_dirty_text_cells());
 }
 
-void repaint_console_region(display::Rect dirty_rect)
+void repaint_terminal_text_region(display::Rect dirty_rect)
 {
     if (!terminal_ready() || dirty_rect.empty())
     {
@@ -174,16 +183,7 @@ void repaint_console_region(display::Rect dirty_rect)
                 continue;
             }
 
-            const char glyph = g_state.text_buffer.glyph_at(column, row);
-            if (glyph == kernel::kTextBufferBlank)
-            {
-                g_state.renderer.clear_cell(column, row);
-            }
-            else
-            {
-                g_state.renderer.draw_glyph(glyph, column, row);
-            }
-            (void)g_state.render_cache.mark_rendered(column, row, glyph);
+            render_buffer_cell(column, row);
         }
     }
 
@@ -241,8 +241,7 @@ display::Rect apply_console_update(kernel::TextConsoleUpdate update)
         g_state.text_buffer.put(update.cell.column, update.cell.row, update.glyph);
         if (draw_immediately)
         {
-            g_state.renderer.draw_glyph(update.glyph, update.cell.column, update.cell.row);
-            (void)g_state.render_cache.mark_rendered(update.cell.column, update.cell.row, update.glyph);
+            render_text_cell(update.cell.column, update.cell.row, update.glyph);
             dirty_rect = cell_rect(update.cell.column, update.cell.row);
             display::compositor::mark_dirty(dirty_rect);
         }
@@ -251,8 +250,7 @@ display::Rect apply_console_update(kernel::TextConsoleUpdate update)
         g_state.text_buffer.clear_cell(update.cell.column, update.cell.row);
         if (draw_immediately)
         {
-            g_state.renderer.clear_cell(update.cell.column, update.cell.row);
-            (void)g_state.render_cache.mark_rendered(update.cell.column, update.cell.row, kernel::kTextBufferBlank);
+            render_text_cell(update.cell.column, update.cell.row, kernel::kTextBufferBlank);
             dirty_rect = cell_rect(update.cell.column, update.cell.row);
             display::compositor::mark_dirty(dirty_rect);
         }
@@ -374,7 +372,7 @@ bool init()
         true,
     });
     (void)display::compositor::register_layer_repaint_callback(display::LayerKind::Console,
-                                                               repaint_console_region);
+                                                               repaint_terminal_text_region);
 
     const uint64_t columns = framebuffer->width / kCellWidth;
     const uint64_t rows = framebuffer->height / kCellHeight;
@@ -454,8 +452,7 @@ void clear_cell_at(uint64_t column, uint64_t row)
     }
 
     g_state.text_buffer.clear_cell(column, row);
-    g_state.renderer.clear_cell(column, row);
-    (void)g_state.render_cache.mark_rendered(column, row, kernel::kTextBufferBlank);
+    render_text_cell(column, row, kernel::kTextBufferBlank);
     record_console_dirty(cell_rect(column, row));
 }
 
@@ -470,8 +467,7 @@ void clear_row_from(uint64_t column, uint64_t row)
     while (column < g_state.console.columns())
     {
         g_state.text_buffer.clear_cell(column, row);
-        g_state.renderer.clear_cell(column, row);
-        (void)g_state.render_cache.mark_rendered(column, row, kernel::kTextBufferBlank);
+        render_text_cell(column, row, kernel::kTextBufferBlank);
         ++column;
     }
     record_console_dirty(dirty_rect);
@@ -485,8 +481,7 @@ void draw_char_at(uint64_t column, uint64_t row, char value)
     }
 
     g_state.text_buffer.put(column, row, value);
-    g_state.renderer.draw_glyph(value, column, row);
-    (void)g_state.render_cache.mark_rendered(column, row, value);
+    render_text_cell(column, row, value);
     record_console_dirty(cell_rect(column, row));
 }
 
