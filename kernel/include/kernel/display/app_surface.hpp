@@ -30,19 +30,16 @@ struct AppSurface
     Rect bounds;
     bool visible = false;
     bool focused = false;
-    LayerKind layer_kind = LayerKind::AppSurface;
 
     bool valid() const;
     CompositedSurfaceDescriptor composited_surface() const;
     SurfaceDescriptor display_target() const;
-    Layer layer() const;
 };
 
 AppSurface make_app_surface(AppSurfaceId id,
                             Rect bounds,
                             bool visible = true,
-                            bool focused = false,
-                            LayerKind layer_kind = LayerKind::AppSurface);
+                            bool focused = false);
 
 class AppSurfaceRegistry
 {

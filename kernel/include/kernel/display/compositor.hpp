@@ -136,7 +136,6 @@ namespace compositor
 using LayerRepaintCallback = void (*)(Rect dirty_rect);
 
 void init(Rect bounds);
-[[nodiscard]] bool register_layer(Layer layer);
 [[nodiscard]] bool register_surface(CompositedSurfaceDescriptor surface);
 [[nodiscard]] bool register_layer_repaint_callback(LayerKind kind, LayerRepaintCallback callback);
 void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect);

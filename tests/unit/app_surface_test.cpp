@@ -34,7 +34,7 @@ TEST(AppSurfaceTest, BuildsTerminalAppSurfaceDescriptorAndLayer)
     EXPECT_TRUE(target.focused);
     expect_rect(target.bounds, 8, 16, 320, 200);
 
-    const kernel::display::Layer layer = surface.layer();
+    const kernel::display::Layer layer = surface.composited_surface().layer();
     EXPECT_EQ(layer.kind, kernel::display::LayerKind::AppSurface);
     EXPECT_TRUE(layer.visible);
     EXPECT_TRUE(layer.occludes_lower_repaint());
@@ -48,12 +48,6 @@ TEST(AppSurfaceTest, RejectsInvalidSurface)
                      .valid());
     EXPECT_FALSE(kernel::display::make_app_surface(kernel::display::kTerminalAppSurfaceId,
                                                    {0, 0, 0, 200})
-                     .valid());
-    EXPECT_FALSE(kernel::display::make_app_surface(kernel::display::kTerminalAppSurfaceId,
-                                                   {0, 0, 320, 200},
-                                                   true,
-                                                   false,
-                                                   kernel::display::LayerKind::None)
                      .valid());
 }
 

@@ -5,8 +5,7 @@ namespace kernel::display
 
 bool AppSurface::valid() const
 {
-    return id != kInvalidAppSurfaceId && display_surface_id != kInvalidSurfaceId &&
-           layer_kind != LayerKind::None && !bounds.empty();
+    return id != kInvalidAppSurfaceId && display_surface_id != kInvalidSurfaceId && !bounds.empty();
 }
 
 CompositedSurfaceDescriptor AppSurface::composited_surface() const
@@ -27,27 +26,7 @@ SurfaceDescriptor AppSurface::display_target() const
     return composited_surface().display_target();
 }
 
-Layer AppSurface::layer() const
-{
-    CompositedSurfaceDescriptor surface = composited_surface();
-    if (layer_kind != LayerKind::AppSurface)
-    {
-        return {
-            layer_kind,
-            display_surface_id,
-            bounds,
-            visible,
-            surface.occlusion,
-        };
-    }
-    return surface.layer();
-}
-
-AppSurface make_app_surface(AppSurfaceId id,
-                            Rect bounds,
-                            bool visible,
-                            bool focused,
-                            LayerKind layer_kind)
+AppSurface make_app_surface(AppSurfaceId id, Rect bounds, bool visible, bool focused)
 {
     return {
         id,
@@ -55,7 +34,6 @@ AppSurface make_app_surface(AppSurfaceId id,
         bounds,
         visible,
         focused,
-        layer_kind,
     };
 }
 

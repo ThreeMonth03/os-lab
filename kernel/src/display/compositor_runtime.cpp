@@ -55,11 +55,6 @@ void init(Rect bounds)
     }
 }
 
-bool register_layer(Layer layer)
-{
-    return g_compositor.register_layer(layer);
-}
-
 bool register_surface(CompositedSurfaceDescriptor surface)
 {
     return g_compositor.register_surface(surface);

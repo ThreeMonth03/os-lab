@@ -33,7 +33,6 @@ struct GuiSurface
     bool valid() const;
     [[nodiscard]] CompositedSurfaceDescriptor composited_surface() const;
     [[nodiscard]] SurfaceDescriptor display_target() const;
-    [[nodiscard]] Layer layer() const;
 };
 
 [[nodiscard]] GuiSurface make_gui_surface(GuiSurfaceId id, Rect bounds, bool visible, bool focusable);

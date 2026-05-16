@@ -28,11 +28,6 @@ SurfaceDescriptor GuiSurface::display_target() const
     return composited_surface().display_target();
 }
 
-Layer GuiSurface::layer() const
-{
-    return composited_surface().layer();
-}
-
 GuiSurface make_gui_surface(GuiSurfaceId id, Rect bounds, bool visible, bool focusable)
 {
     return {

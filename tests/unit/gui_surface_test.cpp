@@ -26,7 +26,7 @@ TEST(GuiSurfaceTest, BuildsDisplayTargetAndLayerDescriptors)
     EXPECT_FALSE(target.active);
     EXPECT_FALSE(target.focused);
 
-    const kernel::display::Layer layer = gui.layer();
+    const kernel::display::Layer layer = gui.composited_surface().layer();
     EXPECT_EQ(layer.kind, kernel::display::LayerKind::GuiSurface);
     EXPECT_EQ(layer.surface_id, gui.display_surface_id);
     EXPECT_TRUE(layer.visible);
