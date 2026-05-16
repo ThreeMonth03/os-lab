@@ -1,4 +1,4 @@
-#include "kernel/display/debug_overlay.hpp"
+#include "kernel/display/debug_overlay_runtime.hpp"
 
 #include "kernel/display/compositor.hpp"
 #include "kernel/input/input.hpp"
@@ -102,14 +102,31 @@ void paint_overlay(const debug_overlay::Snapshot & snapshot)
     }
 }
 
+bool overlay_ready()
+{
+    return g_state.initialized && g_state.surface != nullptr && g_state.surface->ready();
+}
+
 void repaint_overlay(kernel::display::Rect dirty_rect)
 {
-    if (!kernel::display::debug_overlay::ready() || !kernel::display::rects_overlap(g_state.target.bounds, dirty_rect))
+    if (!overlay_ready() || !kernel::display::rects_overlap(g_state.target.bounds, dirty_rect))
     {
         return;
     }
 
     paint_overlay(make_snapshot());
+}
+
+void refresh_overlay_now(const debug_overlay::Snapshot & snapshot)
+{
+    if (!overlay_ready())
+    {
+        return;
+    }
+
+    paint_overlay(snapshot);
+    kernel::display::compositor::repaint_layers_above(kernel::display::LayerKind::DebugOverlay,
+                                                      g_state.target.bounds);
 }
 
 } // namespace
@@ -140,11 +157,9 @@ bool init(Surface & surface, const SurfaceDescriptor & target, Color foreground,
     return true;
 }
 
-bool ready() { return g_state.initialized && g_state.surface != nullptr && g_state.surface->ready(); }
-
 void refresh_if_due()
 {
-    if (!ready())
+    if (!overlay_ready())
     {
         return;
     }
@@ -155,31 +170,8 @@ void refresh_if_due()
         return;
     }
 
-    refresh_now(make_snapshot());
+    refresh_overlay_now(make_snapshot());
     g_state.last_refresh_ticks = current_ticks;
-}
-
-void refresh_now()
-{
-    if (!ready())
-    {
-        return;
-    }
-
-    const Snapshot snapshot = make_snapshot();
-    refresh_now(snapshot);
-    g_state.last_refresh_ticks = snapshot.ticks;
-}
-
-void refresh_now(const Snapshot & snapshot)
-{
-    if (!ready())
-    {
-        return;
-    }
-
-    paint_overlay(snapshot);
-    compositor::repaint_layers_above(LayerKind::DebugOverlay, g_state.target.bounds);
 }
 
 } // namespace kernel::display::debug_overlay

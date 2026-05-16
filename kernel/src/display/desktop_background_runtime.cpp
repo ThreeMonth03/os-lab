@@ -1,0 +1,79 @@
+#include "kernel/display/desktop_background_runtime.hpp"
+
+#include "kernel/display/compositor.hpp"
+
+namespace
+{
+
+struct DesktopBackgroundState
+{
+    kernel::display::Surface * surface = nullptr;
+    kernel::display::Rect bounds;
+    kernel::display::desktop_background::SolidColorSource source;
+    bool initialized = false;
+};
+
+DesktopBackgroundState g_state;
+
+bool background_ready()
+{
+    return g_state.initialized && g_state.surface != nullptr && g_state.surface->ready();
+}
+
+void repaint_background(kernel::display::Rect dirty_rect)
+{
+    if (!background_ready())
+    {
+        return;
+    }
+
+    kernel::display::desktop_background::paint_solid(*g_state.surface,
+                                                     g_state.bounds,
+                                                     g_state.source,
+                                                     dirty_rect);
+}
+
+} // namespace
+
+namespace kernel::display::desktop_background
+{
+
+bool init(Surface & surface, Rect bounds, SolidColorSource source)
+{
+    g_state = {};
+    if (!surface.ready() || bounds.empty())
+    {
+        return false;
+    }
+
+    if (!compositor::register_layer({
+            LayerKind::DesktopBackground,
+            kSurfaceId,
+            bounds,
+            true,
+        }) ||
+        !compositor::register_layer_repaint_callback(LayerKind::DesktopBackground,
+                                                     repaint_background))
+    {
+        return false;
+    }
+
+    g_state.surface = &surface;
+    g_state.bounds = bounds;
+    g_state.source = source;
+    g_state.initialized = true;
+    return true;
+}
+
+void refresh_now()
+{
+    if (!background_ready())
+    {
+        return;
+    }
+
+    repaint_background(g_state.bounds);
+    compositor::repaint_layers_above(LayerKind::DesktopBackground, g_state.bounds);
+}
+
+} // namespace kernel::display::desktop_background

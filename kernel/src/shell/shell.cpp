@@ -9,7 +9,7 @@
 #include "kernel/input/input_router.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/input/keyboard.hpp"
-#include "kernel/display/debug_overlay.hpp"
+#include "kernel/display/debug_overlay_runtime.hpp"
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/drivers/serial.hpp"
 #include "kernel/base/string_view.hpp"

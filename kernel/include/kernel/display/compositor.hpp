@@ -26,9 +26,9 @@ enum class DirtyMarkResult
 enum class LayerKind
 {
     None,
-    DesktopPanel,
-    AppSurface,
+    DesktopBackground,
     GuiSurface,
+    AppSurface,
     DebugOverlay,
     MouseCursor,
 };

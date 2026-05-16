@@ -104,7 +104,7 @@ void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds)
     Rect dirty_rect;
     while (cursor_dirty.pop(dirty_rect))
     {
-        repaint_layers_from(LayerKind::DesktopPanel, dirty_rect);
+        repaint_layers_from(LayerKind::DesktopBackground, dirty_rect);
     }
 }
 

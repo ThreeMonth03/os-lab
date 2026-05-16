@@ -45,10 +45,4 @@ struct Lines
 [[nodiscard]] bool should_refresh(uint64_t last_ticks, uint64_t current_ticks, uint64_t refresh_interval_ticks);
 void format_snapshot(const Snapshot & snapshot, Lines & lines);
 
-[[nodiscard]] bool init(Surface & surface, const SurfaceDescriptor & target, Color foreground, Color background, Config config = {});
-bool ready();
-void refresh_if_due();
-void refresh_now();
-void refresh_now(const Snapshot & snapshot);
-
 } // namespace kernel::display::debug_overlay

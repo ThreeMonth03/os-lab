@@ -2,6 +2,7 @@
 
 #include "kernel/display/compositor.hpp"
 #include "kernel/display/debug_overlay.hpp"
+#include "kernel/display/desktop_background.hpp"
 #include "kernel/display/app_surface.hpp"
 #include "kernel/display/gui_panel.hpp"
 #include "kernel/display/gui_panel_renderer.hpp"
@@ -124,8 +125,10 @@ TEST(GuiPanelTest, VisiblePanelSitsBelowTerminalAppAndDebugOverlay)
         kernel::display::gui_panel::make_surface(1280, 720, kernel::display::gui_panel::kGuiSurfaceId, visible_config);
 
     EXPECT_TRUE(kernel::display::gui_panel::should_redraw(panel));
+    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::GuiSurface,
+                                             kernel::display::LayerKind::DesktopBackground));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::AppSurface,
-                                             kernel::display::LayerKind::DesktopPanel));
+                                             kernel::display::LayerKind::GuiSurface));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::DebugOverlay,
                                              kernel::display::LayerKind::AppSurface));
 }
@@ -134,7 +137,9 @@ TEST(GuiPanelTest, CompositorCanTrackDesktopTerminalOverlayAndCursor)
 {
     kernel::display::Compositor compositor({0, 0, 320, 200});
 
-    ASSERT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::DesktopPanel,
+    ASSERT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::DesktopBackground,
+                                                kernel::display::desktop_background::kSurfaceId)));
+    ASSERT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::GuiSurface,
                                                 kernel::display::display_surface_id_for(kernel::display::gui_panel::kGuiSurfaceId))));
     ASSERT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::AppSurface,
                                                 kernel::display::app_surface_display_id_for(kernel::display::kTerminalAppSurfaceId))));
@@ -143,7 +148,7 @@ TEST(GuiPanelTest, CompositorCanTrackDesktopTerminalOverlayAndCursor)
     ASSERT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::MouseCursor,
                                                 kernel::display::kMouseCursorLayerSurfaceId)));
 
-    EXPECT_EQ(compositor.layer_count(), 4u);
+    EXPECT_EQ(compositor.layer_count(), 5u);
     const kernel::display::Layer * top = compositor.top_visible_layer();
     ASSERT_NE(top, nullptr);
     EXPECT_EQ(top->kind, kernel::display::LayerKind::MouseCursor);

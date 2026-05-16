@@ -1,16 +1,18 @@
 #include "kernel/display/display_runtime.hpp"
 
 #include "kernel/boot/limine_support.hpp"
-#include "kernel/display/debug_overlay.hpp"
+#include "kernel/display/desktop_background_runtime.hpp"
+#include "kernel/display/debug_overlay_runtime.hpp"
 #include "kernel/display/display_palette.hpp"
 #include "kernel/display/display_target.hpp"
-#include "kernel/display/gui_panel.hpp"
+#include "kernel/display/gui_panel_runtime.hpp"
 #include "kernel/display/gui_surface.hpp"
 
 namespace
 {
 
 namespace debug_overlay = kernel::display::debug_overlay;
+namespace desktop_background = kernel::display::desktop_background;
 namespace display = kernel::display;
 namespace gui_panel = kernel::display::gui_panel;
 
@@ -138,6 +140,13 @@ bool init(
                                 gui_panel::kGuiSurfaceId,
                                 panel_config);
     constexpr display::DisplayPalette palette = display::default_display_palette();
+    if (!desktop_background::init(g_state.surface,
+                                  framebuffer_bounds(*framebuffer),
+                                  {{pack_rgb(*framebuffer, palette.desktop_background)}}))
+    {
+        return false;
+    }
+
     if (g_state.gui_surfaces.register_surface(panel))
     {
         const display::GuiSurface * registered_panel =
@@ -145,12 +154,8 @@ bool init(
         if (registered_panel != nullptr &&
             g_state.targets.register_target(registered_panel->display_target()))
         {
-            const bool panel_layer_registered = display::compositor::register_layer({
-                display::LayerKind::DesktopPanel,
-                registered_panel->display_surface_id,
-                framebuffer_bounds(*framebuffer),
-                true,
-            });
+            const bool panel_layer_registered =
+                display::compositor::register_layer(registered_panel->layer());
 
             if (panel_layer_registered)
             {
@@ -273,7 +278,7 @@ HitTestResult pointer_target()
 
 void refresh_desktop()
 {
-    gui_panel::refresh_now();
+    desktop_background::refresh_now();
 }
 
 void repaint_layers_above_terminal_app(Rect rect)

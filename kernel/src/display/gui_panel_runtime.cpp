@@ -1,4 +1,4 @@
-#include "kernel/display/gui_panel.hpp"
+#include "kernel/display/gui_panel_runtime.hpp"
 
 #include "kernel/display/compositor.hpp"
 #include "kernel/display/gui_panel_renderer.hpp"
@@ -10,7 +10,6 @@ struct PanelState
 {
     kernel::display::Surface * surface = nullptr;
     kernel::display::GuiSurface panel;
-    kernel::display::Rect desktop_bounds;
     kernel::display::gui_panel::Palette palette;
     kernel::display::gui_panel::Config config;
     bool initialized = false;
@@ -18,10 +17,14 @@ struct PanelState
 
 PanelState g_state;
 
+bool panel_ready()
+{
+    return g_state.initialized && g_state.surface != nullptr && g_state.surface->ready();
+}
+
 void paint_panel_region(kernel::display::Rect dirty_rect)
 {
-    if (!kernel::display::gui_panel::ready() ||
-        !kernel::display::gui_panel::should_redraw(g_state.panel))
+    if (!panel_ready() || !kernel::display::gui_panel::should_redraw(g_state.panel))
     {
         return;
     }
@@ -30,24 +33,6 @@ void paint_panel_region(kernel::display::Rect dirty_rect)
                                              g_state.panel,
                                              g_state.palette,
                                              dirty_rect);
-}
-
-void repaint_panel(kernel::display::Rect dirty_rect)
-{
-    if (!kernel::display::gui_panel::ready())
-    {
-        return;
-    }
-
-    const kernel::display::Rect desktop_region =
-        kernel::display::intersect_rect(g_state.desktop_bounds, dirty_rect);
-    if (desktop_region.empty())
-    {
-        return;
-    }
-
-    g_state.surface->fill_rect(desktop_region, g_state.palette.background);
-    paint_panel_region(dirty_rect);
 }
 
 } // namespace
@@ -65,10 +50,9 @@ bool init(Surface & surface, const GuiSurface & panel, Color border, Color backg
 
     g_state.surface = &surface;
     g_state.panel = panel;
-    g_state.desktop_bounds = {0, 0, surface.width(), surface.height()};
     g_state.palette = {border, background, foreground};
     g_state.config = config;
-    if (!compositor::register_layer_repaint_callback(LayerKind::DesktopPanel, repaint_panel))
+    if (!compositor::register_layer_repaint_callback(LayerKind::GuiSurface, paint_panel_region))
     {
         g_state = {};
         return false;
@@ -78,20 +62,15 @@ bool init(Surface & surface, const GuiSurface & panel, Color border, Color backg
     return true;
 }
 
-bool ready()
-{
-    return g_state.initialized && g_state.surface != nullptr && g_state.surface->ready();
-}
-
 void refresh_now()
 {
-    if (!ready())
+    if (!panel_ready())
     {
         return;
     }
 
-    repaint_panel(g_state.desktop_bounds);
-    compositor::repaint_layers_above(LayerKind::DesktopPanel, g_state.desktop_bounds);
+    paint_panel_region(g_state.panel.bounds);
+    compositor::repaint_layers_above(LayerKind::GuiSurface, g_state.panel.bounds);
 }
 
 } // namespace kernel::display::gui_panel
