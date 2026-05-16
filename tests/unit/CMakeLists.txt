@@ -1,5 +1,6 @@
 add_executable(os_lab_unit_tests
     app_surface_test.cpp
+    composited_surface_test.cpp
     containers_test.cpp
     cursor_geometry_test.cpp
     desktop_background_test.cpp

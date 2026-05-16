@@ -9,26 +9,38 @@ bool AppSurface::valid() const
            layer_kind != LayerKind::None && !bounds.empty();
 }
 
+CompositedSurfaceDescriptor AppSurface::composited_surface() const
+{
+    CompositedSurfaceDescriptor surface =
+        make_composited_surface(display_surface_id,
+                                CompositedSurfaceRole::App,
+                                bounds,
+                                visible,
+                                focused,
+                                focused);
+    surface.occlusion = LayerOcclusion::Opaque;
+    return surface;
+}
+
 SurfaceDescriptor AppSurface::display_target() const
 {
-    return {
-        display_surface_id,
-        DisplayTargetKind::AppSurface,
-        bounds,
-        focused,
-        focused,
-    };
+    return composited_surface().display_target();
 }
 
 Layer AppSurface::layer() const
 {
-    return {
-        layer_kind,
-        display_surface_id,
-        bounds,
-        visible,
-        LayerOcclusion::Opaque,
-    };
+    CompositedSurfaceDescriptor surface = composited_surface();
+    if (layer_kind != LayerKind::AppSurface)
+    {
+        return {
+            layer_kind,
+            display_surface_id,
+            bounds,
+            visible,
+            surface.occlusion,
+        };
+    }
+    return surface.layer();
 }
 
 AppSurface make_app_surface(AppSurfaceId id,

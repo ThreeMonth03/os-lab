@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "kernel/display/compositor.hpp"
+#include "kernel/display/composited_surface.hpp"
 #include "kernel/display/display.hpp"
 #include "kernel/display/display_target.hpp"
 
@@ -33,6 +33,7 @@ struct AppSurface
     LayerKind layer_kind = LayerKind::AppSurface;
 
     bool valid() const;
+    CompositedSurfaceDescriptor composited_surface() const;
     SurfaceDescriptor display_target() const;
     Layer layer() const;
 };

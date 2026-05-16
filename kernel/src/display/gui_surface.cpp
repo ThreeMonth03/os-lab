@@ -9,26 +9,28 @@ bool GuiSurface::valid() const
            (!focused || focusable);
 }
 
+CompositedSurfaceDescriptor GuiSurface::composited_surface() const
+{
+    CompositedSurfaceDescriptor surface =
+        make_composited_surface(display_surface_id,
+                                CompositedSurfaceRole::SystemUi,
+                                bounds,
+                                visible,
+                                false,
+                                focused);
+    surface.input_policy = focusable ? SurfaceInputPolicy::KeyboardFocus : SurfaceInputPolicy::None;
+    surface.occlusion = LayerOcclusion::Opaque;
+    return surface;
+}
+
 SurfaceDescriptor GuiSurface::display_target() const
 {
-    return {
-        display_surface_id,
-        DisplayTargetKind::GuiSurface,
-        bounds,
-        false,
-        focused,
-    };
+    return composited_surface().display_target();
 }
 
 Layer GuiSurface::layer() const
 {
-    return {
-        LayerKind::GuiSurface,
-        display_surface_id,
-        bounds,
-        visible,
-        LayerOcclusion::Opaque,
-    };
+    return composited_surface().layer();
 }
 
 GuiSurface make_gui_surface(GuiSurfaceId id, Rect bounds, bool visible, bool focusable)

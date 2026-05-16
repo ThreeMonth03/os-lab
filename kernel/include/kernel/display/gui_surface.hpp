@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "kernel/display/compositor.hpp"
+#include "kernel/display/composited_surface.hpp"
 #include "kernel/display/display.hpp"
 #include "kernel/display/display_target.hpp"
 
@@ -31,6 +31,7 @@ struct GuiSurface
     bool focused = false;
 
     bool valid() const;
+    [[nodiscard]] CompositedSurfaceDescriptor composited_surface() const;
     [[nodiscard]] SurfaceDescriptor display_target() const;
     [[nodiscard]] Layer layer() const;
 };
