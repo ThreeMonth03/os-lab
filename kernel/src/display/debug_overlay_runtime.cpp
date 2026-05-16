@@ -11,9 +11,14 @@ namespace
 
 namespace debug_overlay = kernel::display::debug_overlay;
 
+constexpr size_t kBackingPixelCapacity =
+    debug_overlay::kDefaultWidth * debug_overlay::kDefaultHeight;
+
 struct OverlayState
 {
     kernel::display::Surface * surface = nullptr;
+    kernel::display::BackingSurface backing;
+    uint32_t backing_pixels[kBackingPixelCapacity] = {};
     kernel::display::SurfaceDescriptor target;
     kernel::display::Color foreground;
     kernel::display::Color background;
@@ -23,6 +28,8 @@ struct OverlayState
 };
 
 OverlayState g_state;
+
+bool overlay_ready();
 
 debug_overlay::Snapshot make_snapshot()
 {
@@ -40,11 +47,41 @@ debug_overlay::Snapshot make_snapshot()
     return snapshot;
 }
 
-void paint_overlay_region(const debug_overlay::Snapshot & snapshot, kernel::display::Rect dirty_rect)
+void copy_backing_to_front(kernel::display::Rect dirty_rect)
+{
+    if (!overlay_ready())
+    {
+        return;
+    }
+
+    const kernel::display::Rect region =
+        kernel::display::debug_overlay::repaint_region(g_state.target.bounds, dirty_rect);
+    for (uint64_t row = 0; row < region.height; ++row)
+    {
+        const uint64_t y = region.y + row;
+        for (uint64_t column = 0; column < region.width; ++column)
+        {
+            const uint64_t x = region.x + column;
+            g_state.surface->put_pixel(x, y, g_state.backing.pixel(x, y));
+        }
+    }
+}
+
+kernel::display::PixelSample sample_overlay_pixel(uint64_t x, uint64_t y)
+{
+    if (!overlay_ready())
+    {
+        return kernel::display::transparent_pixel();
+    }
+
+    return g_state.backing.sample(x, y);
+}
+
+void paint_overlay_backing(const debug_overlay::Snapshot & snapshot, kernel::display::Rect dirty_rect)
 {
     debug_overlay::Lines lines;
     debug_overlay::format_snapshot(snapshot, lines);
-    debug_overlay::paint_region(*g_state.surface,
+    debug_overlay::paint_region(g_state.backing,
                                 g_state.target.bounds,
                                 lines,
                                 {g_state.foreground, g_state.background},
@@ -63,7 +100,8 @@ void repaint_overlay(kernel::display::Rect dirty_rect)
         return;
     }
 
-    paint_overlay_region(make_snapshot(), dirty_rect);
+    paint_overlay_backing(make_snapshot(), dirty_rect);
+    copy_backing_to_front(dirty_rect);
 }
 
 void refresh_overlay_now(const debug_overlay::Snapshot & snapshot)
@@ -73,9 +111,9 @@ void refresh_overlay_now(const debug_overlay::Snapshot & snapshot)
         return;
     }
 
-    paint_overlay_region(snapshot, g_state.target.bounds);
-    kernel::display::compositor::repaint_layers_above(kernel::display::LayerKind::DebugOverlay,
-                                                      g_state.target.bounds);
+    paint_overlay_backing(snapshot, g_state.target.bounds);
+    kernel::display::compositor::repaint_layers_from(kernel::display::LayerKind::DebugOverlay,
+                                                     g_state.target.bounds);
 }
 
 } // namespace
@@ -91,12 +129,24 @@ bool init(Surface & surface, const SurfaceDescriptor & target, Color foreground,
         return false;
     }
 
+    if (target.bounds.width > debug_overlay::kDefaultWidth ||
+        target.bounds.height > debug_overlay::kDefaultHeight)
+    {
+        return false;
+    }
+
     g_state.surface = &surface;
+    g_state.backing = BackingSurface(g_state.backing_pixels, target.bounds, debug_overlay::kDefaultWidth);
     g_state.target = target;
     g_state.foreground = foreground;
     g_state.background = background;
     g_state.config = config;
     if (!compositor::register_layer_repaint_callback(LayerKind::DebugOverlay, repaint_overlay))
+    {
+        g_state = {};
+        return false;
+    }
+    if (!compositor::register_layer_pixel_callback(LayerKind::DebugOverlay, sample_overlay_pixel))
     {
         g_state = {};
         return false;

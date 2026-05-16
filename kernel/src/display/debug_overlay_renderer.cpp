@@ -47,6 +47,42 @@ bool line_pixel_is_foreground(const char * line,
     return false;
 }
 
+template <typename SurfaceType>
+void paint_region_impl(SurfaceType & surface,
+                       kernel::display::Rect overlay_bounds,
+                       const kernel::display::debug_overlay::Lines & lines,
+                       kernel::display::debug_overlay::Palette palette,
+                       kernel::display::Rect dirty_rect)
+{
+    if (!surface.ready())
+    {
+        return;
+    }
+
+    const kernel::display::Rect region =
+        kernel::display::debug_overlay::repaint_region(overlay_bounds, dirty_rect);
+    if (region.empty())
+    {
+        return;
+    }
+
+    for (uint64_t row = 0; row < region.height; ++row)
+    {
+        const uint64_t y = region.y + row;
+        for (uint64_t column = 0; column < region.width; ++column)
+        {
+            const uint64_t x = region.x + column;
+            surface.put_pixel(x,
+                              y,
+                              kernel::display::debug_overlay::pixel_color_at(overlay_bounds,
+                                                                             lines,
+                                                                             palette,
+                                                                             x,
+                                                                             y));
+        }
+    }
+}
+
 } // namespace
 
 namespace kernel::display::debug_overlay
@@ -80,26 +116,12 @@ Color pixel_color_at(Rect overlay_bounds, const Lines & lines, Palette palette, 
 
 void paint_region(Surface & surface, Rect overlay_bounds, const Lines & lines, Palette palette, Rect dirty_rect)
 {
-    if (!surface.ready())
-    {
-        return;
-    }
+    paint_region_impl(surface, overlay_bounds, lines, palette, dirty_rect);
+}
 
-    const Rect region = repaint_region(overlay_bounds, dirty_rect);
-    if (region.empty())
-    {
-        return;
-    }
-
-    for (uint64_t row = 0; row < region.height; ++row)
-    {
-        const uint64_t y = region.y + row;
-        for (uint64_t column = 0; column < region.width; ++column)
-        {
-            const uint64_t x = region.x + column;
-            surface.put_pixel(x, y, pixel_color_at(overlay_bounds, lines, palette, x, y));
-        }
-    }
+void paint_region(BackingSurface & surface, Rect overlay_bounds, const Lines & lines, Palette palette, Rect dirty_rect)
+{
+    paint_region_impl(surface, overlay_bounds, lines, palette, dirty_rect);
 }
 
 } // namespace kernel::display::debug_overlay

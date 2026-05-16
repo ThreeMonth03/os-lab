@@ -1,5 +1,6 @@
 #pragma once
 
+#include "kernel/display/backing_surface.hpp"
 #include "kernel/display/debug_overlay.hpp"
 #include "kernel/display/display.hpp"
 
@@ -18,6 +19,7 @@ struct Palette
                                    Palette palette,
                                    uint64_t x,
                                    uint64_t y);
+void paint_region(BackingSurface & surface, Rect overlay_bounds, const Lines & lines, Palette palette, Rect dirty_rect);
 void paint_region(Surface & surface, Rect overlay_bounds, const Lines & lines, Palette palette, Rect dirty_rect);
 
 } // namespace kernel::display::debug_overlay

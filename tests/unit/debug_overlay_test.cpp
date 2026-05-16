@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "kernel/display/app_surface.hpp"
+#include "kernel/display/backing_surface.hpp"
 #include "kernel/display/debug_overlay.hpp"
 #include "kernel/display/debug_overlay_renderer.hpp"
 
@@ -185,4 +186,40 @@ TEST(DebugOverlayTest, PaintRegionWritesFinalBackgroundWhenDirtyMissesGlyphPixel
 
     EXPECT_EQ(surface.pixel(6, 4).value, 1u);
     EXPECT_EQ(surface.pixel(7, 4).value, 9u);
+}
+
+TEST(DebugOverlayTest, PaintRegionCanUpdateBackingSurfaceGlyphPixels)
+{
+    uint32_t pixels[20 * 12] = {};
+    kernel::display::BackingSurface backing(pixels, {4, 2, 20, 12}, 20);
+    kernel::display::debug_overlay::Lines lines;
+    lines.first[0] = 't';
+    lines.first[1] = '\0';
+
+    kernel::display::debug_overlay::paint_region(backing,
+                                                 backing.bounds(),
+                                                 lines,
+                                                 {{2}, {1}},
+                                                 {7, 4, 1, 1});
+
+    EXPECT_EQ(backing.pixel(7, 4).value, 2u);
+    EXPECT_EQ(pixels[(2 * 20) + 3], 2u);
+}
+
+TEST(DebugOverlayTest, PaintRegionDoesNotUpdateBackingSurfaceWhenDirtyMissesOverlay)
+{
+    uint32_t pixels[20 * 12] = {};
+    fill_pixels(pixels, 9);
+    kernel::display::BackingSurface backing(pixels, {4, 2, 20, 12}, 20);
+    kernel::display::debug_overlay::Lines lines;
+    lines.first[0] = 't';
+    lines.first[1] = '\0';
+
+    kernel::display::debug_overlay::paint_region(backing,
+                                                 backing.bounds(),
+                                                 lines,
+                                                 {{2}, {1}},
+                                                 {0, 0, 1, 1});
+
+    EXPECT_EQ(backing.pixel(7, 4).value, 9u);
 }

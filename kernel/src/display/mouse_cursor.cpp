@@ -101,6 +101,29 @@ void draw_bitmap()
     }
 }
 
+display::PixelSample sample_cursor_pixel(uint64_t x, uint64_t y)
+{
+    const display::Rect visible = current_bounds();
+    if (visible.empty() || x < visible.x || y < visible.y ||
+        x >= visible.x + visible.width || y >= visible.y + visible.height)
+    {
+        return display::transparent_pixel();
+    }
+
+    const uint64_t bitmap_row = y - g_state.pointer.y();
+    const uint64_t bitmap_column = x - g_state.pointer.x();
+    const char pixel = kCursorBitmap[bitmap_row][bitmap_column];
+    if (pixel == '#')
+    {
+        return display::opaque_pixel({g_state.outline});
+    }
+    if (pixel == 'o')
+    {
+        return display::opaque_pixel({g_state.fill});
+    }
+    return display::transparent_pixel();
+}
+
 bool movement_pushed_against_edge(int16_t delta_x, int16_t delta_y)
 {
     const int64_t screen_delta_y = -static_cast<int64_t>(delta_y);
@@ -158,7 +181,10 @@ bool init()
     const bool repaint_registered =
         display::compositor::register_layer_repaint_callback(display::LayerKind::MouseCursor,
                                                              repaint_cursor);
-    if (!layer_registered || !repaint_registered)
+    const bool pixel_source_registered =
+        display::compositor::register_layer_pixel_callback(display::LayerKind::MouseCursor,
+                                                           sample_cursor_pixel);
+    if (!layer_registered || !repaint_registered || !pixel_source_registered)
     {
         g_state = {};
         return false;
