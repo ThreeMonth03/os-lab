@@ -11,6 +11,7 @@
 #include "kernel/debug/slab_smoke.hpp"
 #include "kernel/drivers/mouse.hpp"
 #include "kernel/drivers/keyboard.hpp"
+#include "kernel/display/display_runtime.hpp"
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/drivers/serial.hpp"
 #include "kernel/shell/shell.hpp"
@@ -197,7 +198,7 @@ void init_mouse_cursor()
     if (mouse_cursor_ready && mouse_ready)
     {
         const kernel::display::mouse_cursor::Position position = kernel::display::mouse_cursor::position();
-        kernel::console::terminal::update_pointer_target(position.x, position.y);
+        kernel::display::runtime::update_pointer_target(position.x, position.y);
         kernel::display::mouse_cursor::show();
         kernel::drivers::serial::write_line("os-lab: ps/2 mouse cursor active");
     }

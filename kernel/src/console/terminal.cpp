@@ -95,11 +95,6 @@ uint64_t cursor_row()
     return g_terminal_app.cursor_row();
 }
 
-kernel::display::HitTestResult pointer_target()
-{
-    return display::runtime::pointer_target();
-}
-
 void clear()
 {
     g_terminal_app.clear();
@@ -168,11 +163,6 @@ void write_hex(uint64_t value)
 void write_decimal(uint64_t value)
 {
     g_terminal_app.write_decimal(value);
-}
-
-void update_pointer_target(uint64_t x, uint64_t y)
-{
-    display::runtime::update_pointer_target(x, y);
 }
 
 } // namespace kernel::console::terminal

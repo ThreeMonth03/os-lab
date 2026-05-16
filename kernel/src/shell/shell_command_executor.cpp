@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "kernel/core/halt.hpp"
+#include "kernel/display/display_runtime.hpp"
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/input/input_router.hpp"
@@ -17,6 +18,7 @@ namespace
 {
 
 namespace serial = kernel::drivers::serial;
+namespace display_runtime = kernel::display::runtime;
 namespace mouse_cursor = kernel::display::mouse_cursor;
 namespace terminal = kernel::console::terminal;
 
@@ -193,7 +195,7 @@ kernel::StringView slab_registry_validation_error_name(kernel::memory::SlabRegis
 void write_input_stats()
 {
     const kernel::input::Stats stats = kernel::input::stats();
-    const kernel::display::HitTestResult pointer_target = terminal::pointer_target();
+    const kernel::display::HitTestResult pointer_target = display_runtime::pointer_target();
     const mouse_cursor::Position pointer_position = mouse_cursor::position();
 
     terminal::write_line("input stats:");
