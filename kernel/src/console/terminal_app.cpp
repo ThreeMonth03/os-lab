@@ -2,18 +2,17 @@
 
 #include <stddef.h>
 
-#include "kernel/display/compositor.hpp"
-
 namespace kernel::console
 {
 
 bool TerminalApp::reset(display::Surface & surface,
                         display::AppSurface app_surface,
                         display::Color foreground,
-                        display::Color background)
+                        display::Color background,
+                        TerminalRepaintSink repaint_sink)
 {
     app_surface_ = app_surface;
-    if (!surface.ready() || !app_surface_.valid())
+    if (!surface.ready() || !app_surface_.valid() || !repaint_sink.ready())
     {
         return false;
     }
@@ -29,6 +28,7 @@ bool TerminalApp::reset(display::Surface & surface,
 
     console_.reset(column_count, row_count);
     renderer_.reset(surface, app_surface_.bounds, foreground, background);
+    repaint_sink_ = repaint_sink;
     repaint_.reset();
     visible_cursor_column_ = 0;
     visible_cursor_row_ = 0;
@@ -214,6 +214,22 @@ display::Rect TerminalApp::render_text_repaint(bool full_repaint, uint64_t scrol
     return render_dirty_text_cells();
 }
 
+void TerminalApp::mark_dirty(display::Rect dirty_rect)
+{
+    if (!dirty_rect.empty() && repaint_sink_.mark_dirty != nullptr)
+    {
+        repaint_sink_.mark_dirty(dirty_rect);
+    }
+}
+
+void TerminalApp::repaint_layers_above(display::Rect dirty_rect)
+{
+    if (!dirty_rect.empty() && repaint_sink_.repaint_layers_above != nullptr)
+    {
+        repaint_sink_.repaint_layers_above(dirty_rect);
+    }
+}
+
 void TerminalApp::repaint_region(display::Rect dirty_rect)
 {
     if (!ready() || dirty_rect.empty())
@@ -249,12 +265,12 @@ void TerminalApp::apply_repaint_request(display::TerminalRepaintRequest request)
         dirty_rect = display::bounding_rect(dirty_rect,
                                             render_text_repaint(request.full_text_repaint,
                                                                 request.scroll_rows));
-        display::compositor::mark_dirty(dirty_rect);
+        mark_dirty(dirty_rect);
     }
 
-    if (request.repaint_higher_layers && !dirty_rect.empty())
+    if (request.repaint_higher_layers)
     {
-        display::compositor::repaint_layers_above(display::LayerKind::AppSurface, dirty_rect);
+        repaint_layers_above(dirty_rect);
     }
 }
 
@@ -266,12 +282,12 @@ void TerminalApp::apply_repaint_flush(display::TerminalRepaintFlush flush)
         dirty_rect = display::bounding_rect(dirty_rect,
                                             render_text_repaint(flush.full_text_repaint,
                                                                 flush.scroll_rows));
-        display::compositor::mark_dirty(dirty_rect);
+        mark_dirty(dirty_rect);
     }
 
-    if (flush.repaint_higher_layers && !dirty_rect.empty())
+    if (flush.repaint_higher_layers)
     {
-        display::compositor::repaint_layers_above(display::LayerKind::AppSurface, dirty_rect);
+        repaint_layers_above(dirty_rect);
     }
 }
 
@@ -294,7 +310,7 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
         {
             render_text_cell(update.cell.column, update.cell.row, update.glyph);
             dirty_rect = cell_rect(update.cell.column, update.cell.row);
-            display::compositor::mark_dirty(dirty_rect);
+            mark_dirty(dirty_rect);
         }
         break;
     case text::TextConsoleAction::ClearCell:
@@ -303,7 +319,7 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
         {
             render_text_cell(update.cell.column, update.cell.row, text::kTextBufferBlank);
             dirty_rect = cell_rect(update.cell.column, update.cell.row);
-            display::compositor::mark_dirty(dirty_rect);
+            mark_dirty(dirty_rect);
         }
         break;
     case text::TextConsoleAction::None:

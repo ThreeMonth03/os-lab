@@ -31,11 +31,16 @@ bool init()
     }
 
     const display::runtime::TerminalAppConfig config = display::runtime::terminal_app_config();
+    const TerminalRepaintSink repaint_sink{
+        display::runtime::mark_terminal_app_dirty,
+        display::runtime::repaint_layers_above_terminal_app,
+    };
     if (!config.valid() ||
         !g_terminal_app.reset(*config.surface,
                               config.app_surface,
                               config.foreground,
-                              config.background))
+                              config.background,
+                              repaint_sink))
     {
         return false;
     }

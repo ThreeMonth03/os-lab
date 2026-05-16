@@ -14,6 +14,14 @@
 namespace kernel::console
 {
 
+struct TerminalRepaintSink
+{
+    void (*mark_dirty)(display::Rect rect) = nullptr;
+    void (*repaint_layers_above)(display::Rect rect) = nullptr;
+
+    bool ready() const { return mark_dirty != nullptr && repaint_layers_above != nullptr; }
+};
+
 class TerminalApp
 {
 public:
@@ -25,7 +33,8 @@ public:
     bool reset(display::Surface & surface,
                display::AppSurface app_surface,
                display::Color foreground,
-               display::Color background);
+               display::Color background,
+               TerminalRepaintSink repaint_sink);
 
     bool ready() const;
     display::Rect bounds() const { return app_surface_.bounds; }
@@ -67,6 +76,8 @@ private:
     void clear_terminal_gutters(display::Rect dirty_rect);
     display::Rect render_dirty_text_cells();
     display::Rect render_text_repaint(bool full_repaint, uint64_t scroll_rows);
+    void mark_dirty(display::Rect dirty_rect);
+    void repaint_layers_above(display::Rect dirty_rect);
     void apply_repaint_request(display::TerminalRepaintRequest request);
     void apply_repaint_flush(display::TerminalRepaintFlush flush);
     void record_console_dirty(display::Rect dirty_rect);
@@ -74,6 +85,7 @@ private:
 
     display::AppSurface app_surface_;
     display::TerminalRenderer renderer_;
+    TerminalRepaintSink repaint_sink_;
     text::TextConsole console_;
     text::TextBuffer text_buffer_;
     display::TerminalRenderCache render_cache_;
