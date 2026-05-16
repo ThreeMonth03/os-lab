@@ -6,8 +6,8 @@ namespace
 
 TEST(MousePacketDecoderTest, DecodesMovementAndButtons)
 {
-    kernel::mouse::MousePacketDecoder decoder;
-    kernel::mouse::MousePacket packet;
+    kernel::input::mouse::MousePacketDecoder decoder;
+    kernel::input::mouse::MousePacket packet;
 
     EXPECT_FALSE(decoder.decode(0x0b, packet));
     EXPECT_FALSE(decoder.decode(5, packet));
@@ -24,8 +24,8 @@ TEST(MousePacketDecoderTest, DecodesMovementAndButtons)
 
 TEST(MousePacketDecoderTest, DecodesNegativeMovement)
 {
-    kernel::mouse::MousePacketDecoder decoder;
-    kernel::mouse::MousePacket packet;
+    kernel::input::mouse::MousePacketDecoder decoder;
+    kernel::input::mouse::MousePacket packet;
 
     EXPECT_FALSE(decoder.decode(0x38, packet));
     EXPECT_FALSE(decoder.decode(0xfe, packet));
@@ -37,8 +37,8 @@ TEST(MousePacketDecoderTest, DecodesNegativeMovement)
 
 TEST(MousePacketDecoderTest, TracksOverflowBits)
 {
-    kernel::mouse::MousePacketDecoder decoder;
-    kernel::mouse::MousePacket packet;
+    kernel::input::mouse::MousePacketDecoder decoder;
+    kernel::input::mouse::MousePacket packet;
 
     EXPECT_FALSE(decoder.decode(0xc8, packet));
     EXPECT_FALSE(decoder.decode(0, packet));
@@ -50,8 +50,8 @@ TEST(MousePacketDecoderTest, TracksOverflowBits)
 
 TEST(MousePacketDecoderTest, ResynchronizesOnInvalidFirstByte)
 {
-    kernel::mouse::MousePacketDecoder decoder;
-    kernel::mouse::MousePacket packet;
+    kernel::input::mouse::MousePacketDecoder decoder;
+    kernel::input::mouse::MousePacket packet;
 
     EXPECT_FALSE(decoder.decode(0x00, packet));
     EXPECT_FALSE(decoder.decode(0x08, packet));

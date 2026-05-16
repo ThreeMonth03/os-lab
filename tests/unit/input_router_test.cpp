@@ -9,7 +9,7 @@ kernel::input::Event key_event()
 {
     kernel::input::Event event;
     event.kind = kernel::input::EventKind::Key;
-    event.key.key = kernel::keyboard::Key::Character;
+    event.key.key = kernel::input::keyboard::Key::Character;
     event.key.character = 'x';
     event.key.pressed = true;
     return event;

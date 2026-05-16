@@ -4,7 +4,7 @@
 
 #include "kernel/input/keyboard.hpp"
 
-namespace kernel::keyboard
+namespace kernel::input::keyboard
 {
 
 class KeyboardDecoder
@@ -24,4 +24,4 @@ private:
     bool extended_scancode_ = false;
 };
 
-} // namespace kernel::keyboard
+} // namespace kernel::input::keyboard

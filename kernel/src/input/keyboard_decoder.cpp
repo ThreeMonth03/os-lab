@@ -128,56 +128,56 @@ char decode_character(uint8_t scancode, bool shift, bool caps_lock)
     }
 }
 
-kernel::keyboard::Key key_for_scancode(uint8_t scancode, bool extended)
+kernel::input::keyboard::Key key_for_scancode(uint8_t scancode, bool extended)
 {
     if (extended)
     {
         switch (scancode)
         {
         case 0x48:
-            return kernel::keyboard::Key::UpArrow;
+            return kernel::input::keyboard::Key::UpArrow;
         case 0x4b:
-            return kernel::keyboard::Key::LeftArrow;
+            return kernel::input::keyboard::Key::LeftArrow;
         case 0x4d:
-            return kernel::keyboard::Key::RightArrow;
+            return kernel::input::keyboard::Key::RightArrow;
         case 0x50:
-            return kernel::keyboard::Key::DownArrow;
+            return kernel::input::keyboard::Key::DownArrow;
         case 0x53:
-            return kernel::keyboard::Key::Delete;
+            return kernel::input::keyboard::Key::Delete;
         case kControl:
-            return kernel::keyboard::Key::Control;
+            return kernel::input::keyboard::Key::Control;
         case kAlt:
-            return kernel::keyboard::Key::Alt;
+            return kernel::input::keyboard::Key::Alt;
         default:
-            return kernel::keyboard::Key::Unknown;
+            return kernel::input::keyboard::Key::Unknown;
         }
     }
 
     switch (scancode)
     {
     case 0x0f:
-        return kernel::keyboard::Key::Tab;
+        return kernel::input::keyboard::Key::Tab;
     case 0x0e:
-        return kernel::keyboard::Key::Backspace;
+        return kernel::input::keyboard::Key::Backspace;
     case 0x1c:
-        return kernel::keyboard::Key::Enter;
+        return kernel::input::keyboard::Key::Enter;
     case kLeftShift:
     case kRightShift:
-        return kernel::keyboard::Key::Shift;
+        return kernel::input::keyboard::Key::Shift;
     case kControl:
-        return kernel::keyboard::Key::Control;
+        return kernel::input::keyboard::Key::Control;
     case kAlt:
-        return kernel::keyboard::Key::Alt;
+        return kernel::input::keyboard::Key::Alt;
     case kCapsLock:
-        return kernel::keyboard::Key::CapsLock;
+        return kernel::input::keyboard::Key::CapsLock;
     default:
-        return kernel::keyboard::Key::Unknown;
+        return kernel::input::keyboard::Key::Unknown;
     }
 }
 
 } // namespace
 
-namespace kernel::keyboard
+namespace kernel::input::keyboard
 {
 
 bool KeyboardDecoder::decode(uint8_t raw_scancode, KeyEvent & event)
@@ -268,4 +268,4 @@ void KeyboardDecoder::reset()
     extended_scancode_ = false;
 }
 
-} // namespace kernel::keyboard
+} // namespace kernel::input::keyboard

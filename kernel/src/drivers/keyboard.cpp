@@ -1,10 +1,10 @@
-#include "kernel/input/keyboard.hpp"
+#include "kernel/drivers/keyboard.hpp"
 
 #include <stdint.h>
 
+#include "kernel/input/keyboard_decoder.hpp"
 #include "kernel/arch/x86_64/pic.hpp"
 #include "kernel/input/input.hpp"
-#include "kernel/input/keyboard_decoder.hpp"
 #include "kernel/drivers/ps2_controller.hpp"
 
 namespace
@@ -15,10 +15,10 @@ constexpr uint8_t kConfigKeyboardInterrupt = 0x01;
 constexpr uint8_t kConfigDisableKeyboardClock = 0x10;
 constexpr uint8_t kKeyboardIrqLine = 1;
 
-kernel::keyboard::KeyboardDecoder g_decoder;
+kernel::input::keyboard::KeyboardDecoder g_decoder;
 kernel::input::DeviceMode g_input_mode = kernel::input::DeviceMode::PollingFallback;
 
-bool read_decoded_key(kernel::keyboard::KeyEvent & event)
+bool read_decoded_key(kernel::input::keyboard::KeyEvent & event)
 {
     event = {};
 
@@ -31,7 +31,7 @@ bool read_decoded_key(kernel::keyboard::KeyEvent & event)
     return g_decoder.decode(raw_scancode, event);
 }
 
-bool enqueue_key_event(const kernel::keyboard::KeyEvent & key)
+bool enqueue_key_event(const kernel::input::keyboard::KeyEvent & key)
 {
     kernel::input::Event event;
     event.kind = kernel::input::EventKind::Key;
@@ -71,14 +71,14 @@ kernel::input::DeviceMode input_mode() { return g_input_mode; }
 
 void handle_irq()
 {
-    kernel::keyboard::KeyEvent key;
+    kernel::input::keyboard::KeyEvent key;
     if (read_decoded_key(key))
     {
         enqueue_key_event(key);
     }
 }
 
-bool poll_key(kernel::keyboard::KeyEvent & event)
+bool poll_key(kernel::input::keyboard::KeyEvent & event)
 {
     return read_decoded_key(event);
 }

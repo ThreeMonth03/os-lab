@@ -1,4 +1,4 @@
-#include "kernel/input/mouse.hpp"
+#include "kernel/drivers/mouse.hpp"
 
 #include "kernel/arch/x86_64/pic.hpp"
 #include "kernel/input/input.hpp"
@@ -17,7 +17,7 @@ constexpr uint8_t kMouseAck = 0xfa;
 constexpr uint8_t kMouseIrqLine = 12;
 constexpr uint32_t kResponseWaitLimit = 100000;
 
-kernel::mouse::MousePacketDecoder g_decoder;
+kernel::input::mouse::MousePacketDecoder g_decoder;
 bool g_ready = false;
 kernel::input::DeviceMode g_input_mode = kernel::input::DeviceMode::PollingFallback;
 
@@ -66,7 +66,7 @@ bool configure_controller(bool & irq_configured)
     return true;
 }
 
-void enqueue_mouse_event(const kernel::mouse::MousePacket & packet)
+void enqueue_mouse_event(const kernel::input::mouse::MousePacket & packet)
 {
     kernel::input::Event event;
     event.kind = kernel::input::EventKind::MouseMove;
@@ -135,14 +135,14 @@ void handle_irq()
         return;
     }
 
-    kernel::mouse::MousePacket packet;
+    kernel::input::mouse::MousePacket packet;
     if (g_decoder.decode(data, packet))
     {
         enqueue_mouse_event(packet);
     }
 }
 
-bool poll(kernel::mouse::MouseEvent & event)
+bool poll(kernel::input::mouse::MouseEvent & event)
 {
     event = {};
     if (!g_ready || g_input_mode == kernel::input::DeviceMode::Irq)
@@ -156,7 +156,7 @@ bool poll(kernel::mouse::MouseEvent & event)
         return false;
     }
 
-    kernel::mouse::MousePacket packet;
+    kernel::input::mouse::MousePacket packet;
     if (!g_decoder.decode(data, packet))
     {
         return false;

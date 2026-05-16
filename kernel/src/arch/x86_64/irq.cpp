@@ -4,9 +4,9 @@
 
 #include "kernel/arch/x86_64/idt.hpp"
 #include "kernel/arch/x86_64/pic.hpp"
+#include "kernel/drivers/keyboard.hpp"
+#include "kernel/drivers/mouse.hpp"
 #include "kernel/drivers/serial.hpp"
-#include "kernel/input/keyboard.hpp"
-#include "kernel/input/mouse.hpp"
 #include "kernel/time/timer.hpp"
 
 namespace

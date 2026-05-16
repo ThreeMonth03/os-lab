@@ -1,8 +1,6 @@
 #pragma once
 
-#include "kernel/input/input_types.hpp"
-
-namespace kernel::keyboard
+namespace kernel::input::keyboard
 {
 
 enum class Key
@@ -35,14 +33,4 @@ struct KeyEvent
     bool extended = false;
 };
 
-} // namespace kernel::keyboard
-
-namespace kernel::drivers::keyboard
-{
-
-[[nodiscard]] bool init_irq();
-input::DeviceMode input_mode();
-void handle_irq();
-[[nodiscard]] bool poll_key(kernel::keyboard::KeyEvent & event);
-
-} // namespace kernel::drivers::keyboard
+} // namespace kernel::input::keyboard

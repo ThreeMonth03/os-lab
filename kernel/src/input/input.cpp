@@ -2,9 +2,10 @@
 
 #include "kernel/arch/x86_64/interrupt_guard.hpp"
 #include "kernel/base/placement_new.hpp"
+#include "kernel/drivers/keyboard.hpp"
+#include "kernel/drivers/mouse.hpp"
 #include "kernel/input/input_queue.hpp"
 #include "kernel/input/input_stats_tracker.hpp"
-#include "kernel/input/mouse.hpp"
 
 namespace
 {
@@ -44,7 +45,7 @@ bool poll_keyboard()
         return false;
     }
 
-    kernel::keyboard::KeyEvent key;
+    kernel::input::keyboard::KeyEvent key;
     if (!kernel::drivers::keyboard::poll_key(key))
     {
         return false;
@@ -59,7 +60,7 @@ bool poll_keyboard()
 
 bool poll_mouse()
 {
-    kernel::mouse::MouseEvent mouse;
+    kernel::input::mouse::MouseEvent mouse;
     if (!kernel::drivers::mouse::poll(mouse))
     {
         return false;

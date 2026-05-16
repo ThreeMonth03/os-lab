@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace kernel::mouse
+namespace kernel::input::mouse
 {
 
 struct MousePacket
@@ -28,4 +28,4 @@ private:
     size_t index_ = 0;
 };
 
-} // namespace kernel::mouse
+} // namespace kernel::input::mouse

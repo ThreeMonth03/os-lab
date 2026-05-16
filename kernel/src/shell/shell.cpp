@@ -35,9 +35,9 @@ char lowercase(char value)
     return value;
 }
 
-bool handle_control_shortcut(const kernel::keyboard::KeyEvent & event, kernel::text::LineEditor & line, kernel::shell::EditorView & view, bool caps_lock, kernel::text::History & history)
+bool handle_control_shortcut(const kernel::input::keyboard::KeyEvent & event, kernel::text::LineEditor & line, kernel::shell::EditorView & view, bool caps_lock, kernel::text::History & history)
 {
-    if (!event.control || event.key != kernel::keyboard::Key::Character)
+    if (!event.control || event.key != kernel::input::keyboard::Key::Character)
     {
         return false;
     }
@@ -88,7 +88,7 @@ bool handle_control_shortcut(const kernel::keyboard::KeyEvent & event, kernel::t
     return true;
 }
 
-void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::text::LineEditor & line, kernel::shell::EditorView & view, bool & caps_lock, kernel::text::History & history)
+void handle_key_event(const kernel::input::keyboard::KeyEvent & event, kernel::text::LineEditor & line, kernel::shell::EditorView & view, bool & caps_lock, kernel::text::History & history)
 {
     if (!event.pressed)
     {
@@ -102,7 +102,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::text::Li
 
     switch (event.key)
     {
-    case kernel::keyboard::Key::Character:
+    case kernel::input::keyboard::Key::Character:
     {
         const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         if (line.insert(event.character))
@@ -112,7 +112,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::text::Li
         }
         break;
     }
-    case kernel::keyboard::Key::Tab:
+    case kernel::input::keyboard::Key::Tab:
     {
         const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         const size_t spaces = kernel::text::LineEditor::spaces_to_next_tab_stop(line.cursor());
@@ -123,7 +123,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::text::Li
         }
         break;
     }
-    case kernel::keyboard::Key::Backspace:
+    case kernel::input::keyboard::Key::Backspace:
     {
         const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         if (line.backspace())
@@ -133,7 +133,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::text::Li
         }
         break;
     }
-    case kernel::keyboard::Key::Delete:
+    case kernel::input::keyboard::Key::Delete:
     {
         const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         if (line.delete_forward())
@@ -143,19 +143,19 @@ void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::text::Li
         }
         break;
     }
-    case kernel::keyboard::Key::UpArrow:
+    case kernel::input::keyboard::Key::UpArrow:
     {
         kernel::StringView command;
         view.redraw_history_result(history.previous(command), command, line, caps_lock);
         break;
     }
-    case kernel::keyboard::Key::DownArrow:
+    case kernel::input::keyboard::Key::DownArrow:
     {
         kernel::StringView command;
         view.redraw_history_result(history.next(command), command, line, caps_lock);
         break;
     }
-    case kernel::keyboard::Key::LeftArrow:
+    case kernel::input::keyboard::Key::LeftArrow:
     {
         const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         if (line.move_left())
@@ -164,7 +164,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::text::Li
         }
         break;
     }
-    case kernel::keyboard::Key::RightArrow:
+    case kernel::input::keyboard::Key::RightArrow:
     {
         const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         if (line.move_right())
@@ -173,7 +173,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::text::Li
         }
         break;
     }
-    case kernel::keyboard::Key::Enter:
+    case kernel::input::keyboard::Key::Enter:
         terminal::hide_cursor();
         view.move_to_line_end(line, caps_lock);
         terminal::write_char('\n');
@@ -186,7 +186,7 @@ void handle_key_event(const kernel::keyboard::KeyEvent & event, kernel::text::Li
         history.reset_browse();
         view.write_new_prompt_and_line(line, caps_lock);
         break;
-    case kernel::keyboard::Key::CapsLock:
+    case kernel::input::keyboard::Key::CapsLock:
     {
         const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);
         caps_lock = event.caps_lock;

@@ -25,7 +25,7 @@ int16_t sign_extend(uint8_t value, bool negative)
 
 } // namespace
 
-namespace kernel::mouse
+namespace kernel::input::mouse
 {
 
 bool MousePacketDecoder::decode(uint8_t byte, MousePacket & packet)
@@ -65,4 +65,4 @@ void MousePacketDecoder::reset()
     index_ = 0;
 }
 
-} // namespace kernel::mouse
+} // namespace kernel::input::mouse
