@@ -29,7 +29,6 @@ struct TerminalAppConfig
 [[nodiscard]] HitTestResult pointer_target();
 
 void refresh_desktop();
-void mark_terminal_app_dirty(Rect rect);
 void repaint_layers_above_terminal_app(Rect rect);
 void update_pointer_target(uint64_t x, uint64_t y);
 

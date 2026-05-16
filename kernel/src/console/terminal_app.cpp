@@ -214,14 +214,6 @@ display::Rect TerminalApp::render_text_repaint(bool full_repaint, uint64_t scrol
     return render_dirty_text_cells();
 }
 
-void TerminalApp::mark_dirty(display::Rect dirty_rect)
-{
-    if (!dirty_rect.empty() && repaint_sink_.mark_dirty != nullptr)
-    {
-        repaint_sink_.mark_dirty(dirty_rect);
-    }
-}
-
 void TerminalApp::repaint_layers_above(display::Rect dirty_rect)
 {
     if (!dirty_rect.empty() && repaint_sink_.repaint_layers_above != nullptr)
@@ -265,7 +257,6 @@ void TerminalApp::apply_repaint_request(display::TerminalRepaintRequest request)
         dirty_rect = display::bounding_rect(dirty_rect,
                                             render_text_repaint(request.full_text_repaint,
                                                                 request.scroll_rows));
-        mark_dirty(dirty_rect);
     }
 
     if (request.repaint_higher_layers)
@@ -282,7 +273,6 @@ void TerminalApp::apply_repaint_flush(display::TerminalRepaintFlush flush)
         dirty_rect = display::bounding_rect(dirty_rect,
                                             render_text_repaint(flush.full_text_repaint,
                                                                 flush.scroll_rows));
-        mark_dirty(dirty_rect);
     }
 
     if (flush.repaint_higher_layers)
@@ -310,7 +300,6 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
         {
             render_text_cell(update.cell.column, update.cell.row, update.glyph);
             dirty_rect = cell_rect(update.cell.column, update.cell.row);
-            mark_dirty(dirty_rect);
         }
         break;
     case text::TextConsoleAction::ClearCell:
@@ -319,7 +308,6 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
         {
             render_text_cell(update.cell.column, update.cell.row, text::kTextBufferBlank);
             dirty_rect = cell_rect(update.cell.column, update.cell.row);
-            mark_dirty(dirty_rect);
         }
         break;
     case text::TextConsoleAction::None:

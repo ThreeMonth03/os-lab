@@ -86,7 +86,6 @@ void refresh_now()
     }
 
     repaint_panel(g_state.desktop_bounds);
-    compositor::mark_dirty(g_state.desktop_bounds);
     compositor::repaint_layers_above(LayerKind::DesktopPanel, g_state.desktop_bounds);
 }
 

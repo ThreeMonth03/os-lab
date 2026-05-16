@@ -26,14 +26,6 @@ kernel::display::compositor::LayerRepaintCallback layer_repaint_callback_for(
     return nullptr;
 }
 
-void discard_dirty_queue()
-{
-    kernel::display::Rect discarded;
-    while (g_compositor.pop_dirty(discarded))
-    {
-    }
-}
-
 void repaint_plan(const kernel::display::LayerRepaintPlan & plan, kernel::display::Rect dirty_rect)
 {
     for (size_t index = 0; index < plan.count; ++index)
@@ -94,21 +86,14 @@ bool register_layer_repaint_callback(LayerKind kind, LayerRepaintCallback callba
     return false;
 }
 
-void mark_dirty(Rect rect)
-{
-    g_compositor.mark_dirty(rect);
-}
-
 void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect)
 {
     repaint_plan(g_compositor.repaint_plan_above(updated_layer, dirty_rect), dirty_rect);
-    discard_dirty_queue();
 }
 
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect)
 {
     repaint_plan(g_compositor.repaint_plan_from(base_layer, dirty_rect), dirty_rect);
-    discard_dirty_queue();
 }
 
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds)

@@ -231,8 +231,8 @@ DirtyMarkResult DirtyRectQueue::fallback_to_fullscreen()
 
 void Compositor::reset(Rect bounds)
 {
+    bounds_ = bounds;
     clear_layers();
-    dirty_rects_.reset(bounds);
 }
 
 void Compositor::clear_layers()

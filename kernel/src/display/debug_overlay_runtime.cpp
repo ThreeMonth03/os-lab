@@ -174,7 +174,6 @@ void refresh_now(const Snapshot & snapshot)
     }
 
     paint_overlay(snapshot);
-    compositor::mark_dirty(g_state.target.bounds);
     compositor::repaint_layers_above(LayerKind::DebugOverlay, g_state.target.bounds);
 }
 

@@ -99,16 +99,13 @@ public:
     [[nodiscard]] LayerRepaintPlan repaint_plan_from(LayerKind base_layer, Rect dirty_rect) const;
     [[nodiscard]] LayerRepaintPlan repaint_plan_above(LayerKind updated_layer, Rect dirty_rect) const;
 
-    DirtyMarkResult mark_dirty(Rect rect) { return dirty_rects_.mark_dirty(rect); }
-    [[nodiscard]] bool pop_dirty(Rect & rect) { return dirty_rects_.pop(rect); }
-
     size_t layer_count() const { return layer_count_; }
-    Rect bounds() const { return dirty_rects_.bounds(); }
+    Rect bounds() const { return bounds_; }
 
 private:
+    Rect bounds_;
     Layer layers_[kMaxCompositorLayers] = {};
     size_t layer_count_ = 0;
-    DirtyRectQueue dirty_rects_;
 };
 
 namespace compositor
@@ -119,7 +116,6 @@ using LayerRepaintCallback = void (*)(Rect dirty_rect);
 void init(Rect bounds);
 [[nodiscard]] bool register_layer(Layer layer);
 [[nodiscard]] bool register_layer_repaint_callback(LayerKind kind, LayerRepaintCallback callback);
-void mark_dirty(Rect rect);
 void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect);
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds);

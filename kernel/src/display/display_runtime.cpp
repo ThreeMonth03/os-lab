@@ -248,11 +248,6 @@ void refresh_desktop()
     gui_panel::refresh_now();
 }
 
-void mark_terminal_app_dirty(Rect rect)
-{
-    display::compositor::mark_dirty(rect);
-}
-
 void repaint_layers_above_terminal_app(Rect rect)
 {
     display::compositor::repaint_layers_above(display::LayerKind::AppSurface, rect);
