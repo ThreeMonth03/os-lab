@@ -4,6 +4,7 @@ add_executable(os_lab_unit_tests
     cursor_geometry_test.cpp
     debug_overlay_test.cpp
     display_compositor_test.cpp
+    display_palette_test.cpp
     display_test.cpp
     display_target_test.cpp
     editor_test.cpp

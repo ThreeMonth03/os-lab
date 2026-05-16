@@ -5,6 +5,7 @@
 #include "kernel/display/compositor.hpp"
 #include "kernel/display/debug_overlay.hpp"
 #include "kernel/display/display.hpp"
+#include "kernel/display/display_palette.hpp"
 #include "kernel/display/display_target.hpp"
 #include "kernel/display/app_surface.hpp"
 #include "kernel/display/gui_panel.hpp"
@@ -47,11 +48,11 @@ struct TerminalState
 
 TerminalState g_state;
 
-uint32_t pack_rgb(const limine_framebuffer & framebuffer, uint8_t red, uint8_t green, uint8_t blue)
+uint32_t pack_rgb(const limine_framebuffer & framebuffer, display::RgbColor color)
 {
-    return (static_cast<uint32_t>(red) << framebuffer.red_mask_shift) |
-           (static_cast<uint32_t>(green) << framebuffer.green_mask_shift) |
-           (static_cast<uint32_t>(blue) << framebuffer.blue_mask_shift);
+    return (static_cast<uint32_t>(color.red) << framebuffer.red_mask_shift) |
+           (static_cast<uint32_t>(color.green) << framebuffer.green_mask_shift) |
+           (static_cast<uint32_t>(color.blue) << framebuffer.blue_mask_shift);
 }
 
 uint64_t max_u64(uint64_t lhs, uint64_t rhs)
@@ -245,25 +246,14 @@ display::Rect render_dirty_text_cells()
 
 display::Rect render_text_repaint(bool full_repaint, uint64_t scroll_rows)
 {
+    (void)scroll_rows;
     if (full_repaint || !g_state.render_cache.valid())
     {
         repaint_text_layer();
         return terminal_bounds();
     }
 
-    display::Rect dirty_rect;
-    if (scroll_rows > 0)
-    {
-        g_state.renderer.scroll_up_rows(scroll_rows);
-        if (!g_state.render_cache.scroll_up(scroll_rows))
-        {
-            repaint_text_layer();
-            return terminal_bounds();
-        }
-        dirty_rect = terminal_bounds();
-    }
-
-    return display::bounding_rect(dirty_rect, render_dirty_text_cells());
+    return render_dirty_text_cells();
 }
 
 void repaint_terminal_text_region(display::Rect dirty_rect)
@@ -396,8 +386,9 @@ void register_debug_overlay_target(const limine_framebuffer & framebuffer)
         return;
     }
 
-    const display::Color foreground{pack_rgb(framebuffer, 0x92, 0xf7, 0xb8)};
-    const display::Color background{pack_rgb(framebuffer, 0x08, 0x0c, 0x12)};
+    constexpr display::DisplayPalette palette = display::default_display_palette();
+    const display::Color foreground{pack_rgb(framebuffer, palette.debug_overlay_foreground)};
+    const display::Color background{pack_rgb(framebuffer, palette.debug_overlay_background)};
     (void)debug_overlay::init(g_state.surface, *target, foreground, background);
     (void)display::compositor::register_layer({
         display::LayerKind::DebugOverlay,
@@ -428,9 +419,10 @@ void register_gui_panel_target(const limine_framebuffer & framebuffer)
         framebuffer_bounds(framebuffer),
         true,
     });
-    const display::Color border{pack_rgb(framebuffer, 0x6b, 0xd6, 0xff)};
-    const display::Color background{pack_rgb(framebuffer, 0x12, 0x1b, 0x28)};
-    const display::Color foreground{pack_rgb(framebuffer, 0xf5, 0xf5, 0xf5)};
+    constexpr display::DisplayPalette palette = display::default_display_palette();
+    const display::Color border{pack_rgb(framebuffer, palette.panel_border)};
+    const display::Color background{pack_rgb(framebuffer, palette.desktop_background)};
+    const display::Color foreground{pack_rgb(framebuffer, palette.panel_foreground)};
     (void)gui_panel::init(g_state.surface, *registered, border, background, foreground, config);
 }
 
@@ -511,8 +503,9 @@ bool init()
         return false;
     }
     g_state.console.reset(columns, rows);
-    const display::Color foreground{pack_rgb(*framebuffer, 0xf5, 0xf5, 0xf5)};
-    const display::Color background{pack_rgb(*framebuffer, 0x10, 0x14, 0x1c)};
+    constexpr display::DisplayPalette palette = display::default_display_palette();
+    const display::Color foreground{pack_rgb(*framebuffer, palette.terminal_foreground)};
+    const display::Color background{pack_rgb(*framebuffer, palette.terminal_background)};
     g_state.renderer.reset(g_state.surface, bounds, foreground, background);
     g_state.repaint.reset();
 

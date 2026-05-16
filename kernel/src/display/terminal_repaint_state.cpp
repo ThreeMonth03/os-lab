@@ -68,8 +68,8 @@ TerminalRepaintRequest TerminalRepaintState::record_scroll(Rect bounds, uint64_t
 
     if (!in_batch())
     {
-        const bool full_repaint = visible_rows > 0 && visible_rows <= 1;
-        return {true, full_repaint, true, full_repaint ? 0u : 1u, bounds};
+        (void)visible_rows;
+        return {true, true, true, 0, bounds};
     }
 
     record_pending_scroll(bounds, visible_rows);
@@ -122,20 +122,14 @@ void TerminalRepaintState::record_pending_full_repaint(Rect bounds)
 
 void TerminalRepaintState::record_pending_scroll(Rect bounds, uint64_t visible_rows)
 {
+    (void)visible_rows;
     if (pending_full_repaint_)
     {
         record_pending_dirty(bounds);
         return;
     }
 
-    ++pending_scroll_rows_;
-    if (visible_rows > 0 && pending_scroll_rows_ >= visible_rows)
-    {
-        record_pending_full_repaint(bounds);
-        return;
-    }
-
-    record_pending_dirty(bounds);
+    record_pending_full_repaint(bounds);
 }
 
 } // namespace kernel::display

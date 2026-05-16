@@ -50,23 +50,6 @@ void TerminalRenderer::clear_cell(uint64_t column, uint64_t row)
               background_);
 }
 
-void TerminalRenderer::scroll_up_rows(uint64_t rows)
-{
-    if (!ready() || rows == 0)
-    {
-        return;
-    }
-
-    const uint64_t pixel_count = rows * kCellHeight;
-    if (pixel_count >= viewport_.height)
-    {
-        clear_screen();
-        return;
-    }
-
-    surface_->scroll_up_rect(viewport_, pixel_count, background_);
-}
-
 void TerminalRenderer::draw_glyph(char value, uint64_t column, uint64_t row)
 {
     if (!ready())

@@ -208,6 +208,31 @@ TEST(DisplayCompositorTest, PlansOnlyHigherIntersectingLayersAfterAppUpdate)
     EXPECT_EQ(plan.at(0), kernel::display::LayerKind::MouseCursor);
 }
 
+TEST(DisplayCompositorTest, FullAppRepaintRestoresOverlayAndCursorLayers)
+{
+    kernel::display::Compositor compositor({0, 0, 800, 600});
+
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DesktopPanel,
+                                                        100,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::AppSurface,
+                                                        200,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DebugOverlay,
+                                                        kernel::display::debug_overlay::kSurfaceId,
+                                                        {700, 0, 80, 20})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::MouseCursor,
+                                                        kernel::display::kMouseCursorLayerSurfaceId,
+                                                        {0, 0, 800, 600})));
+
+    const kernel::display::LayerRepaintPlan plan =
+        compositor.repaint_plan_above(kernel::display::LayerKind::AppSurface, {0, 0, 800, 600});
+
+    ASSERT_EQ(plan.count, 2u);
+    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::DebugOverlay);
+    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::MouseCursor);
+}
+
 TEST(DisplayCompositorTest, RepaintsOnlyVisibleHigherLayersIntersectingDirtyRect)
 {
     const kernel::display::Layer overlay = bounded_layer(kernel::display::LayerKind::DebugOverlay,
