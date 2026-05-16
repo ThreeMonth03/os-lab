@@ -15,6 +15,7 @@ add_library(os_lab_kernel_display OBJECT
     gui_panel_runtime.cpp
     gui_surface.cpp
     hit_test.cpp
+    image_view.cpp
     mouse_cursor.cpp
     terminal_render_cache.cpp
     terminal_repaint_state.cpp

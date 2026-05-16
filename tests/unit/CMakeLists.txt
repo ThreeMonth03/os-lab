@@ -13,6 +13,7 @@ add_executable(os_lab_unit_tests
     gui_panel_test.cpp
     gui_surface_test.cpp
     hit_test_test.cpp
+    image_view_test.cpp
     input_queue_test.cpp
     input_router_test.cpp
     keyboard_decoder_test.cpp
