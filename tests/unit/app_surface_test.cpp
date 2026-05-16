@@ -37,6 +37,7 @@ TEST(AppSurfaceTest, BuildsTerminalAppSurfaceDescriptorAndLayer)
     const kernel::display::Layer layer = surface.layer();
     EXPECT_EQ(layer.kind, kernel::display::LayerKind::AppSurface);
     EXPECT_TRUE(layer.visible);
+    EXPECT_TRUE(layer.occludes_lower_repaint());
     expect_rect(layer.bounds, 8, 16, 320, 200);
 }
 

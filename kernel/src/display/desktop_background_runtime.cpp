@@ -51,7 +51,7 @@ bool init(Surface & surface, Rect bounds, BackgroundSource source)
             kSurfaceId,
             bounds,
             true,
-            LayerOpacity::Opaque,
+            LayerOcclusion::Opaque,
         }) ||
         !compositor::register_layer_repaint_callback(LayerKind::DesktopBackground,
                                                      repaint_background))

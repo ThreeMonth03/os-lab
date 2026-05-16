@@ -385,7 +385,7 @@ LayerRepaintPlan Compositor::repaint_plan_from(LayerKind base_layer, Rect dirty_
         for (size_t occluder_index = 0; occluder_index < layer_count_; ++occluder_index)
         {
             const Layer & occluder = layers_[occluder_index];
-            if (!occluder.visible || !occluder.valid() || !occluder.opaque() ||
+            if (!occluder.visible || !occluder.valid() || !occluder.occludes_lower_repaint() ||
                 !layer_above(occluder.kind, layer.kind) || !rects_overlap(occluder.bounds, dirty_rect))
             {
                 continue;
@@ -394,6 +394,7 @@ LayerRepaintPlan Compositor::repaint_plan_from(LayerKind base_layer, Rect dirty_
             const bool split_ok = subtract_occluder_from_regions(regions, region_count, occluder.bounds);
             if (!split_ok)
             {
+                // Capacity fallback: repaint the unsplit layer region rather than dropping damage.
                 region_count = 1;
                 regions[0] = clip_to_bounds(dirty_rect, layer.bounds);
                 break;

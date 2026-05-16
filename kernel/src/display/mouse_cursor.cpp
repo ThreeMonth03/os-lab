@@ -154,7 +154,7 @@ bool init()
         display::kMouseCursorLayerSurfaceId,
         {0, 0, framebuffer->width, framebuffer->height},
         true,
-        display::LayerOpacity::Transparent,
+        display::LayerOcclusion::Transparent,
     });
     const bool repaint_registered =
         display::compositor::register_layer_repaint_callback(display::LayerKind::MouseCursor,

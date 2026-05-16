@@ -34,7 +34,7 @@ enum class LayerKind
     MouseCursor,
 };
 
-enum class LayerOpacity
+enum class LayerOcclusion
 {
     Transparent,
     Opaque,
@@ -46,13 +46,15 @@ struct Layer
     SurfaceId surface_id = kInvalidSurfaceId;
     Rect bounds;
     bool visible = true;
-    LayerOpacity opacity = LayerOpacity::Transparent;
+    // Repaint occlusion is about compositor planning, not alpha blending.
+    // Opaque layers can cover lower-layer repaint regions; transparent layers cannot.
+    LayerOcclusion occlusion = LayerOcclusion::Transparent;
 
     bool valid() const;
-    bool opaque() const { return opacity == LayerOpacity::Opaque; }
+    bool occludes_lower_repaint() const { return occlusion == LayerOcclusion::Opaque; }
 };
 
-struct LayerRepaintEntry
+struct LayerRepaintRegion
 {
     LayerKind kind = LayerKind::None;
     Rect rect;
@@ -60,9 +62,10 @@ struct LayerRepaintEntry
 
 struct LayerRepaintPlan
 {
-    LayerRepaintEntry entries[kMaxLayerRepaintEntries] = {};
+    LayerRepaintRegion entries[kMaxLayerRepaintEntries] = {};
     size_t count = 0;
 
+    // A single layer can appear more than once when opaque layers split its repaint region.
     bool push(LayerKind kind, Rect rect);
     bool contains(LayerKind kind) const;
     LayerKind at(size_t index) const;

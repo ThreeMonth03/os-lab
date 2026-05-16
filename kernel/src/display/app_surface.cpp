@@ -27,7 +27,7 @@ Layer AppSurface::layer() const
         display_surface_id,
         bounds,
         visible,
-        LayerOpacity::Opaque,
+        LayerOcclusion::Opaque,
     };
 }
 

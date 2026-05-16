@@ -30,6 +30,7 @@ TEST(GuiSurfaceTest, BuildsDisplayTargetAndLayerDescriptors)
     EXPECT_EQ(layer.kind, kernel::display::LayerKind::GuiSurface);
     EXPECT_EQ(layer.surface_id, gui.display_surface_id);
     EXPECT_TRUE(layer.visible);
+    EXPECT_TRUE(layer.occludes_lower_repaint());
 }
 
 TEST(GuiSurfaceTest, ValidatesSurfaceState)

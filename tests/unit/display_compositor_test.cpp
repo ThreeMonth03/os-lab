@@ -16,19 +16,19 @@ void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t 
 
 kernel::display::Layer layer(kernel::display::LayerKind kind, kernel::display::SurfaceId id)
 {
-    const kernel::display::LayerOpacity opacity =
-        kind == kernel::display::LayerKind::MouseCursor ? kernel::display::LayerOpacity::Transparent
-                                                        : kernel::display::LayerOpacity::Opaque;
-    return {kind, id, {0, 0, 640, 480}, true, opacity};
+    const kernel::display::LayerOcclusion occlusion =
+        kind == kernel::display::LayerKind::MouseCursor ? kernel::display::LayerOcclusion::Transparent
+                                                        : kernel::display::LayerOcclusion::Opaque;
+    return {kind, id, {0, 0, 640, 480}, true, occlusion};
 }
 
 kernel::display::Layer bounded_layer(kernel::display::LayerKind kind,
                                      kernel::display::SurfaceId id,
                                      kernel::display::Rect bounds,
                                      bool visible = true,
-                                     kernel::display::LayerOpacity opacity = kernel::display::LayerOpacity::Opaque)
+                                     kernel::display::LayerOcclusion occlusion = kernel::display::LayerOcclusion::Opaque)
 {
-    return {kind, id, bounds, visible, opacity};
+    return {kind, id, bounds, visible, occlusion};
 }
 
 kernel::display::Layer cursor_layer(kernel::display::Rect bounds = {0, 0, 800, 600})
@@ -37,7 +37,7 @@ kernel::display::Layer cursor_layer(kernel::display::Rect bounds = {0, 0, 800, 6
                          kernel::display::kMouseCursorLayerSurfaceId,
                          bounds,
                          true,
-                         kernel::display::LayerOpacity::Transparent);
+                         kernel::display::LayerOcclusion::Transparent);
 }
 
 } // namespace
@@ -151,7 +151,7 @@ TEST(DisplayCompositorTest, MouseCursorLayerIsTopmost)
     EXPECT_EQ(top->kind, kernel::display::LayerKind::MouseCursor);
 }
 
-TEST(DisplayCompositorTest, MarksOpaqueLayerMetadata)
+TEST(DisplayCompositorTest, MarksOccludingLayerMetadata)
 {
     const kernel::display::Layer overlay = bounded_layer(kernel::display::LayerKind::DebugOverlay,
                                                          kernel::display::debug_overlay::kSurfaceId,
@@ -161,9 +161,31 @@ TEST(DisplayCompositorTest, MarksOpaqueLayerMetadata)
                                                      {0, 0, 800, 600});
     const kernel::display::Layer cursor = cursor_layer();
 
-    EXPECT_TRUE(overlay.opaque());
-    EXPECT_TRUE(app.opaque());
-    EXPECT_FALSE(cursor.opaque());
+    EXPECT_TRUE(overlay.occludes_lower_repaint());
+    EXPECT_TRUE(app.occludes_lower_repaint());
+    EXPECT_FALSE(cursor.occludes_lower_repaint());
+}
+
+TEST(DisplayCompositorTest, TransparentCursorDoesNotOccludeAppRepaint)
+{
+    kernel::display::Compositor compositor({0, 0, 800, 600});
+
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DesktopBackground,
+                                                        100,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::AppSurface,
+                                                        200,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(cursor_layer({100, 100, 16, 16})));
+
+    const kernel::display::LayerRepaintPlan plan =
+        compositor.repaint_plan_from(kernel::display::LayerKind::DesktopBackground, {104, 104, 4, 4});
+
+    ASSERT_EQ(plan.count, 2u);
+    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::AppSurface);
+    expect_rect(plan.rect_at(0), 104, 104, 4, 4);
+    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::MouseCursor);
+    expect_rect(plan.rect_at(1), 104, 104, 4, 4);
 }
 
 TEST(DisplayCompositorTest, SkipsAppLayerWhenDirtyRectIsCoveredByOpaqueOverlay)
