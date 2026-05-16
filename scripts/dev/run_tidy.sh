@@ -29,6 +29,7 @@ mapfile -d '' sources < <(
         "${project_root}/kernel/src/display/compositor.cpp" \
         "${project_root}/kernel/src/display/cursor_geometry.cpp" \
         "${project_root}/kernel/src/display/debug_overlay.cpp" \
+        "${project_root}/kernel/src/display/debug_overlay_renderer.cpp" \
         "${project_root}/kernel/src/display/display.cpp" \
         "${project_root}/kernel/src/display/display_target.cpp" \
         "${project_root}/kernel/src/display/gui_panel.cpp" \

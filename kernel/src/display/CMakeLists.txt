@@ -7,6 +7,7 @@ add_library(os_lab_kernel_display OBJECT
     desktop_background.cpp
     desktop_background_runtime.cpp
     debug_overlay.cpp
+    debug_overlay_renderer.cpp
     debug_overlay_runtime.cpp
     display.cpp
     display_runtime.cpp

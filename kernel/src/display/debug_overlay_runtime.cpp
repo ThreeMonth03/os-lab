@@ -1,18 +1,15 @@
 #include "debug_overlay_runtime.hpp"
 
 #include "kernel/display/compositor.hpp"
+#include "kernel/display/debug_overlay_renderer.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/memory/memory.hpp"
-#include "kernel/text/font5x7.hpp"
 #include "kernel/time/timer.hpp"
 
 namespace
 {
 
 namespace debug_overlay = kernel::display::debug_overlay;
-constexpr uint64_t kPadding = 2;
-constexpr uint64_t kGlyphSpacing = 1;
-constexpr uint64_t kLineHeight = kernel::text::Glyph5x7::height + 2;
 
 struct OverlayState
 {
@@ -26,43 +23,6 @@ struct OverlayState
 };
 
 OverlayState g_state;
-
-void draw_glyph(char value, uint64_t x, uint64_t y)
-{
-    if (g_state.surface == nullptr || !g_state.surface->ready())
-    {
-        return;
-    }
-
-    const kernel::text::Glyph5x7 & glyph = kernel::text::Font5x7::glyph_for(value);
-    for (uint64_t glyph_row = 0; glyph_row < kernel::text::Glyph5x7::height; ++glyph_row)
-    {
-        for (uint64_t glyph_column = 0; glyph_column < kernel::text::Glyph5x7::width; ++glyph_column)
-        {
-            const uint8_t mask = static_cast<uint8_t>(1u << (kernel::text::Glyph5x7::width - glyph_column - 1));
-            if ((glyph.rows[glyph_row] & mask) != 0)
-            {
-                g_state.surface->put_pixel(x + glyph_column, y + glyph_row, g_state.foreground);
-            }
-        }
-    }
-}
-
-void draw_line(const char * line, uint64_t x, uint64_t y)
-{
-    if (g_state.surface == nullptr || !g_state.surface->ready())
-    {
-        return;
-    }
-
-    const uint64_t right = g_state.target.bounds.x + g_state.target.bounds.width;
-    while (*line != '\0' && x + kernel::text::Glyph5x7::width <= right)
-    {
-        draw_glyph(*line, x, y);
-        x += kernel::text::Glyph5x7::width + kGlyphSpacing;
-        ++line;
-    }
-}
 
 debug_overlay::Snapshot make_snapshot()
 {
@@ -80,26 +40,15 @@ debug_overlay::Snapshot make_snapshot()
     return snapshot;
 }
 
-void paint_overlay(const debug_overlay::Snapshot & snapshot)
+void paint_overlay_region(const debug_overlay::Snapshot & snapshot, kernel::display::Rect dirty_rect)
 {
     debug_overlay::Lines lines;
     debug_overlay::format_snapshot(snapshot, lines);
-
-    g_state.surface->fill_rect(g_state.target.bounds, g_state.background);
-
-    const uint64_t text_x = g_state.target.bounds.x + kPadding;
-    uint64_t text_y = g_state.target.bounds.y + kPadding;
-    const uint64_t bottom = g_state.target.bounds.y + g_state.target.bounds.height;
-    if (text_y + kernel::text::Glyph5x7::height <= bottom)
-    {
-        draw_line(lines.first, text_x, text_y);
-    }
-
-    text_y += kLineHeight;
-    if (text_y + kernel::text::Glyph5x7::height <= bottom)
-    {
-        draw_line(lines.second, text_x, text_y);
-    }
+    debug_overlay::paint_region(*g_state.surface,
+                                g_state.target.bounds,
+                                lines,
+                                {g_state.foreground, g_state.background},
+                                dirty_rect);
 }
 
 bool overlay_ready()
@@ -109,12 +58,12 @@ bool overlay_ready()
 
 void repaint_overlay(kernel::display::Rect dirty_rect)
 {
-    if (!overlay_ready() || !kernel::display::rects_overlap(g_state.target.bounds, dirty_rect))
+    if (!overlay_ready() || debug_overlay::repaint_region(g_state.target.bounds, dirty_rect).empty())
     {
         return;
     }
 
-    paint_overlay(make_snapshot());
+    paint_overlay_region(make_snapshot(), dirty_rect);
 }
 
 void refresh_overlay_now(const debug_overlay::Snapshot & snapshot)
@@ -124,7 +73,7 @@ void refresh_overlay_now(const debug_overlay::Snapshot & snapshot)
         return;
     }
 
-    paint_overlay(snapshot);
+    paint_overlay_region(snapshot, g_state.target.bounds);
     kernel::display::compositor::repaint_layers_above(kernel::display::LayerKind::DebugOverlay,
                                                       g_state.target.bounds);
 }

@@ -2,6 +2,7 @@
 
 #include "kernel/display/app_surface.hpp"
 #include "kernel/display/debug_overlay.hpp"
+#include "kernel/display/debug_overlay_renderer.hpp"
 
 namespace
 {
@@ -12,6 +13,15 @@ void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t 
     EXPECT_EQ(actual.y, y);
     EXPECT_EQ(actual.width, width);
     EXPECT_EQ(actual.height, height);
+}
+
+template <size_t Size>
+void fill_pixels(uint32_t (&pixels)[Size], uint32_t value)
+{
+    for (uint32_t & pixel : pixels)
+    {
+        pixel = value;
+    }
 }
 
 } // namespace
@@ -84,4 +94,82 @@ TEST(DebugOverlayTest, RegistryCanTrackAppAndOverlayTargets)
     EXPECT_EQ(registry.focused_target_id(), app.display_surface_id);
     EXPECT_FALSE(overlay->active);
     EXPECT_FALSE(overlay->focused);
+}
+
+TEST(DebugOverlayTest, ClipsRepaintRegionToOverlayBounds)
+{
+    const kernel::display::Rect bounds{10, 4, 40, 16};
+
+    expect_rect(kernel::display::debug_overlay::repaint_region(bounds, {12, 6, 4, 3}), 12, 6, 4, 3);
+    expect_rect(kernel::display::debug_overlay::repaint_region(bounds, {48, 18, 8, 8}), 48, 18, 2, 2);
+    EXPECT_TRUE(kernel::display::debug_overlay::repaint_region(bounds, {0, 0, 4, 4}).empty());
+}
+
+TEST(DebugOverlayTest, PaintRegionOnlyClearsDirtyIntersection)
+{
+    constexpr uint64_t width = 32;
+    constexpr uint64_t height = 18;
+    uint32_t pixels[width * height] = {};
+    fill_pixels(pixels, 9);
+
+    kernel::display::Surface surface(pixels, width, height, width * sizeof(uint32_t));
+    kernel::display::debug_overlay::Lines lines;
+    lines.first[0] = 't';
+    lines.first[1] = '\0';
+
+    kernel::display::debug_overlay::paint_region(surface,
+                                                 {4, 2, 20, 12},
+                                                 lines,
+                                                 {{2}, {1}},
+                                                 {4, 2, 2, 2});
+
+    EXPECT_EQ(surface.pixel(4, 2).value, 1u);
+    EXPECT_EQ(surface.pixel(5, 3).value, 1u);
+    EXPECT_EQ(surface.pixel(6, 4).value, 9u);
+    EXPECT_EQ(surface.pixel(23, 13).value, 9u);
+    EXPECT_EQ(surface.pixel(3, 2).value, 9u);
+}
+
+TEST(DebugOverlayTest, PaintRegionRestoresGlyphPixelsInsideDirtyRect)
+{
+    constexpr uint64_t width = 32;
+    constexpr uint64_t height = 18;
+    uint32_t pixels[width * height] = {};
+    fill_pixels(pixels, 9);
+
+    kernel::display::Surface surface(pixels, width, height, width * sizeof(uint32_t));
+    kernel::display::debug_overlay::Lines lines;
+    lines.first[0] = 't';
+    lines.first[1] = '\0';
+
+    kernel::display::debug_overlay::paint_region(surface,
+                                                 {4, 2, 20, 12},
+                                                 lines,
+                                                 {{2}, {1}},
+                                                 {7, 4, 1, 1});
+
+    EXPECT_EQ(surface.pixel(7, 4).value, 2u);
+    EXPECT_EQ(surface.pixel(8, 4).value, 9u);
+}
+
+TEST(DebugOverlayTest, PaintRegionRestoresBackgroundWhenDirtyMissesGlyphPixels)
+{
+    constexpr uint64_t width = 32;
+    constexpr uint64_t height = 18;
+    uint32_t pixels[width * height] = {};
+    fill_pixels(pixels, 9);
+
+    kernel::display::Surface surface(pixels, width, height, width * sizeof(uint32_t));
+    kernel::display::debug_overlay::Lines lines;
+    lines.first[0] = 't';
+    lines.first[1] = '\0';
+
+    kernel::display::debug_overlay::paint_region(surface,
+                                                 {4, 2, 20, 12},
+                                                 lines,
+                                                 {{2}, {1}},
+                                                 {6, 4, 1, 1});
+
+    EXPECT_EQ(surface.pixel(6, 4).value, 1u);
+    EXPECT_EQ(surface.pixel(7, 4).value, 9u);
 }
