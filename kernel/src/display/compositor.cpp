@@ -1,5 +1,7 @@
 #include "kernel/display/compositor.hpp"
 
+#include "kernel/display/composited_surface.hpp"
+
 namespace
 {
 
@@ -328,6 +330,15 @@ bool Compositor::register_layer(Layer layer)
 
     layers_[layer_count_++] = layer;
     return true;
+}
+
+bool Compositor::register_surface(CompositedSurfaceDescriptor surface)
+{
+    if (!surface.valid())
+    {
+        return false;
+    }
+    return register_layer(surface.layer());
 }
 
 const Layer * Compositor::find_layer(LayerKind kind) const

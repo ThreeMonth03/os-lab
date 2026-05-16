@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "kernel/display/composited_surface.hpp"
 #include "kernel/display/compositor.hpp"
 #include "kernel/display/debug_overlay.hpp"
 
@@ -134,6 +135,45 @@ TEST(DisplayCompositorTest, RegistersDesktopGuiAppAndOverlayLayers)
     const kernel::display::Layer * top = compositor.top_visible_layer();
     ASSERT_NE(top, nullptr);
     EXPECT_EQ(top->kind, kernel::display::LayerKind::DebugOverlay);
+}
+
+TEST(DisplayCompositorTest, RegistersCompositedSurfaceDescriptors)
+{
+    kernel::display::Compositor compositor({0, 0, 800, 600});
+
+    ASSERT_TRUE(compositor.register_surface(kernel::display::make_composited_surface(
+        100,
+        kernel::display::CompositedSurfaceRole::Background,
+        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_surface(kernel::display::make_composited_surface(
+        150,
+        kernel::display::CompositedSurfaceRole::SystemUi,
+        {10, 10, 120, 40})));
+    ASSERT_TRUE(compositor.register_surface(kernel::display::make_composited_surface(
+        200,
+        kernel::display::CompositedSurfaceRole::App,
+        {0, 0, 800, 600},
+        true,
+        true,
+        true)));
+    ASSERT_TRUE(compositor.register_surface(kernel::display::make_composited_surface(
+        kernel::display::debug_overlay::kSurfaceId,
+        kernel::display::CompositedSurfaceRole::Overlay,
+        {700, 0, 80, 20})));
+    ASSERT_TRUE(compositor.register_surface(kernel::display::make_composited_surface(
+        kernel::display::kMouseCursorLayerSurfaceId,
+        kernel::display::CompositedSurfaceRole::Cursor,
+        {0, 0, 800, 600})));
+
+    EXPECT_EQ(compositor.layer_count(), 5u);
+    const kernel::display::Layer * cursor =
+        compositor.find_layer(kernel::display::LayerKind::MouseCursor);
+    ASSERT_NE(cursor, nullptr);
+    EXPECT_FALSE(cursor->occludes_lower_repaint());
+
+    const kernel::display::Layer * top = compositor.top_visible_layer();
+    ASSERT_NE(top, nullptr);
+    EXPECT_EQ(top->kind, kernel::display::LayerKind::MouseCursor);
 }
 
 TEST(DisplayCompositorTest, MouseCursorLayerIsTopmost)
