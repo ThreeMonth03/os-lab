@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "kernel/display/app_surface.hpp"
 #include "kernel/display/debug_overlay.hpp"
 
 namespace
@@ -55,17 +56,18 @@ TEST(DebugOverlayTest, FormatsSnapshotIntoFixedLines)
     EXPECT_STREQ(lines.second, "k:irq m:poll f:42");
 }
 
-TEST(DebugOverlayTest, RegistryCanTrackConsoleAndOverlayTargets)
+TEST(DebugOverlayTest, RegistryCanTrackAppAndOverlayTargets)
 {
     kernel::display::DisplayTargetRegistry registry;
+    const kernel::display::AppSurface app =
+        kernel::display::make_app_surface(kernel::display::kTerminalAppSurfaceId,
+                                          {0, 0, 800, 600},
+                                          true,
+                                          true);
 
-    EXPECT_TRUE(registry.register_target({
-        kernel::display::kConsoleSurfaceId,
-        kernel::display::DisplayTargetKind::Console,
-        {0, 0, 800, 600},
-        false,
-        false,
-    }));
+    EXPECT_TRUE(registry.register_target(app.display_target()));
+    EXPECT_TRUE(registry.set_active(app.display_surface_id));
+    EXPECT_TRUE(registry.set_focused(app.display_surface_id));
     EXPECT_TRUE(registry.register_target({
         kernel::display::debug_overlay::kSurfaceId,
         kernel::display::DisplayTargetKind::DebugOverlay,
@@ -78,8 +80,8 @@ TEST(DebugOverlayTest, RegistryCanTrackConsoleAndOverlayTargets)
         registry.find(kernel::display::debug_overlay::kSurfaceId);
     ASSERT_NE(overlay, nullptr);
     EXPECT_EQ(registry.size(), 2u);
-    EXPECT_EQ(registry.active_target_id(), kernel::display::kConsoleSurfaceId);
-    EXPECT_EQ(registry.focused_target_id(), kernel::display::kConsoleSurfaceId);
+    EXPECT_EQ(registry.active_target_id(), app.display_surface_id);
+    EXPECT_EQ(registry.focused_target_id(), app.display_surface_id);
     EXPECT_FALSE(overlay->active);
     EXPECT_FALSE(overlay->focused);
 }

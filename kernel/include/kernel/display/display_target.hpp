@@ -11,13 +11,12 @@ namespace kernel::display
 using SurfaceId = uint16_t;
 
 inline constexpr SurfaceId kInvalidSurfaceId = 0;
-inline constexpr SurfaceId kConsoleSurfaceId = 1;
 inline constexpr size_t kMaxDisplayTargets = 8;
 
 enum class DisplayTargetKind
 {
     None,
-    Console,
+    AppSurface,
     DebugOverlay,
     GuiSurface,
 };
@@ -56,8 +55,8 @@ private:
 
     SurfaceDescriptor targets_[kMaxDisplayTargets] = {};
     size_t count_ = 0;
-    SurfaceId active_target_id_ = kConsoleSurfaceId;
-    SurfaceId focused_target_id_ = kConsoleSurfaceId;
+    SurfaceId active_target_id_ = kInvalidSurfaceId;
+    SurfaceId focused_target_id_ = kInvalidSurfaceId;
 };
 
 [[nodiscard]] Rect clip_to_target(const SurfaceDescriptor & target, Rect rect);

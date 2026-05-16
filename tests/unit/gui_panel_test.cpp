@@ -2,6 +2,7 @@
 
 #include "kernel/display/compositor.hpp"
 #include "kernel/display/debug_overlay.hpp"
+#include "kernel/display/app_surface.hpp"
 #include "kernel/display/gui_panel.hpp"
 #include "kernel/display/gui_panel_renderer.hpp"
 
@@ -97,7 +98,6 @@ TEST(GuiPanelTest, HiddenPanelDoesNotRequestRedraw)
     EXPECT_FALSE(panel.visible);
     EXPECT_FALSE(panel.focusable);
     EXPECT_FALSE(kernel::display::gui_panel::should_redraw(panel));
-    EXPECT_FALSE(panel.layer().visible);
 }
 
 TEST(GuiPanelTest, DebugVisibleConfigRequestsRedraw)
@@ -112,7 +112,7 @@ TEST(GuiPanelTest, DebugVisibleConfigRequestsRedraw)
     EXPECT_TRUE(kernel::display::gui_panel::should_redraw(panel));
 }
 
-TEST(GuiPanelTest, VisiblePanelSitsBetweenConsoleAndDebugOverlay)
+TEST(GuiPanelTest, VisiblePanelSitsBelowTerminalAppAndDebugOverlay)
 {
     const kernel::display::gui_panel::Config visible_config{
         kernel::display::gui_panel::kDefaultWidth,
@@ -124,21 +124,20 @@ TEST(GuiPanelTest, VisiblePanelSitsBetweenConsoleAndDebugOverlay)
         kernel::display::gui_panel::make_surface(1280, 720, kernel::display::gui_panel::kGuiSurfaceId, visible_config);
 
     EXPECT_TRUE(kernel::display::gui_panel::should_redraw(panel));
-    EXPECT_TRUE(panel.layer().visible);
-    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::GuiSurface,
-                                             kernel::display::LayerKind::Console));
+    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::AppSurface,
+                                             kernel::display::LayerKind::DesktopPanel));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::DebugOverlay,
-                                             kernel::display::LayerKind::GuiSurface));
+                                             kernel::display::LayerKind::AppSurface));
 }
 
-TEST(GuiPanelTest, CompositorCanTrackConsolePanelOverlayAndCursor)
+TEST(GuiPanelTest, CompositorCanTrackDesktopTerminalOverlayAndCursor)
 {
     kernel::display::Compositor compositor({0, 0, 320, 200});
 
-    ASSERT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::Console,
-                                                kernel::display::kConsoleSurfaceId)));
-    ASSERT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::GuiSurface,
+    ASSERT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::DesktopPanel,
                                                 kernel::display::display_surface_id_for(kernel::display::gui_panel::kGuiSurfaceId))));
+    ASSERT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::AppSurface,
+                                                kernel::display::app_surface_display_id_for(kernel::display::kTerminalAppSurfaceId))));
     ASSERT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::DebugOverlay,
                                                 kernel::display::debug_overlay::kSurfaceId)));
     ASSERT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::MouseCursor,

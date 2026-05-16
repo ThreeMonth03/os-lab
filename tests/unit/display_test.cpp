@@ -83,4 +83,45 @@ TEST(DisplayTest, ScrollUpMovesPixelsAndClearsBottomRows)
     EXPECT_EQ(pixels[11], 0u);
 }
 
+TEST(DisplayTest, ScrollUpRectOnlyMovesPixelsInsideRegion)
+{
+    uint32_t pixels[20] = {
+        10,
+        11,
+        12,
+        13,
+        14,
+        20,
+        21,
+        22,
+        23,
+        24,
+        30,
+        31,
+        32,
+        33,
+        34,
+        40,
+        41,
+        42,
+        43,
+        44,
+    };
+    kernel::display::Surface surface(pixels, 5, 4, 5 * sizeof(uint32_t));
+
+    surface.scroll_up_rect({1, 1, 3, 2}, 1, {0});
+
+    EXPECT_EQ(pixels[0], 10u);
+    EXPECT_EQ(pixels[5], 20u);
+    EXPECT_EQ(pixels[6], 31u);
+    EXPECT_EQ(pixels[7], 32u);
+    EXPECT_EQ(pixels[8], 33u);
+    EXPECT_EQ(pixels[9], 24u);
+    EXPECT_EQ(pixels[11], 0u);
+    EXPECT_EQ(pixels[12], 0u);
+    EXPECT_EQ(pixels[13], 0u);
+    EXPECT_EQ(pixels[14], 34u);
+    EXPECT_EQ(pixels[19], 44u);
+}
+
 } // namespace

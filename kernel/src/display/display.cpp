@@ -82,31 +82,39 @@ void Surface::fill_rect(Rect rect, Color color)
 
 void Surface::scroll_up(uint64_t pixel_count, Color clear_color)
 {
-    if (!ready())
+    scroll_up_rect({0, 0, width_, height_}, pixel_count, clear_color);
+}
+
+void Surface::scroll_up_rect(Rect rect, uint64_t pixel_count, Color clear_color)
+{
+    rect = clip_rect(rect, width_, height_);
+    if (!ready() || rect.empty())
     {
         return;
     }
 
-    if (pixel_count >= height_)
+    if (pixel_count >= rect.height)
     {
-        fill_rect({0, 0, width_, height_}, clear_color);
+        fill_rect(rect, clear_color);
         return;
     }
 
     auto * base = static_cast<uint8_t *>(address_);
-    const uint64_t copy_height = height_ - pixel_count;
+    const uint64_t copy_height = rect.height - pixel_count;
+    const uint64_t copy_bytes = rect.width * sizeof(uint32_t);
 
     for (uint64_t y = 0; y < copy_height; ++y)
     {
-        auto * destination = base + (y * pitch_);
-        const auto * source = base + ((y + pixel_count) * pitch_);
-        for (uint64_t byte = 0; byte < pitch_; ++byte)
+        auto * destination = base + ((rect.y + y) * pitch_) + (rect.x * sizeof(uint32_t));
+        const auto * source = base + ((rect.y + y + pixel_count) * pitch_) +
+                              (rect.x * sizeof(uint32_t));
+        for (uint64_t byte = 0; byte < copy_bytes; ++byte)
         {
             destination[byte] = source[byte];
         }
     }
 
-    fill_rect({0, copy_height, width_, pixel_count}, clear_color);
+    fill_rect({rect.x, rect.y + copy_height, rect.width, pixel_count}, clear_color);
 }
 
 Rect clip_rect(Rect rect, uint64_t width, uint64_t height)

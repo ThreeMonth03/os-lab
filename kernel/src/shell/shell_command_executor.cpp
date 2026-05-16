@@ -86,6 +86,8 @@ kernel::StringView input_focus_name(kernel::input::InputFocus focus)
         return "none";
     case kernel::input::InputFocus::Shell:
         return "shell";
+    case kernel::input::InputFocus::TerminalApp:
+        return "terminal app";
     case kernel::input::InputFocus::GuiSurface:
         return "gui surface";
     }
@@ -98,8 +100,8 @@ kernel::StringView pointer_target_name(kernel::display::DisplayTargetKind kind)
     {
     case kernel::display::DisplayTargetKind::None:
         return "none";
-    case kernel::display::DisplayTargetKind::Console:
-        return "console";
+    case kernel::display::DisplayTargetKind::AppSurface:
+        return "app surface";
     case kernel::display::DisplayTargetKind::DebugOverlay:
         return "debug overlay";
     case kernel::display::DisplayTargetKind::GuiSurface:
@@ -202,6 +204,10 @@ void write_input_stats()
     write_stat("pointer x", pointer_position.x);
     write_stat("pointer y", pointer_position.y);
     write_stat("pointer display surface id", pointer_target.surface_id);
+    if (pointer_target.target_kind == kernel::display::DisplayTargetKind::AppSurface)
+    {
+        write_stat("pointer app surface id", pointer_target.app_surface_id);
+    }
     if (pointer_target.target_kind == kernel::display::DisplayTargetKind::GuiSurface)
     {
         write_stat("pointer gui surface id", pointer_target.gui_surface_id);

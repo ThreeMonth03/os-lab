@@ -40,8 +40,8 @@ void DisplayTargetRegistry::clear()
         targets_[index] = {};
     }
     count_ = 0;
-    active_target_id_ = kConsoleSurfaceId;
-    focused_target_id_ = kConsoleSurfaceId;
+    active_target_id_ = kInvalidSurfaceId;
+    focused_target_id_ = kInvalidSurfaceId;
 }
 
 bool DisplayTargetRegistry::register_target(SurfaceDescriptor descriptor)

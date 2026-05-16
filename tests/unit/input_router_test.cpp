@@ -24,16 +24,27 @@ kernel::input::Event mouse_move_event()
     return event;
 }
 
-TEST(InputRouterTest, DefaultsFocusToShell)
+TEST(InputRouterTest, DefaultsFocusToTerminalApp)
 {
     const kernel::input::InputRouter router;
 
-    EXPECT_EQ(router.focus(), kernel::input::InputFocus::Shell);
+    EXPECT_EQ(router.focus(), kernel::input::InputFocus::TerminalApp);
 }
 
-TEST(InputRouterTest, RoutesKeyboardEventToFocusedShell)
+TEST(InputRouterTest, RoutesKeyboardEventToFocusedTerminalApp)
 {
     const kernel::input::InputRouter router;
+
+    const kernel::input::RoutedEvent routed = router.route(key_event());
+
+    EXPECT_EQ(routed.target, kernel::input::EventTarget::TerminalApp);
+    EXPECT_EQ(routed.event.kind, kernel::input::EventKind::Key);
+}
+
+TEST(InputRouterTest, RoutesKeyboardEventToShellWhenShellFocusIsExplicit)
+{
+    kernel::input::InputRouter router;
+    router.set_focus(kernel::input::InputFocus::Shell);
 
     const kernel::input::RoutedEvent routed = router.route(key_event());
 

@@ -3,9 +3,10 @@
 namespace kernel::display
 {
 
-void TerminalRenderer::reset(Surface & surface, Color foreground, Color background)
+void TerminalRenderer::reset(Surface & surface, Rect viewport, Color foreground, Color background)
 {
     surface_ = &surface;
+    viewport_ = clip_rect(viewport, surface.width(), surface.height());
     foreground_ = foreground;
     background_ = background;
 }
@@ -27,7 +28,7 @@ void TerminalRenderer::clear_screen()
         return;
     }
 
-    surface_->fill_rect({0, 0, surface_->width(), surface_->height()}, background_);
+    surface_->fill_rect(viewport_, background_);
 }
 
 void TerminalRenderer::clear_rect(Rect rect)
@@ -37,12 +38,16 @@ void TerminalRenderer::clear_rect(Rect rect)
         return;
     }
 
-    surface_->fill_rect(rect, background_);
+    surface_->fill_rect(intersect_rect(rect, viewport_), background_);
 }
 
 void TerminalRenderer::clear_cell(uint64_t column, uint64_t row)
 {
-    fill_rect(column * kCellWidth, row * kCellHeight, kCellWidth, kCellHeight, background_);
+    fill_rect(viewport_.x + (column * kCellWidth),
+              viewport_.y + (row * kCellHeight),
+              kCellWidth,
+              kCellHeight,
+              background_);
 }
 
 void TerminalRenderer::scroll_up_rows(uint64_t rows)
@@ -53,13 +58,13 @@ void TerminalRenderer::scroll_up_rows(uint64_t rows)
     }
 
     const uint64_t pixel_count = rows * kCellHeight;
-    if (pixel_count >= surface_->height())
+    if (pixel_count >= viewport_.height)
     {
         clear_screen();
         return;
     }
 
-    surface_->scroll_up(pixel_count, background_);
+    surface_->scroll_up_rect(viewport_, pixel_count, background_);
 }
 
 void TerminalRenderer::draw_glyph(char value, uint64_t column, uint64_t row)
@@ -72,8 +77,8 @@ void TerminalRenderer::draw_glyph(char value, uint64_t column, uint64_t row)
     clear_cell(column, row);
 
     const text::Glyph5x7 & glyph = text::Font5x7::glyph_for(value);
-    const uint64_t origin_x = column * kCellWidth;
-    const uint64_t origin_y = row * kCellHeight;
+    const uint64_t origin_x = viewport_.x + (column * kCellWidth);
+    const uint64_t origin_y = viewport_.y + (row * kCellHeight);
 
     for (uint64_t glyph_row = 0; glyph_row < text::Glyph5x7::height; ++glyph_row)
     {
@@ -100,12 +105,20 @@ void TerminalRenderer::draw_glyph(char value, uint64_t column, uint64_t row)
 
 void TerminalRenderer::draw_cursor(uint64_t column, uint64_t row)
 {
-    fill_rect(column * kCellWidth, (row * kCellHeight) + kCursorTop, text::Glyph5x7::width * kGlyphScale, kCursorHeight, foreground_);
+    fill_rect(viewport_.x + (column * kCellWidth),
+              viewport_.y + (row * kCellHeight) + kCursorTop,
+              text::Glyph5x7::width * kGlyphScale,
+              kCursorHeight,
+              foreground_);
 }
 
 void TerminalRenderer::erase_cursor(uint64_t column, uint64_t row)
 {
-    fill_rect(column * kCellWidth, (row * kCellHeight) + kCursorTop, text::Glyph5x7::width * kGlyphScale, kCursorHeight, background_);
+    fill_rect(viewport_.x + (column * kCellWidth),
+              viewport_.y + (row * kCellHeight) + kCursorTop,
+              text::Glyph5x7::width * kGlyphScale,
+              kCursorHeight,
+              background_);
 }
 
 } // namespace kernel::display

@@ -212,6 +212,7 @@ void handle_routed_event(const kernel::input::RoutedEvent & routed, kernel::text
 {
     switch (routed.target)
     {
+    case kernel::input::EventTarget::TerminalApp:
     case kernel::input::EventTarget::Shell:
         if (routed.event.kind == kernel::input::EventKind::Key)
         {

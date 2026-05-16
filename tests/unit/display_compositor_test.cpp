@@ -87,32 +87,31 @@ TEST(DisplayCompositorTest, CursorMoveMarksOldAndNewRectsDirty)
     EXPECT_FALSE(queue.pop(dirty));
 }
 
-TEST(DisplayCompositorTest, OrdersConsoleOverlayAndMouseCursorLayers)
+TEST(DisplayCompositorTest, OrdersDesktopAppOverlayAndMouseCursorLayers)
 {
-    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::GuiSurface,
-                                             kernel::display::LayerKind::Console));
+    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::AppSurface,
+                                             kernel::display::LayerKind::DesktopPanel));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::DebugOverlay,
-                                             kernel::display::LayerKind::GuiSurface));
+                                             kernel::display::LayerKind::AppSurface));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::MouseCursor,
                                              kernel::display::LayerKind::DebugOverlay));
-    EXPECT_FALSE(kernel::display::layer_above(kernel::display::LayerKind::Console,
+    EXPECT_FALSE(kernel::display::layer_above(kernel::display::LayerKind::DesktopPanel,
                                               kernel::display::LayerKind::MouseCursor));
 }
 
-TEST(DisplayCompositorTest, RegistersConsoleAndOverlayLayers)
+TEST(DisplayCompositorTest, RegistersDesktopAppAndOverlayLayers)
 {
     kernel::display::Compositor compositor({0, 0, 800, 600});
 
-    EXPECT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::Console,
-                                                kernel::display::kConsoleSurfaceId)));
-    EXPECT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::GuiSurface, 100)));
+    EXPECT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::DesktopPanel, 100)));
+    EXPECT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::AppSurface, 200)));
     EXPECT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::DebugOverlay,
                                                 kernel::display::debug_overlay::kSurfaceId)));
     EXPECT_FALSE(compositor.register_layer(layer(kernel::display::LayerKind::DebugOverlay, 42)));
 
     EXPECT_EQ(compositor.layer_count(), 3u);
-    ASSERT_NE(compositor.find_layer(kernel::display::LayerKind::Console), nullptr);
-    ASSERT_NE(compositor.find_layer(kernel::display::LayerKind::GuiSurface), nullptr);
+    ASSERT_NE(compositor.find_layer(kernel::display::LayerKind::DesktopPanel), nullptr);
+    ASSERT_NE(compositor.find_layer(kernel::display::LayerKind::AppSurface), nullptr);
     ASSERT_NE(compositor.find_layer(kernel::display::LayerKind::DebugOverlay), nullptr);
 
     const kernel::display::Layer * top = compositor.top_visible_layer();
@@ -128,15 +127,14 @@ TEST(DisplayCompositorTest, MouseCursorLayerIsTopmost)
                                                 kernel::display::debug_overlay::kSurfaceId)));
     EXPECT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::MouseCursor,
                                                 kernel::display::kMouseCursorLayerSurfaceId)));
-    EXPECT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::Console,
-                                                kernel::display::kConsoleSurfaceId)));
+    EXPECT_TRUE(compositor.register_layer(layer(kernel::display::LayerKind::AppSurface, 200)));
 
     const kernel::display::Layer * top = compositor.top_visible_layer();
     ASSERT_NE(top, nullptr);
     EXPECT_EQ(top->kind, kernel::display::LayerKind::MouseCursor);
 }
 
-TEST(DisplayCompositorTest, PlansRepaintOrderFromConsoleToCursor)
+TEST(DisplayCompositorTest, PlansRepaintOrderFromDesktopToCursor)
 {
     kernel::display::Compositor compositor({0, 0, 800, 600});
 
@@ -146,56 +144,56 @@ TEST(DisplayCompositorTest, PlansRepaintOrderFromConsoleToCursor)
     ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DebugOverlay,
                                                         kernel::display::debug_overlay::kSurfaceId,
                                                         {0, 0, 120, 20})));
-    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::Console,
-                                                        kernel::display::kConsoleSurfaceId,
-                                                        {0, 0, 800, 600})));
-    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::GuiSurface,
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DesktopPanel,
                                                         100,
-                                                        {10, 10, 60, 60})));
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::AppSurface,
+                                                        200,
+                                                        {10, 10, 780, 580})));
 
     const kernel::display::LayerRepaintPlan plan =
-        compositor.repaint_plan_from(kernel::display::LayerKind::Console, {12, 12, 4, 4});
+        compositor.repaint_plan_from(kernel::display::LayerKind::DesktopPanel, {12, 12, 4, 4});
 
     ASSERT_EQ(plan.count, 4u);
-    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::Console);
-    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::GuiSurface);
+    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::DesktopPanel);
+    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::AppSurface);
     EXPECT_EQ(plan.at(2), kernel::display::LayerKind::DebugOverlay);
     EXPECT_EQ(plan.at(3), kernel::display::LayerKind::MouseCursor);
 }
 
-TEST(DisplayCompositorTest, CursorDirtyOverPanelPlansPanelBeforeCursor)
+TEST(DisplayCompositorTest, CursorDirtyOverPanelPlansDesktopBeforeAppAndCursor)
 {
     kernel::display::Compositor compositor({0, 0, 800, 600});
 
-    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::Console,
-                                                        kernel::display::kConsoleSurfaceId,
-                                                        {0, 0, 800, 600})));
-    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::GuiSurface,
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DesktopPanel,
                                                         100,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::AppSurface,
+                                                        200,
                                                         {10, 10, 80, 40})));
     ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::MouseCursor,
                                                         kernel::display::kMouseCursorLayerSurfaceId,
                                                         {0, 0, 800, 600})));
 
     const kernel::display::LayerRepaintPlan plan =
-        compositor.repaint_plan_from(kernel::display::LayerKind::Console, {12, 12, 10, 16});
+        compositor.repaint_plan_from(kernel::display::LayerKind::DesktopPanel, {12, 12, 10, 16});
 
     ASSERT_EQ(plan.count, 3u);
-    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::Console);
-    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::GuiSurface);
+    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::DesktopPanel);
+    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::AppSurface);
     EXPECT_EQ(plan.at(2), kernel::display::LayerKind::MouseCursor);
 }
 
-TEST(DisplayCompositorTest, PlansOnlyHigherIntersectingLayersAfterConsoleUpdate)
+TEST(DisplayCompositorTest, PlansOnlyHigherIntersectingLayersAfterAppUpdate)
 {
     kernel::display::Compositor compositor({0, 0, 800, 600});
 
-    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::Console,
-                                                        kernel::display::kConsoleSurfaceId,
-                                                        {0, 0, 800, 600})));
-    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::GuiSurface,
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DesktopPanel,
                                                         100,
-                                                        {10, 10, 60, 60})));
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::AppSurface,
+                                                        200,
+                                                        {0, 0, 800, 600})));
     ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DebugOverlay,
                                                         kernel::display::debug_overlay::kSurfaceId,
                                                         {700, 0, 80, 20})));
@@ -204,36 +202,35 @@ TEST(DisplayCompositorTest, PlansOnlyHigherIntersectingLayersAfterConsoleUpdate)
                                                         {0, 0, 800, 600})));
 
     const kernel::display::LayerRepaintPlan plan =
-        compositor.repaint_plan_above(kernel::display::LayerKind::Console, {12, 12, 4, 4});
+        compositor.repaint_plan_above(kernel::display::LayerKind::AppSurface, {12, 12, 4, 4});
 
-    ASSERT_EQ(plan.count, 2u);
-    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::GuiSurface);
-    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::MouseCursor);
+    ASSERT_EQ(plan.count, 1u);
+    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::MouseCursor);
 }
 
 TEST(DisplayCompositorTest, RepaintsOnlyVisibleHigherLayersIntersectingDirtyRect)
 {
-    const kernel::display::Layer panel = bounded_layer(kernel::display::LayerKind::GuiSurface,
-                                                       100,
-                                                       {10, 10, 50, 50});
+    const kernel::display::Layer overlay = bounded_layer(kernel::display::LayerKind::DebugOverlay,
+                                                         100,
+                                                         {10, 10, 50, 50});
     const kernel::display::Layer hidden_overlay = bounded_layer(kernel::display::LayerKind::DebugOverlay,
                                                                 2,
                                                                 {0, 0, 80, 20},
                                                                 false);
-    const kernel::display::Layer console = bounded_layer(kernel::display::LayerKind::Console,
-                                                         kernel::display::kConsoleSurfaceId,
-                                                         {0, 0, 800, 600});
+    const kernel::display::Layer app = bounded_layer(kernel::display::LayerKind::AppSurface,
+                                                     200,
+                                                     {0, 0, 800, 600});
 
-    EXPECT_TRUE(kernel::display::should_repaint_layer_after_update(panel,
-                                                                   kernel::display::LayerKind::Console,
+    EXPECT_TRUE(kernel::display::should_repaint_layer_after_update(overlay,
+                                                                   kernel::display::LayerKind::AppSurface,
                                                                    {20, 20, 4, 4}));
-    EXPECT_FALSE(kernel::display::should_repaint_layer_after_update(panel,
-                                                                    kernel::display::LayerKind::Console,
+    EXPECT_FALSE(kernel::display::should_repaint_layer_after_update(overlay,
+                                                                    kernel::display::LayerKind::AppSurface,
                                                                     {80, 80, 4, 4}));
     EXPECT_FALSE(kernel::display::should_repaint_layer_after_update(hidden_overlay,
-                                                                    kernel::display::LayerKind::Console,
+                                                                    kernel::display::LayerKind::AppSurface,
                                                                     {1, 1, 4, 4}));
-    EXPECT_FALSE(kernel::display::should_repaint_layer_after_update(console,
+    EXPECT_FALSE(kernel::display::should_repaint_layer_after_update(app,
                                                                     kernel::display::LayerKind::DebugOverlay,
                                                                     {1, 1, 4, 4}));
 }

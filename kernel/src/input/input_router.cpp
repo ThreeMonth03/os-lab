@@ -22,6 +22,10 @@ RoutedEvent InputRouter::route(const Event & event) const
         {
             routed.target = EventTarget::Shell;
         }
+        else if (focus_ == InputFocus::TerminalApp)
+        {
+            routed.target = EventTarget::TerminalApp;
+        }
         else if (focus_ == InputFocus::GuiSurface)
         {
             routed.target = EventTarget::GuiSurface;

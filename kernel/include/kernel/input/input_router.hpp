@@ -23,7 +23,7 @@ public:
     [[nodiscard]] RoutedEvent route(const Event & event) const;
 
 private:
-    InputFocus focus_ = InputFocus::Shell;
+    InputFocus focus_ = InputFocus::TerminalApp;
 };
 
 InputFocus focus();

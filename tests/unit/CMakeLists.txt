@@ -1,4 +1,5 @@
 add_executable(os_lab_unit_tests
+    app_surface_test.cpp
     containers_test.cpp
     cursor_geometry_test.cpp
     debug_overlay_test.cpp
@@ -20,6 +21,7 @@ add_executable(os_lab_unit_tests
     shell_command_test.cpp
     string_view_test.cpp
     terminal_render_cache_test.cpp
+    terminal_renderer_test.cpp
     terminal_repaint_state_test.cpp
     text_buffer_test.cpp
     text_console_test.cpp

@@ -10,6 +10,7 @@ struct PanelState
 {
     kernel::display::Surface * surface = nullptr;
     kernel::display::GuiSurface panel;
+    kernel::display::Rect desktop_bounds;
     kernel::display::gui_panel::Palette palette;
     kernel::display::gui_panel::Config config;
     bool initialized = false;
@@ -33,11 +34,19 @@ void paint_panel_region(kernel::display::Rect dirty_rect)
 
 void repaint_panel(kernel::display::Rect dirty_rect)
 {
-    if (!kernel::display::rects_overlap(g_state.panel.bounds, dirty_rect))
+    if (!kernel::display::gui_panel::ready())
     {
         return;
     }
 
+    const kernel::display::Rect desktop_region =
+        kernel::display::intersect_rect(g_state.desktop_bounds, dirty_rect);
+    if (desktop_region.empty())
+    {
+        return;
+    }
+
+    g_state.surface->fill_rect(desktop_region, g_state.palette.background);
     paint_panel_region(dirty_rect);
 }
 
@@ -56,10 +65,11 @@ bool init(Surface & surface, const GuiSurface & panel, Color border, Color backg
 
     g_state.surface = &surface;
     g_state.panel = panel;
+    g_state.desktop_bounds = {0, 0, surface.width(), surface.height()};
     g_state.palette = {border, background, foreground};
     g_state.config = config;
     g_state.initialized = true;
-    (void)compositor::register_layer_repaint_callback(LayerKind::GuiSurface, repaint_panel);
+    (void)compositor::register_layer_repaint_callback(LayerKind::DesktopPanel, repaint_panel);
     return true;
 }
 
@@ -70,14 +80,14 @@ bool ready()
 
 void refresh_now()
 {
-    if (!ready() || !should_redraw(g_state.panel))
+    if (!ready())
     {
         return;
     }
 
-    paint_panel_region(g_state.panel.bounds);
-    compositor::mark_dirty(g_state.panel.bounds);
-    compositor::repaint_layers_above(LayerKind::GuiSurface, g_state.panel.bounds);
+    repaint_panel(g_state.desktop_bounds);
+    compositor::mark_dirty(g_state.desktop_bounds);
+    compositor::repaint_layers_above(LayerKind::DesktopPanel, g_state.desktop_bounds);
 }
 
 } // namespace kernel::display::gui_panel

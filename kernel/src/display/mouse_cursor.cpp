@@ -202,7 +202,7 @@ void move_by(int16_t delta_x, int16_t delta_y)
     }
     else if (was_visible && movement_pushed_against_edge(delta_x, delta_y))
     {
-        display::compositor::repaint_layers_from(display::LayerKind::Console, new_bounds);
+        display::compositor::repaint_layers_from(display::LayerKind::DesktopPanel, new_bounds);
     }
 }
 

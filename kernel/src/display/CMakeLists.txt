@@ -1,4 +1,5 @@
 add_library(os_lab_kernel_display OBJECT
+    app_surface.cpp
     compositor.cpp
     compositor_runtime.cpp
     cursor_geometry.cpp

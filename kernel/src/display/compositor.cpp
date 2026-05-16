@@ -102,7 +102,9 @@ uint8_t layer_order(LayerKind kind)
 {
     switch (kind)
     {
-    case LayerKind::Console:
+    case LayerKind::DesktopPanel:
+        return 5;
+    case LayerKind::AppSurface:
         return 10;
     case LayerKind::GuiSurface:
         return 15;

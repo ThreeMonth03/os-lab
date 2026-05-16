@@ -6,6 +6,7 @@
 #include "kernel/display/debug_overlay.hpp"
 #include "kernel/display/display.hpp"
 #include "kernel/display/display_target.hpp"
+#include "kernel/display/app_surface.hpp"
 #include "kernel/display/gui_panel.hpp"
 #include "kernel/display/gui_surface.hpp"
 #include "kernel/display/hit_test.hpp"
@@ -30,7 +31,9 @@ struct TerminalState
 {
     display::Surface surface;
     display::DisplayTargetRegistry targets;
+    display::AppSurfaceRegistry app_surfaces;
     display::GuiSurfaceRegistry gui_surfaces;
+    display::AppSurface terminal_app;
     display::HitTestResult pointer_target;
     display::TerminalRenderer renderer;
     kernel::text::TextConsole console;
@@ -51,9 +54,57 @@ uint32_t pack_rgb(const limine_framebuffer & framebuffer, uint8_t red, uint8_t g
            (static_cast<uint32_t>(blue) << framebuffer.blue_mask_shift);
 }
 
+uint64_t max_u64(uint64_t lhs, uint64_t rhs)
+{
+    return lhs > rhs ? lhs : rhs;
+}
+
+display::Rect framebuffer_bounds(const limine_framebuffer & framebuffer)
+{
+    return {0, 0, framebuffer.width, framebuffer.height};
+}
+
+display::Rect terminal_app_bounds_for(const limine_framebuffer & framebuffer,
+                                      display::Rect panel_bounds,
+                                      gui_panel::Config panel_config)
+{
+    const display::Rect full_bounds = framebuffer_bounds(framebuffer);
+    if (!panel_config.visible || panel_bounds.empty())
+    {
+        return full_bounds;
+    }
+
+    const uint64_t margin = panel_config.margin;
+    const uint64_t left = margin;
+    const uint64_t top = panel_bounds.y + panel_bounds.height + margin;
+    if (left >= framebuffer.width || top >= framebuffer.height)
+    {
+        return full_bounds;
+    }
+
+    const uint64_t right_margin = max_u64(margin, left);
+    if (framebuffer.width <= left + right_margin || framebuffer.height <= top + margin)
+    {
+        return full_bounds;
+    }
+
+    const display::Rect app_bounds{
+        left,
+        top,
+        framebuffer.width - left - right_margin,
+        framebuffer.height - top - margin,
+    };
+    if (app_bounds.width < kCellWidth || app_bounds.height < kCellHeight)
+    {
+        return full_bounds;
+    }
+
+    return app_bounds;
+}
+
 display::Rect terminal_bounds()
 {
-    return {0, 0, g_state.surface.width(), g_state.surface.height()};
+    return g_state.terminal_app.bounds;
 }
 
 uint64_t text_grid_width()
@@ -68,12 +119,14 @@ uint64_t text_grid_height()
 
 bool terminal_ready()
 {
-    return g_state.surface.ready() && g_state.targets.active_target().valid();
+    return g_state.surface.ready() && g_state.renderer.ready() &&
+           g_state.terminal_app.valid() && g_state.targets.active_target().valid();
 }
 
 display::Rect cell_rect(uint64_t column, uint64_t row)
 {
-    return {column * kCellWidth, row * kCellHeight, kCellWidth, kCellHeight};
+    const display::Rect bounds = terminal_bounds();
+    return {bounds.x + (column * kCellWidth), bounds.y + (row * kCellHeight), kCellWidth, kCellHeight};
 }
 
 display::Rect row_tail_rect(uint64_t column, uint64_t row)
@@ -83,8 +136,9 @@ display::Rect row_tail_rect(uint64_t column, uint64_t row)
         return {};
     }
 
-    return {column * kCellWidth,
-            row * kCellHeight,
+    const display::Rect bounds = terminal_bounds();
+    return {bounds.x + (column * kCellWidth),
+            bounds.y + (row * kCellHeight),
             (g_state.console.columns() - column) * kCellWidth,
             kCellHeight};
 }
@@ -150,15 +204,22 @@ void clear_terminal_gutters(display::Rect dirty_rect)
 {
     const uint64_t grid_width = text_grid_width();
     const uint64_t grid_height = text_grid_height();
+    const display::Rect bounds = terminal_bounds();
 
-    if (grid_width < g_state.surface.width())
+    if (grid_width < bounds.width)
     {
-        clear_gutter_region({grid_width, 0, g_state.surface.width() - grid_width, g_state.surface.height()},
+        clear_gutter_region({bounds.x + grid_width,
+                             bounds.y,
+                             bounds.width - grid_width,
+                             bounds.height},
                             dirty_rect);
     }
-    if (grid_height < g_state.surface.height())
+    if (grid_height < bounds.height)
     {
-        clear_gutter_region({0, grid_height, g_state.surface.width(), g_state.surface.height() - grid_height},
+        clear_gutter_region({bounds.x,
+                             bounds.y + grid_height,
+                             bounds.width,
+                             bounds.height - grid_height},
                             dirty_rect);
     }
 }
@@ -246,7 +307,7 @@ void apply_repaint_request(display::TerminalRepaintRequest request)
 
     if (request.repaint_higher_layers && !dirty_rect.empty())
     {
-        display::compositor::repaint_layers_above(display::LayerKind::Console, dirty_rect);
+        display::compositor::repaint_layers_above(display::LayerKind::AppSurface, dirty_rect);
     }
 }
 
@@ -261,7 +322,7 @@ void apply_repaint_flush(display::TerminalRepaintFlush flush)
 
     if (flush.repaint_higher_layers && !dirty_rect.empty())
     {
-        display::compositor::repaint_layers_above(display::LayerKind::Console, dirty_rect);
+        display::compositor::repaint_layers_above(display::LayerKind::AppSurface, dirty_rect);
     }
 }
 
@@ -361,11 +422,48 @@ void register_gui_panel_target(const limine_framebuffer & framebuffer)
         return;
     }
 
-    (void)display::compositor::register_layer(registered->layer());
+    (void)display::compositor::register_layer({
+        display::LayerKind::DesktopPanel,
+        registered->display_surface_id,
+        framebuffer_bounds(framebuffer),
+        true,
+    });
     const display::Color border{pack_rgb(framebuffer, 0x6b, 0xd6, 0xff)};
     const display::Color background{pack_rgb(framebuffer, 0x12, 0x1b, 0x28)};
     const display::Color foreground{pack_rgb(framebuffer, 0xf5, 0xf5, 0xf5)};
     (void)gui_panel::init(g_state.surface, *registered, border, background, foreground, config);
+}
+
+bool register_terminal_app_target(const limine_framebuffer & framebuffer,
+                                  display::Rect panel_bounds,
+                                  gui_panel::Config panel_config)
+{
+    g_state.terminal_app = display::make_app_surface(display::kTerminalAppSurfaceId,
+                                                     terminal_app_bounds_for(framebuffer,
+                                                                             panel_bounds,
+                                                                             panel_config),
+                                                     true,
+                                                     true);
+    if (!g_state.app_surfaces.register_surface(g_state.terminal_app))
+    {
+        return false;
+    }
+
+    const display::AppSurface * registered =
+        g_state.app_surfaces.find(display::kTerminalAppSurfaceId);
+    if (registered == nullptr || !g_state.targets.register_target(registered->display_target()) ||
+        !g_state.targets.set_active(registered->display_surface_id) ||
+        !g_state.targets.set_focused(registered->display_surface_id))
+    {
+        return false;
+    }
+
+    (void)g_state.app_surfaces.set_focused(display::kTerminalAppSurfaceId);
+    (void)display::compositor::register_layer(registered->layer());
+    (void)display::compositor::register_layer_repaint_callback(display::LayerKind::AppSurface,
+                                                               repaint_terminal_text_region);
+    g_state.terminal_app = *registered;
+    return true;
 }
 
 } // namespace
@@ -392,30 +490,22 @@ bool init()
     g_state.surface = display::Surface(framebuffer->address, framebuffer->width, framebuffer->height, framebuffer->pitch);
     display::compositor::init({0, 0, framebuffer->width, framebuffer->height});
     g_state.targets.clear();
+    g_state.app_surfaces.clear();
     g_state.gui_surfaces.clear();
-    const bool target_registered = g_state.targets.register_target({
-        display::kConsoleSurfaceId,
-        display::DisplayTargetKind::Console,
-        {0, 0, framebuffer->width, framebuffer->height},
-        false,
-        false,
-    });
-    if (!target_registered || !g_state.targets.set_active(display::kConsoleSurfaceId) ||
-        !g_state.targets.set_focused(display::kConsoleSurfaceId))
+
+    const gui_panel::Config panel_config = gui_panel::default_config();
+    const display::Rect panel_bounds =
+        gui_panel::bounds_for(framebuffer->width, framebuffer->height, panel_config);
+    register_gui_panel_target(*framebuffer);
+    if (!register_terminal_app_target(*framebuffer, panel_bounds, panel_config))
     {
         return false;
     }
-    (void)display::compositor::register_layer({
-        display::LayerKind::Console,
-        display::kConsoleSurfaceId,
-        {0, 0, framebuffer->width, framebuffer->height},
-        true,
-    });
-    (void)display::compositor::register_layer_repaint_callback(display::LayerKind::Console,
-                                                               repaint_terminal_text_region);
+    register_debug_overlay_target(*framebuffer);
 
-    const uint64_t columns = framebuffer->width / kCellWidth;
-    const uint64_t rows = framebuffer->height / kCellHeight;
+    const display::Rect bounds = terminal_bounds();
+    const uint64_t columns = bounds.width / kCellWidth;
+    const uint64_t rows = bounds.height / kCellHeight;
     if (!g_state.text_buffer.reset(columns, rows) || !g_state.render_cache.reset(columns, rows))
     {
         return false;
@@ -423,11 +513,10 @@ bool init()
     g_state.console.reset(columns, rows);
     const display::Color foreground{pack_rgb(*framebuffer, 0xf5, 0xf5, 0xf5)};
     const display::Color background{pack_rgb(*framebuffer, 0x10, 0x14, 0x1c)};
-    g_state.renderer.reset(g_state.surface, foreground, background);
+    g_state.renderer.reset(g_state.surface, bounds, foreground, background);
     g_state.repaint.reset();
-    register_gui_panel_target(*framebuffer);
-    register_debug_overlay_target(*framebuffer);
 
+    gui_panel::refresh_now();
     clear();
     return true;
 }
@@ -660,7 +749,11 @@ void update_pointer_target(uint64_t x, uint64_t y)
         return;
     }
 
-    g_state.pointer_target = display::hit_test(g_state.targets, g_state.gui_surfaces, x, y);
+    g_state.pointer_target = display::hit_test(g_state.targets,
+                                               g_state.app_surfaces,
+                                               g_state.gui_surfaces,
+                                               x,
+                                               y);
 }
 
 } // namespace kernel::console::terminal

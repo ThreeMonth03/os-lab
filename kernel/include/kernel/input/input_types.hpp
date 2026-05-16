@@ -20,6 +20,7 @@ enum class InputFocus
 {
     None,
     Shell,
+    TerminalApp,
     GuiSurface,
 };
 
@@ -27,6 +28,7 @@ enum class EventTarget
 {
     None,
     Shell,
+    TerminalApp,
     GuiSurface,
     Pointer,
 };

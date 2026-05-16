@@ -17,9 +17,10 @@ public:
 
     TerminalRenderer() = default;
 
-    void reset(Surface & surface, Color foreground, Color background);
+    void reset(Surface & surface, Rect viewport, Color foreground, Color background);
 
-    bool ready() const { return surface_ != nullptr && surface_->ready(); }
+    bool ready() const { return surface_ != nullptr && surface_->ready() && !viewport_.empty(); }
+    Rect viewport() const { return viewport_; }
 
     void clear_screen();
     void clear_rect(Rect rect);
@@ -36,6 +37,7 @@ private:
     void fill_rect(uint64_t x, uint64_t y, uint64_t width, uint64_t height, Color color);
 
     Surface * surface_ = nullptr;
+    Rect viewport_;
     Color foreground_;
     Color background_;
 };
