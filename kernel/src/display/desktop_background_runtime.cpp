@@ -47,9 +47,9 @@ bool init(Surface & surface, Rect bounds, BackgroundSource source)
         return false;
     }
 
-    const CompositedSurfaceDescriptor surface =
+    const CompositedSurfaceDescriptor background_surface =
         make_composited_surface(kSurfaceId, CompositedSurfaceRole::Background, bounds);
-    if (!compositor::register_surface(surface) ||
+    if (!compositor::register_surface(background_surface) ||
         !compositor::register_layer_repaint_callback(LayerKind::DesktopBackground,
                                                      repaint_background))
     {
