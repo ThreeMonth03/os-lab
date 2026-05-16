@@ -130,7 +130,8 @@ bool init_desktop_background_layer(const limine_framebuffer & framebuffer,
 {
     return desktop_background::init(g_state.surface,
                                     framebuffer_bounds(framebuffer),
-                                    {color_for(framebuffer, palette.desktop_background)});
+                                    desktop_background::solid_background(
+                                        color_for(framebuffer, palette.desktop_background)));
 }
 
 display::Rect init_optional_gui_panel_layer(const limine_framebuffer & framebuffer,

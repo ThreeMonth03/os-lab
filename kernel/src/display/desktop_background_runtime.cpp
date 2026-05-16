@@ -9,7 +9,7 @@ struct DesktopBackgroundState
 {
     kernel::display::Surface * surface = nullptr;
     kernel::display::Rect bounds;
-    kernel::display::desktop_background::SolidColorSource source;
+    kernel::display::desktop_background::BackgroundSource source;
     bool initialized = false;
 };
 
@@ -27,10 +27,10 @@ void repaint_background(kernel::display::Rect dirty_rect)
         return;
     }
 
-    kernel::display::desktop_background::paint_solid(*g_state.surface,
-                                                     g_state.bounds,
-                                                     g_state.source,
-                                                     dirty_rect);
+    kernel::display::desktop_background::paint(*g_state.surface,
+                                               g_state.bounds,
+                                               g_state.source,
+                                               dirty_rect);
 }
 
 } // namespace
@@ -38,7 +38,7 @@ void repaint_background(kernel::display::Rect dirty_rect)
 namespace kernel::display::desktop_background
 {
 
-bool init(Surface & surface, Rect bounds, SolidColorSource source)
+bool init(Surface & surface, Rect bounds, BackgroundSource source)
 {
     g_state = {};
     if (!surface.ready() || bounds.empty())

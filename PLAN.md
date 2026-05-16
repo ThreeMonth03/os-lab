@@ -28,6 +28,9 @@ design document.
 ## Feature Track
 
 - Improve display/input boundaries before adding real widgets.
+- Build desktop wallpaper support in stages: raw/static image views first,
+  build-time asset conversion or ISO modules next, and PNG/GIF decoders only
+  after the image/background boundary is stable.
 - Add an absolute pointer path, such as USB tablet or virtio input, when PS/2
   relative mouse behavior becomes the main UX limitation.
 - Add debug-only focus switching only after hit testing and routing remain

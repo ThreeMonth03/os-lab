@@ -60,3 +60,87 @@ TEST(DesktopBackgroundTest, PaintsOnlyClippedSolidBackgroundRegion)
     EXPECT_EQ(surface.pixel(8, 4).value, 7u);
     EXPECT_EQ(surface.pixel(9, 4).value, 9u);
 }
+
+TEST(DesktopBackgroundTest, PaintsWallpaperOverSolidBackground)
+{
+    constexpr uint64_t width = 5;
+    constexpr uint64_t height = 4;
+    uint32_t pixels[width * height] = {};
+    fill_pixels(pixels, 9);
+
+    constexpr uint8_t wallpaper_pixels[] = {
+        0x10,
+        0x20,
+        0x30,
+        0xff,
+        0x40,
+        0x50,
+        0x60,
+        0xff,
+        0x70,
+        0x80,
+        0x90,
+        0xff,
+        0xa0,
+        0xb0,
+        0xc0,
+        0xff,
+    };
+
+    kernel::display::Surface surface(pixels, width, height, width * sizeof(uint32_t));
+    const kernel::display::ImageView wallpaper(wallpaper_pixels,
+                                               2,
+                                               2,
+                                               8,
+                                               kernel::display::PixelFormat::Rgba8888);
+
+    kernel::display::desktop_background::paint(
+        surface,
+        {0, 0, width, height},
+        kernel::display::desktop_background::wallpaper_background(
+            {0x050505u},
+            wallpaper,
+            kernel::display::xrgb8888_color_layout()),
+        {0, 0, width, height});
+
+    EXPECT_EQ(surface.pixel(0, 0).value, 0x102030u);
+    EXPECT_EQ(surface.pixel(1, 0).value, 0x405060u);
+    EXPECT_EQ(surface.pixel(0, 1).value, 0x708090u);
+    EXPECT_EQ(surface.pixel(1, 1).value, 0xa0b0c0u);
+    EXPECT_EQ(surface.pixel(2, 1).value, 0x050505u);
+    EXPECT_EQ(surface.pixel(4, 3).value, 0x050505u);
+}
+
+TEST(DesktopBackgroundTest, DirtyRegionOutsideWallpaperKeepsSolidFallback)
+{
+    constexpr uint64_t width = 5;
+    constexpr uint64_t height = 4;
+    uint32_t pixels[width * height] = {};
+    fill_pixels(pixels, 9);
+
+    constexpr uint8_t wallpaper_pixels[] = {
+        0xff,
+        0x00,
+        0x00,
+        0xff,
+    };
+
+    kernel::display::Surface surface(pixels, width, height, width * sizeof(uint32_t));
+    const kernel::display::ImageView wallpaper(wallpaper_pixels,
+                                               1,
+                                               1,
+                                               4,
+                                               kernel::display::PixelFormat::Rgba8888);
+
+    kernel::display::desktop_background::paint(
+        surface,
+        {0, 0, width, height},
+        kernel::display::desktop_background::wallpaper_background(
+            {0x222222u},
+            wallpaper,
+            kernel::display::xrgb8888_color_layout()),
+        {3, 2, 1, 1});
+
+    EXPECT_EQ(surface.pixel(0, 0).value, 9u);
+    EXPECT_EQ(surface.pixel(3, 2).value, 0x222222u);
+}
