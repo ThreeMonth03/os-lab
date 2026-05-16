@@ -13,6 +13,11 @@ struct Palette
 };
 
 [[nodiscard]] Rect repaint_region(Rect overlay_bounds, Rect dirty_rect);
+[[nodiscard]] Color pixel_color_at(Rect overlay_bounds,
+                                   const Lines & lines,
+                                   Palette palette,
+                                   uint64_t x,
+                                   uint64_t y);
 void paint_region(Surface & surface, Rect overlay_bounds, const Lines & lines, Palette palette, Rect dirty_rect);
 
 } // namespace kernel::display::debug_overlay

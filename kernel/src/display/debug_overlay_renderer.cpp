@@ -15,51 +15,36 @@ bool contains(kernel::display::Rect rect, uint64_t x, uint64_t y)
            y < rect.y + rect.height;
 }
 
-void draw_glyph(kernel::display::Surface & surface,
-                char value,
-                uint64_t x,
-                uint64_t y,
-                kernel::display::Color color,
-                kernel::display::Rect dirty_region)
+bool glyph_pixel_is_set(char value, uint64_t glyph_column, uint64_t glyph_row)
 {
     const kernel::text::Glyph5x7 & glyph = kernel::text::Font5x7::glyph_for(value);
-    for (uint64_t glyph_row = 0; glyph_row < kernel::text::Glyph5x7::height; ++glyph_row)
-    {
-        for (uint64_t glyph_column = 0; glyph_column < kernel::text::Glyph5x7::width; ++glyph_column)
-        {
-            const auto mask = static_cast<uint8_t>(1u << (kernel::text::Glyph5x7::width - glyph_column - 1));
-            const uint64_t pixel_x = x + glyph_column;
-            const uint64_t pixel_y = y + glyph_row;
-            if ((glyph.rows[glyph_row] & mask) != 0 && contains(dirty_region, pixel_x, pixel_y))
-            {
-                surface.put_pixel(pixel_x, pixel_y, color);
-            }
-        }
-    }
+    const auto mask = static_cast<uint8_t>(1u << (kernel::text::Glyph5x7::width - glyph_column - 1));
+    return (glyph.rows[glyph_row] & mask) != 0;
 }
 
-void draw_line(kernel::display::Surface & surface,
-               const char * line,
-               uint64_t x,
-               uint64_t y,
-               kernel::display::Rect overlay_bounds,
-               kernel::display::Color color,
-               kernel::display::Rect dirty_region)
+bool line_pixel_is_foreground(const char * line,
+                              uint64_t line_x,
+                              uint64_t line_y,
+                              kernel::display::Rect overlay_bounds,
+                              uint64_t pixel_x,
+                              uint64_t pixel_y)
 {
     const uint64_t right = overlay_bounds.x + overlay_bounds.width;
-    while (*line != '\0' && x + kernel::text::Glyph5x7::width <= right)
+    uint64_t glyph_x = line_x;
+    while (*line != '\0' && glyph_x + kernel::text::Glyph5x7::width <= right)
     {
-        const kernel::display::Rect glyph_bounds{x,
-                                                 y,
+        const kernel::display::Rect glyph_bounds{glyph_x,
+                                                 line_y,
                                                  kernel::text::Glyph5x7::width,
                                                  kernel::text::Glyph5x7::height};
-        if (!kernel::display::intersect_rect(glyph_bounds, dirty_region).empty())
+        if (contains(glyph_bounds, pixel_x, pixel_y))
         {
-            draw_glyph(surface, *line, x, y, color, dirty_region);
+            return glyph_pixel_is_set(*line, pixel_x - glyph_x, pixel_y - line_y);
         }
-        x += kernel::text::Glyph5x7::width + kGlyphSpacing;
+        glyph_x += kernel::text::Glyph5x7::width + kGlyphSpacing;
         ++line;
     }
+    return false;
 }
 
 } // namespace
@@ -70,6 +55,27 @@ namespace kernel::display::debug_overlay
 Rect repaint_region(Rect overlay_bounds, Rect dirty_rect)
 {
     return intersect_rect(overlay_bounds, dirty_rect);
+}
+
+Color pixel_color_at(Rect overlay_bounds, const Lines & lines, Palette palette, uint64_t x, uint64_t y)
+{
+    const uint64_t text_x = overlay_bounds.x + kPadding;
+    uint64_t text_y = overlay_bounds.y + kPadding;
+    const uint64_t bottom = overlay_bounds.y + overlay_bounds.height;
+    if (text_y + kernel::text::Glyph5x7::height <= bottom &&
+        line_pixel_is_foreground(lines.first, text_x, text_y, overlay_bounds, x, y))
+    {
+        return palette.foreground;
+    }
+
+    text_y += kLineHeight;
+    if (text_y + kernel::text::Glyph5x7::height <= bottom &&
+        line_pixel_is_foreground(lines.second, text_x, text_y, overlay_bounds, x, y))
+    {
+        return palette.foreground;
+    }
+
+    return palette.background;
 }
 
 void paint_region(Surface & surface, Rect overlay_bounds, const Lines & lines, Palette palette, Rect dirty_rect)
@@ -85,20 +91,14 @@ void paint_region(Surface & surface, Rect overlay_bounds, const Lines & lines, P
         return;
     }
 
-    surface.fill_rect(region, palette.background);
-
-    const uint64_t text_x = overlay_bounds.x + kPadding;
-    uint64_t text_y = overlay_bounds.y + kPadding;
-    const uint64_t bottom = overlay_bounds.y + overlay_bounds.height;
-    if (text_y + kernel::text::Glyph5x7::height <= bottom)
+    for (uint64_t row = 0; row < region.height; ++row)
     {
-        draw_line(surface, lines.first, text_x, text_y, overlay_bounds, palette.foreground, region);
-    }
-
-    text_y += kLineHeight;
-    if (text_y + kernel::text::Glyph5x7::height <= bottom)
-    {
-        draw_line(surface, lines.second, text_x, text_y, overlay_bounds, palette.foreground, region);
+        const uint64_t y = region.y + row;
+        for (uint64_t column = 0; column < region.width; ++column)
+        {
+            const uint64_t x = region.x + column;
+            surface.put_pixel(x, y, pixel_color_at(overlay_bounds, lines, palette, x, y));
+        }
     }
 }
 

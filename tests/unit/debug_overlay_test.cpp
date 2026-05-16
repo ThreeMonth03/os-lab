@@ -105,7 +105,20 @@ TEST(DebugOverlayTest, ClipsRepaintRegionToOverlayBounds)
     EXPECT_TRUE(kernel::display::debug_overlay::repaint_region(bounds, {0, 0, 4, 4}).empty());
 }
 
-TEST(DebugOverlayTest, PaintRegionOnlyClearsDirtyIntersection)
+TEST(DebugOverlayTest, PixelColorAtReturnsFinalGlyphOrBackgroundColor)
+{
+    kernel::display::debug_overlay::Lines lines;
+    lines.first[0] = 't';
+    lines.first[1] = '\0';
+
+    const kernel::display::Rect overlay{4, 2, 20, 12};
+    const kernel::display::debug_overlay::Palette palette{{2}, {1}};
+
+    EXPECT_EQ(kernel::display::debug_overlay::pixel_color_at(overlay, lines, palette, 7, 4).value, 2u);
+    EXPECT_EQ(kernel::display::debug_overlay::pixel_color_at(overlay, lines, palette, 6, 4).value, 1u);
+}
+
+TEST(DebugOverlayTest, PaintRegionOnlyWritesDirtyIntersection)
 {
     constexpr uint64_t width = 32;
     constexpr uint64_t height = 18;
@@ -130,7 +143,7 @@ TEST(DebugOverlayTest, PaintRegionOnlyClearsDirtyIntersection)
     EXPECT_EQ(surface.pixel(3, 2).value, 9u);
 }
 
-TEST(DebugOverlayTest, PaintRegionRestoresGlyphPixelsInsideDirtyRect)
+TEST(DebugOverlayTest, PaintRegionWritesFinalGlyphPixelsInsideDirtyRect)
 {
     constexpr uint64_t width = 32;
     constexpr uint64_t height = 18;
@@ -152,7 +165,7 @@ TEST(DebugOverlayTest, PaintRegionRestoresGlyphPixelsInsideDirtyRect)
     EXPECT_EQ(surface.pixel(8, 4).value, 9u);
 }
 
-TEST(DebugOverlayTest, PaintRegionRestoresBackgroundWhenDirtyMissesGlyphPixels)
+TEST(DebugOverlayTest, PaintRegionWritesFinalBackgroundWhenDirtyMissesGlyphPixels)
 {
     constexpr uint64_t width = 32;
     constexpr uint64_t height = 18;
