@@ -2,7 +2,7 @@
 
 #include "terminal_app.hpp"
 
-#include "kernel/display/display_runtime.hpp"
+#include "../display/display_runtime_terminal.hpp"
 
 namespace
 {

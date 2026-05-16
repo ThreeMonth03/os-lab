@@ -2,6 +2,7 @@
 
 #include "debug_overlay_runtime.hpp"
 #include "desktop_background_runtime.hpp"
+#include "display_runtime_terminal.hpp"
 #include "gui_panel_runtime.hpp"
 
 #include "kernel/boot/limine_support.hpp"
