@@ -101,6 +101,11 @@ bool init(
     uint64_t terminal_cell_height,
     display::compositor::LayerRepaintCallback terminal_repaint_callback)
 {
+    if (terminal_repaint_callback == nullptr)
+    {
+        return false;
+    }
+
     const auto * response = boot::framebuffer();
     if (response == nullptr || response->framebuffer_count == 0)
     {
@@ -126,6 +131,7 @@ bool init(
     const gui_panel::Config panel_config = gui_panel::default_config();
     const display::Rect panel_bounds =
         gui_panel::bounds_for(framebuffer->width, framebuffer->height, panel_config);
+    display::Rect active_panel_bounds;
     const display::GuiSurface panel =
         gui_panel::make_surface(framebuffer->width,
                                 framebuffer->height,
@@ -139,31 +145,37 @@ bool init(
         if (registered_panel != nullptr &&
             g_state.targets.register_target(registered_panel->display_target()))
         {
-            (void)display::compositor::register_layer({
+            const bool panel_layer_registered = display::compositor::register_layer({
                 display::LayerKind::DesktopPanel,
                 registered_panel->display_surface_id,
                 framebuffer_bounds(*framebuffer),
                 true,
             });
 
-            const display::Color panel_border{pack_rgb(*framebuffer, palette.panel_border)};
-            const display::Color panel_background{
-                pack_rgb(*framebuffer, palette.desktop_background)};
-            const display::Color panel_foreground{
-                pack_rgb(*framebuffer, palette.panel_foreground)};
-            (void)gui_panel::init(g_state.surface,
-                                  *registered_panel,
-                                  panel_border,
-                                  panel_background,
-                                  panel_foreground,
-                                  panel_config);
+            if (panel_layer_registered)
+            {
+                const display::Color panel_border{pack_rgb(*framebuffer, palette.panel_border)};
+                const display::Color panel_background{
+                    pack_rgb(*framebuffer, palette.desktop_background)};
+                const display::Color panel_foreground{
+                    pack_rgb(*framebuffer, palette.panel_foreground)};
+                if (gui_panel::init(g_state.surface,
+                                    *registered_panel,
+                                    panel_border,
+                                    panel_background,
+                                    panel_foreground,
+                                    panel_config))
+                {
+                    active_panel_bounds = panel_bounds;
+                }
+            }
         }
     }
 
     g_state.terminal_app_surface =
         display::make_app_surface(display::kTerminalAppSurfaceId,
                                   terminal_app_bounds_for(*framebuffer,
-                                                          panel_bounds,
+                                                          active_panel_bounds,
                                                           panel_config,
                                                           terminal_cell_width,
                                                           terminal_cell_height),
@@ -184,11 +196,24 @@ bool init(
         return false;
     }
 
-    (void)g_state.app_surfaces.set_focused(display::kTerminalAppSurfaceId);
+    if (!g_state.app_surfaces.set_focused(display::kTerminalAppSurfaceId))
+    {
+        return false;
+    }
+
+    registered_app = g_state.app_surfaces.find(display::kTerminalAppSurfaceId);
+    if (registered_app == nullptr)
+    {
+        return false;
+    }
+
     g_state.terminal_app_surface = *registered_app;
-    (void)display::compositor::register_layer(registered_app->layer());
-    (void)display::compositor::register_layer_repaint_callback(display::LayerKind::AppSurface,
-                                                               terminal_repaint_callback);
+    if (!display::compositor::register_layer(registered_app->layer()) ||
+        !display::compositor::register_layer_repaint_callback(display::LayerKind::AppSurface,
+                                                              terminal_repaint_callback))
+    {
+        return false;
+    }
 
     const display::Rect overlay_bounds =
         debug_overlay::bounds_for(framebuffer->width, framebuffer->height);
@@ -205,20 +230,23 @@ bool init(
             g_state.targets.find(debug_overlay::kSurfaceId);
         if (overlay_registered && overlay_target != nullptr)
         {
-            const display::Color overlay_foreground{
-                pack_rgb(*framebuffer, palette.debug_overlay_foreground)};
-            const display::Color overlay_background{
-                pack_rgb(*framebuffer, palette.debug_overlay_background)};
-            (void)debug_overlay::init(g_state.surface,
-                                      *overlay_target,
-                                      overlay_foreground,
-                                      overlay_background);
-            (void)display::compositor::register_layer({
+            const bool overlay_layer_registered = display::compositor::register_layer({
                 display::LayerKind::DebugOverlay,
                 debug_overlay::kSurfaceId,
                 overlay_bounds,
                 true,
             });
+            if (overlay_layer_registered)
+            {
+                const display::Color overlay_foreground{
+                    pack_rgb(*framebuffer, palette.debug_overlay_foreground)};
+                const display::Color overlay_background{
+                    pack_rgb(*framebuffer, palette.debug_overlay_background)};
+                (void)debug_overlay::init(g_state.surface,
+                                          *overlay_target,
+                                          overlay_foreground,
+                                          overlay_background);
+            }
         }
     }
 

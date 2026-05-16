@@ -130,8 +130,13 @@ bool init(Surface & surface, const SurfaceDescriptor & target, Color foreground,
     g_state.foreground = foreground;
     g_state.background = background;
     g_state.config = config;
+    if (!compositor::register_layer_repaint_callback(LayerKind::DebugOverlay, repaint_overlay))
+    {
+        g_state = {};
+        return false;
+    }
+
     g_state.initialized = true;
-    (void)compositor::register_layer_repaint_callback(LayerKind::DebugOverlay, repaint_overlay);
     return true;
 }
 

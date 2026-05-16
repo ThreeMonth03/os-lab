@@ -68,8 +68,13 @@ bool init(Surface & surface, const GuiSurface & panel, Color border, Color backg
     g_state.desktop_bounds = {0, 0, surface.width(), surface.height()};
     g_state.palette = {border, background, foreground};
     g_state.config = config;
+    if (!compositor::register_layer_repaint_callback(LayerKind::DesktopPanel, repaint_panel))
+    {
+        g_state = {};
+        return false;
+    }
+
     g_state.initialized = true;
-    (void)compositor::register_layer_repaint_callback(LayerKind::DesktopPanel, repaint_panel);
     return true;
 }
 

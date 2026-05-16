@@ -149,15 +149,22 @@ bool init()
     g_state.pointer.reset(framebuffer->width, framebuffer->height);
     g_state.outline = pack_rgb(*framebuffer, 0x00, 0x00, 0x00);
     g_state.fill = pack_rgb(*framebuffer, 0xff, 0xff, 0xff);
-    g_state.initialized = true;
-    (void)display::compositor::register_layer({
+    const bool layer_registered = display::compositor::register_layer({
         display::LayerKind::MouseCursor,
         display::kMouseCursorLayerSurfaceId,
         {0, 0, framebuffer->width, framebuffer->height},
         true,
     });
-    (void)display::compositor::register_layer_repaint_callback(display::LayerKind::MouseCursor,
-                                                               repaint_cursor);
+    const bool repaint_registered =
+        display::compositor::register_layer_repaint_callback(display::LayerKind::MouseCursor,
+                                                             repaint_cursor);
+    if (!layer_registered || !repaint_registered)
+    {
+        g_state = {};
+        return false;
+    }
+
+    g_state.initialized = true;
     return true;
 }
 
