@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "kernel/display/backing_surface.hpp"
 #include "kernel/display/composited_surface.hpp"
 #include "kernel/display/compositor.hpp"
 #include "kernel/display/debug_overlay.hpp"
@@ -39,6 +40,26 @@ kernel::display::Layer cursor_layer(kernel::display::Rect bounds = {0, 0, 800, 6
                          bounds,
                          true,
                          kernel::display::LayerOcclusion::Transparent);
+}
+
+kernel::display::PixelSample backing_sample(const kernel::display::LayerPixelSource & source,
+                                            uint64_t x,
+                                            uint64_t y)
+{
+    const auto * surface = static_cast<const kernel::display::BackingSurface *>(source.context);
+    return surface == nullptr ? kernel::display::transparent_pixel() : surface->sample(x, y);
+}
+
+kernel::display::PixelSample fixed_sample(const kernel::display::LayerPixelSource & source,
+                                          uint64_t x,
+                                          uint64_t y)
+{
+    const auto * sample = static_cast<const kernel::display::PixelSample *>(source.context);
+    if (sample == nullptr || !kernel::display::rects_overlap(source.bounds, {x, y, 1, 1}))
+    {
+        return kernel::display::transparent_pixel();
+    }
+    return *sample;
 }
 
 } // namespace
@@ -226,6 +247,96 @@ TEST(DisplayCompositorTest, TransparentCursorDoesNotOccludeAppRepaint)
     expect_rect(plan.rect_at(0), 104, 104, 4, 4);
     EXPECT_EQ(plan.at(1), kernel::display::LayerKind::MouseCursor);
     expect_rect(plan.rect_at(1), 104, 104, 4, 4);
+}
+
+TEST(DisplayCompositorTest, FinalPixelUsesOpaqueOverlayOverLowerLayers)
+{
+    uint32_t overlay_pixels[4] = {};
+    kernel::display::BackingSurface overlay(overlay_pixels, {10, 10, 2, 2}, 2);
+    overlay.fill_rect(overlay.bounds(), {7});
+    const kernel::display::PixelSample terminal = kernel::display::opaque_pixel({3});
+
+    const kernel::display::LayerPixelSource sources[] = {
+        {kernel::display::LayerKind::DebugOverlay,
+         overlay.bounds(),
+         kernel::display::LayerOcclusion::Opaque,
+         &overlay,
+         backing_sample,
+         true},
+        {kernel::display::LayerKind::AppSurface,
+         {0, 0, 100, 100},
+         kernel::display::LayerOcclusion::Opaque,
+         &terminal,
+         fixed_sample,
+         true},
+    };
+
+    kernel::display::Color color;
+    ASSERT_TRUE(kernel::display::final_pixel_at(sources,
+                                                2,
+                                                kernel::display::LayerKind::DesktopBackground,
+                                                10,
+                                                10,
+                                                color));
+    EXPECT_EQ(color.value, 7u);
+}
+
+TEST(DisplayCompositorTest, FinalPixelFallsThroughTransparentCursor)
+{
+    const kernel::display::PixelSample cursor = kernel::display::transparent_pixel();
+    const kernel::display::PixelSample overlay = kernel::display::opaque_pixel({7});
+    const kernel::display::LayerPixelSource sources[] = {
+        {kernel::display::LayerKind::MouseCursor,
+         {10, 10, 1, 1},
+         kernel::display::LayerOcclusion::Transparent,
+         &cursor,
+         fixed_sample,
+         true},
+        {kernel::display::LayerKind::DebugOverlay,
+         {0, 0, 100, 100},
+         kernel::display::LayerOcclusion::Opaque,
+         &overlay,
+         fixed_sample,
+         true},
+    };
+
+    kernel::display::Color color;
+    ASSERT_TRUE(kernel::display::final_pixel_at(sources,
+                                                2,
+                                                kernel::display::LayerKind::DesktopBackground,
+                                                10,
+                                                10,
+                                                color));
+    EXPECT_EQ(color.value, 7u);
+}
+
+TEST(DisplayCompositorTest, FinalPixelUsesCursorForegroundAsTopLayer)
+{
+    const kernel::display::PixelSample cursor = kernel::display::opaque_pixel({9});
+    const kernel::display::PixelSample overlay = kernel::display::opaque_pixel({7});
+    const kernel::display::LayerPixelSource sources[] = {
+        {kernel::display::LayerKind::MouseCursor,
+         {10, 10, 1, 1},
+         kernel::display::LayerOcclusion::Transparent,
+         &cursor,
+         fixed_sample,
+         true},
+        {kernel::display::LayerKind::DebugOverlay,
+         {0, 0, 100, 100},
+         kernel::display::LayerOcclusion::Opaque,
+         &overlay,
+         fixed_sample,
+         true},
+    };
+
+    kernel::display::Color color;
+    ASSERT_TRUE(kernel::display::final_pixel_at(sources,
+                                                2,
+                                                kernel::display::LayerKind::DesktopBackground,
+                                                10,
+                                                10,
+                                                color));
+    EXPECT_EQ(color.value, 9u);
 }
 
 TEST(DisplayCompositorTest, SkipsAppLayerWhenDirtyRectIsCoveredByOpaqueOverlay)

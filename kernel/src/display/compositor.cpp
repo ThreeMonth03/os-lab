@@ -175,6 +175,11 @@ Rect LayerRepaintPlan::rect_at(size_t index) const
     return entries[index].rect;
 }
 
+bool LayerPixelSource::valid() const
+{
+    return kind != LayerKind::None && !bounds.empty() && read != nullptr;
+}
+
 uint8_t layer_order(LayerKind kind)
 {
     switch (kind)
@@ -218,6 +223,58 @@ bool should_repaint_layer_after_update(Layer layer, LayerKind updated_layer, Rec
 {
     return layer.visible && layer.valid() && layer_above(layer.kind, updated_layer) &&
            rects_overlap(layer.bounds, dirty_rect);
+}
+
+bool final_pixel_at(const LayerPixelSource * sources,
+                    size_t source_count,
+                    LayerKind base_layer,
+                    uint64_t x,
+                    uint64_t y,
+                    Color & color)
+{
+    if (sources == nullptr || source_count == 0)
+    {
+        return false;
+    }
+
+    const uint8_t minimum_order = layer_order(base_layer);
+    uint8_t next_order = UINT8_MAX;
+    while (next_order > minimum_order)
+    {
+        const LayerPixelSource * top_source = nullptr;
+        uint8_t top_order = 0;
+        for (size_t index = 0; index < source_count; ++index)
+        {
+            const LayerPixelSource & source = sources[index];
+            if (!source.visible || !source.valid() || !rects_overlap(source.bounds, {x, y, 1, 1}))
+            {
+                continue;
+            }
+
+            const uint8_t order = layer_order(source.kind);
+            if (order >= minimum_order && order < next_order && order > top_order)
+            {
+                top_source = &source;
+                top_order = order;
+            }
+        }
+
+        if (top_source == nullptr)
+        {
+            return false;
+        }
+
+        const PixelSample sample = top_source->read(*top_source, x, y);
+        if (sample.opaque())
+        {
+            color = sample.color;
+            return true;
+        }
+
+        next_order = top_order;
+    }
+
+    return false;
 }
 
 void mark_cursor_move_dirty(DirtyRectQueue & queue, Rect old_bounds, Rect new_bounds)

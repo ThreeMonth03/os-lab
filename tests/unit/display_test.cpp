@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <gtest/gtest.h>
+#include "kernel/display/backing_surface.hpp"
 #include "kernel/display/display.hpp"
 
 namespace
@@ -53,6 +54,39 @@ TEST(DisplayTest, PutPixelAndFillRectAreClipped)
     EXPECT_EQ(pixels[10], 5u);
     EXPECT_EQ(pixels[11], 5u);
     EXPECT_EQ(pixels[0], 0u);
+}
+
+TEST(DisplayTest, BackingSurfaceUsesAbsoluteBounds)
+{
+    uint32_t pixels[12] = {};
+    kernel::display::BackingSurface surface(pixels, {10, 20, 4, 3}, 4);
+
+    EXPECT_TRUE(surface.ready());
+    EXPECT_TRUE(surface.contains(10, 20));
+    EXPECT_TRUE(surface.contains(13, 22));
+    EXPECT_FALSE(surface.contains(9, 20));
+    EXPECT_FALSE(surface.contains(14, 22));
+
+    surface.put_pixel(11, 21, {7});
+    EXPECT_EQ(surface.pixel(11, 21).value, 7u);
+    EXPECT_EQ(pixels[5], 7u);
+    EXPECT_FALSE(surface.sample(9, 20).opaque());
+    ASSERT_TRUE(surface.sample(11, 21).opaque());
+    EXPECT_EQ(surface.sample(11, 21).color.value, 7u);
+}
+
+TEST(DisplayTest, BackingSurfaceFillRectIsClipped)
+{
+    uint32_t pixels[12] = {};
+    kernel::display::BackingSurface surface(pixels, {10, 20, 4, 3}, 4);
+
+    surface.fill_rect({12, 21, 8, 8}, {5});
+
+    EXPECT_EQ(surface.pixel(12, 21).value, 5u);
+    EXPECT_EQ(surface.pixel(13, 21).value, 5u);
+    EXPECT_EQ(surface.pixel(12, 22).value, 5u);
+    EXPECT_EQ(surface.pixel(13, 22).value, 5u);
+    EXPECT_EQ(surface.pixel(11, 21).value, 0u);
 }
 
 } // namespace

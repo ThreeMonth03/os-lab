@@ -5,6 +5,7 @@
 
 #include "kernel/display/display.hpp"
 #include "kernel/display/display_target.hpp"
+#include "kernel/display/backing_surface.hpp"
 
 namespace kernel::display
 {
@@ -74,10 +75,32 @@ struct LayerRepaintPlan
     Rect rect_at(size_t index) const;
 };
 
+struct LayerPixelSource;
+
+using LayerPixelReader = PixelSample (*)(const LayerPixelSource & source, uint64_t x, uint64_t y);
+
+struct LayerPixelSource
+{
+    LayerKind kind = LayerKind::None;
+    Rect bounds;
+    LayerOcclusion occlusion = LayerOcclusion::Transparent;
+    const void * context = nullptr;
+    LayerPixelReader read = nullptr;
+    bool visible = true;
+
+    [[nodiscard]] bool valid() const;
+};
+
 [[nodiscard]] uint8_t layer_order(LayerKind kind);
 [[nodiscard]] bool layer_above(LayerKind candidate, LayerKind reference);
 [[nodiscard]] bool rects_overlap(Rect lhs, Rect rhs);
 [[nodiscard]] bool should_repaint_layer_after_update(Layer layer, LayerKind updated_layer, Rect dirty_rect);
+[[nodiscard]] bool final_pixel_at(const LayerPixelSource * sources,
+                                  size_t source_count,
+                                  LayerKind base_layer,
+                                  uint64_t x,
+                                  uint64_t y,
+                                  Color & color);
 void mark_cursor_move_dirty(DirtyRectQueue & queue, Rect old_bounds, Rect new_bounds);
 
 class DirtyRectQueue
@@ -134,10 +157,13 @@ namespace compositor
 {
 
 using LayerRepaintCallback = void (*)(Rect dirty_rect);
+using LayerPixelCallback = PixelSample (*)(uint64_t x, uint64_t y);
 
 void init(Rect bounds);
+void set_framebuffer_surface(Surface & surface);
 [[nodiscard]] bool register_surface(CompositedSurfaceDescriptor surface);
 [[nodiscard]] bool register_layer_repaint_callback(LayerKind kind, LayerRepaintCallback callback);
+[[nodiscard]] bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback);
 void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect);
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds);

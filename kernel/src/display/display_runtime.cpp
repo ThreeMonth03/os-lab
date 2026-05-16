@@ -124,6 +124,7 @@ void reset_display_runtime_state(const limine_framebuffer & framebuffer)
                                        framebuffer.height,
                                        framebuffer.pitch);
     display::compositor::init(framebuffer_bounds(framebuffer));
+    display::compositor::set_framebuffer_surface(g_state.surface);
 }
 
 bool init_desktop_background_layer(const limine_framebuffer & framebuffer,
