@@ -31,11 +31,37 @@ struct DisplayRuntimeState
 
 DisplayRuntimeState g_state;
 
+const limine_framebuffer * usable_framebuffer(uint64_t terminal_cell_width,
+                                              uint64_t terminal_cell_height)
+{
+    const auto * response = kernel::boot::framebuffer();
+    if (response == nullptr || response->framebuffer_count == 0)
+    {
+        return nullptr;
+    }
+
+    const auto * framebuffer = response->framebuffers[0];
+    if (framebuffer == nullptr || framebuffer->bpp != 32 ||
+        framebuffer->memory_model != LIMINE_FRAMEBUFFER_RGB ||
+        framebuffer->width < terminal_cell_width ||
+        framebuffer->height < terminal_cell_height)
+    {
+        return nullptr;
+    }
+
+    return framebuffer;
+}
+
 uint32_t pack_rgb(const limine_framebuffer & framebuffer, display::RgbColor color)
 {
     return (static_cast<uint32_t>(color.red) << framebuffer.red_mask_shift) |
            (static_cast<uint32_t>(color.green) << framebuffer.green_mask_shift) |
            (static_cast<uint32_t>(color.blue) << framebuffer.blue_mask_shift);
+}
+
+display::Color color_for(const limine_framebuffer & framebuffer, display::RgbColor color)
+{
+    return {pack_rgb(framebuffer, color)};
 }
 
 uint64_t max_u64(uint64_t lhs, uint64_t rhs)
@@ -88,6 +114,119 @@ display::Rect terminal_app_bounds_for(const limine_framebuffer & framebuffer,
     return app_bounds;
 }
 
+void reset_runtime_state(const limine_framebuffer & framebuffer)
+{
+    g_state = {};
+    g_state.surface = display::Surface(framebuffer.address,
+                                       framebuffer.width,
+                                       framebuffer.height,
+                                       framebuffer.pitch);
+    display::compositor::init(framebuffer_bounds(framebuffer));
+}
+
+bool init_desktop_background(const limine_framebuffer & framebuffer,
+                             display::DisplayPalette palette)
+{
+    return desktop_background::init(g_state.surface,
+                                    framebuffer_bounds(framebuffer),
+                                    {color_for(framebuffer, palette.desktop_background)});
+}
+
+display::Rect try_init_gui_panel(const limine_framebuffer & framebuffer,
+                                 display::DisplayPalette palette,
+                                 gui_panel::Config panel_config)
+{
+    const display::Rect panel_bounds =
+        gui_panel::bounds_for(framebuffer.width, framebuffer.height, panel_config);
+    const display::GuiSurface panel =
+        gui_panel::make_surface(framebuffer.width,
+                                framebuffer.height,
+                                gui_panel::kGuiSurfaceId,
+                                panel_config);
+
+    if (!g_state.gui_surfaces.register_surface(panel))
+    {
+        return {};
+    }
+
+    const display::GuiSurface * registered_panel =
+        g_state.gui_surfaces.find(gui_panel::kGuiSurfaceId);
+    if (registered_panel == nullptr ||
+        !g_state.targets.register_target(registered_panel->display_target()))
+    {
+        return {};
+    }
+
+    if (!display::compositor::register_layer(registered_panel->layer()))
+    {
+        return {};
+    }
+
+    if (!gui_panel::init(g_state.surface,
+                         *registered_panel,
+                         color_for(framebuffer, palette.panel_border),
+                         color_for(framebuffer, palette.desktop_background),
+                         color_for(framebuffer, palette.panel_foreground),
+                         panel_config))
+    {
+        return {};
+    }
+
+    return panel_bounds;
+}
+
+bool init_terminal_app(const limine_framebuffer & framebuffer,
+                       display::DisplayPalette palette,
+                       gui_panel::Config panel_config,
+                       display::Rect active_panel_bounds,
+                       uint64_t terminal_cell_width,
+                       uint64_t terminal_cell_height,
+                       display::compositor::LayerRepaintCallback repaint_callback)
+{
+    g_state.terminal_app_surface =
+        display::make_app_surface(display::kTerminalAppSurfaceId,
+                                  terminal_app_bounds_for(framebuffer,
+                                                          active_panel_bounds,
+                                                          panel_config,
+                                                          terminal_cell_width,
+                                                          terminal_cell_height),
+                                  true,
+                                  true);
+    if (!g_state.app_surfaces.register_surface(g_state.terminal_app_surface))
+    {
+        return false;
+    }
+
+    const display::AppSurface * registered_app =
+        g_state.app_surfaces.find(display::kTerminalAppSurfaceId);
+    if (registered_app == nullptr ||
+        !g_state.targets.register_target(registered_app->display_target()) ||
+        !g_state.targets.set_active(registered_app->display_surface_id) ||
+        !g_state.targets.set_focused(registered_app->display_surface_id))
+    {
+        return false;
+    }
+
+    if (!g_state.app_surfaces.set_focused(display::kTerminalAppSurfaceId))
+    {
+        return false;
+    }
+
+    registered_app = g_state.app_surfaces.find(display::kTerminalAppSurfaceId);
+    if (registered_app == nullptr)
+    {
+        return false;
+    }
+
+    g_state.terminal_app_surface = *registered_app;
+    g_state.terminal_foreground = color_for(framebuffer, palette.terminal_foreground);
+    g_state.terminal_background = color_for(framebuffer, palette.terminal_background);
+
+    return display::compositor::register_layer(registered_app->layer()) &&
+           display::compositor::register_layer_repaint_callback(display::LayerKind::AppSurface,
+                                                                repaint_callback);
+}
+
 void try_init_debug_overlay(const limine_framebuffer & framebuffer,
                             display::DisplayPalette palette,
                             display::Rect overlay_bounds)
@@ -122,14 +261,10 @@ void try_init_debug_overlay(const limine_framebuffer & framebuffer,
         return;
     }
 
-    const display::Color overlay_foreground{
-        pack_rgb(framebuffer, palette.debug_overlay_foreground)};
-    const display::Color overlay_background{
-        pack_rgb(framebuffer, palette.debug_overlay_background)};
     if (!debug_overlay::init(g_state.surface,
                              *overlay_target,
-                             overlay_foreground,
-                             overlay_background))
+                             color_for(framebuffer, palette.debug_overlay_foreground),
+                             color_for(framebuffer, palette.debug_overlay_background)))
     {
         return;
     }
@@ -156,114 +291,31 @@ bool init(
         return false;
     }
 
-    const auto * response = boot::framebuffer();
-    if (response == nullptr || response->framebuffer_count == 0)
+    const limine_framebuffer * framebuffer =
+        usable_framebuffer(terminal_cell_width, terminal_cell_height);
+    if (framebuffer == nullptr)
     {
         return false;
     }
 
-    auto * framebuffer = response->framebuffers[0];
-    if (framebuffer == nullptr || framebuffer->bpp != 32 ||
-        framebuffer->memory_model != LIMINE_FRAMEBUFFER_RGB ||
-        framebuffer->width < terminal_cell_width ||
-        framebuffer->height < terminal_cell_height)
-    {
-        return false;
-    }
-
-    g_state = {};
-    g_state.surface = display::Surface(framebuffer->address,
-                                       framebuffer->width,
-                                       framebuffer->height,
-                                       framebuffer->pitch);
-    display::compositor::init(framebuffer_bounds(*framebuffer));
+    reset_runtime_state(*framebuffer);
 
     const gui_panel::Config panel_config = gui_panel::default_config();
-    const display::Rect panel_bounds =
-        gui_panel::bounds_for(framebuffer->width, framebuffer->height, panel_config);
-    display::Rect active_panel_bounds;
-    const display::GuiSurface panel =
-        gui_panel::make_surface(framebuffer->width,
-                                framebuffer->height,
-                                gui_panel::kGuiSurfaceId,
-                                panel_config);
     constexpr display::DisplayPalette palette = display::default_display_palette();
-    if (!desktop_background::init(g_state.surface,
-                                  framebuffer_bounds(*framebuffer),
-                                  {{pack_rgb(*framebuffer, palette.desktop_background)}}))
+    if (!init_desktop_background(*framebuffer, palette))
     {
         return false;
     }
 
-    if (g_state.gui_surfaces.register_surface(panel))
-    {
-        const display::GuiSurface * registered_panel =
-            g_state.gui_surfaces.find(gui_panel::kGuiSurfaceId);
-        if (registered_panel != nullptr &&
-            g_state.targets.register_target(registered_panel->display_target()))
-        {
-            const bool panel_layer_registered =
-                display::compositor::register_layer(registered_panel->layer());
-
-            if (panel_layer_registered)
-            {
-                const display::Color panel_border{pack_rgb(*framebuffer, palette.panel_border)};
-                const display::Color panel_background{
-                    pack_rgb(*framebuffer, palette.desktop_background)};
-                const display::Color panel_foreground{
-                    pack_rgb(*framebuffer, palette.panel_foreground)};
-                if (gui_panel::init(g_state.surface,
-                                    *registered_panel,
-                                    panel_border,
-                                    panel_background,
-                                    panel_foreground,
-                                    panel_config))
-                {
-                    active_panel_bounds = panel_bounds;
-                }
-            }
-        }
-    }
-
-    g_state.terminal_app_surface =
-        display::make_app_surface(display::kTerminalAppSurfaceId,
-                                  terminal_app_bounds_for(*framebuffer,
-                                                          active_panel_bounds,
-                                                          panel_config,
-                                                          terminal_cell_width,
-                                                          terminal_cell_height),
-                                  true,
-                                  true);
-    if (!g_state.app_surfaces.register_surface(g_state.terminal_app_surface))
-    {
-        return false;
-    }
-
-    const display::AppSurface * registered_app =
-        g_state.app_surfaces.find(display::kTerminalAppSurfaceId);
-    if (registered_app == nullptr ||
-        !g_state.targets.register_target(registered_app->display_target()) ||
-        !g_state.targets.set_active(registered_app->display_surface_id) ||
-        !g_state.targets.set_focused(registered_app->display_surface_id))
-    {
-        return false;
-    }
-
-    if (!g_state.app_surfaces.set_focused(display::kTerminalAppSurfaceId))
-    {
-        return false;
-    }
-
-    registered_app = g_state.app_surfaces.find(display::kTerminalAppSurfaceId);
-    if (registered_app == nullptr)
-    {
-        return false;
-    }
-
-    g_state.terminal_app_surface = *registered_app;
-    if (!display::compositor::register_layer(registered_app->layer()) ||
-        !display::compositor::register_layer_repaint_callback(display::LayerKind::AppSurface,
-                                                              terminal_repaint_callback))
+    const display::Rect active_panel_bounds =
+        try_init_gui_panel(*framebuffer, palette, panel_config);
+    if (!init_terminal_app(*framebuffer,
+                           palette,
+                           panel_config,
+                           active_panel_bounds,
+                           terminal_cell_width,
+                           terminal_cell_height,
+                           terminal_repaint_callback))
     {
         return false;
     }
@@ -271,9 +323,6 @@ bool init(
     try_init_debug_overlay(*framebuffer,
                            palette,
                            debug_overlay::bounds_for(framebuffer->width, framebuffer->height));
-
-    g_state.terminal_foreground = {pack_rgb(*framebuffer, palette.terminal_foreground)};
-    g_state.terminal_background = {pack_rgb(*framebuffer, palette.terminal_background)};
 
     return true;
 }
