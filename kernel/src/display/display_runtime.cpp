@@ -1,11 +1,12 @@
 #include "kernel/display/display_runtime.hpp"
 
+#include "debug_overlay_runtime.hpp"
+#include "desktop_background_runtime.hpp"
+#include "gui_panel_runtime.hpp"
+
 #include "kernel/boot/limine_support.hpp"
-#include "kernel/display/desktop_background_runtime.hpp"
-#include "kernel/display/debug_overlay_runtime.hpp"
 #include "kernel/display/display_palette.hpp"
 #include "kernel/display/display_target.hpp"
-#include "kernel/display/gui_panel_runtime.hpp"
 #include "kernel/display/gui_surface.hpp"
 
 namespace
@@ -301,6 +302,11 @@ void refresh_desktop()
 
     display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground,
                                              {0, 0, g_state.surface.width(), g_state.surface.height()});
+}
+
+void refresh_debug_overlay_if_due()
+{
+    debug_overlay::refresh_if_due();
 }
 
 void repaint_layers_above_terminal_app(Rect rect)

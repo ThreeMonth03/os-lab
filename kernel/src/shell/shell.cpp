@@ -9,7 +9,7 @@
 #include "kernel/input/input_router.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/input/keyboard.hpp"
-#include "kernel/display/debug_overlay_runtime.hpp"
+#include "kernel/display/display_runtime.hpp"
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/drivers/serial.hpp"
 #include "kernel/base/string_view.hpp"
@@ -21,7 +21,7 @@ namespace
 {
 
 namespace mouse_cursor = kernel::display::mouse_cursor;
-namespace debug_overlay = kernel::display::debug_overlay;
+namespace display_runtime = kernel::display::runtime;
 namespace serial = kernel::drivers::serial;
 namespace terminal = kernel::console::terminal;
 
@@ -252,7 +252,7 @@ namespace kernel::shell
 
     while (true)
     {
-        debug_overlay::refresh_if_due();
+        display_runtime::refresh_debug_overlay_if_due();
 
         input::Event event;
         if (input::poll(event))

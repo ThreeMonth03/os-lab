@@ -1,4 +1,4 @@
-#include "kernel/display/desktop_background_runtime.hpp"
+#include "desktop_background_runtime.hpp"
 
 #include "kernel/display/compositor.hpp"
 

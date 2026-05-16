@@ -1,4 +1,4 @@
-#include "kernel/display/debug_overlay_runtime.hpp"
+#include "debug_overlay_runtime.hpp"
 
 #include "kernel/display/compositor.hpp"
 #include "kernel/input/input.hpp"

@@ -1,4 +1,4 @@
-#include "kernel/display/gui_panel_runtime.hpp"
+#include "gui_panel_runtime.hpp"
 
 #include "kernel/display/compositor.hpp"
 #include "kernel/display/gui_panel_renderer.hpp"
