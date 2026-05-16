@@ -153,10 +153,12 @@ private:
             ++mapped_pages;
         }
 
-        if (mapped_pages > 0)
+        if (mapped_pages > 0 &&
+            !allocator_.add_region(reinterpret_cast<void *>(heap::kVirtualBase + start_offset),
+                                   mapped_pages * paging::kPageSize))
         {
-            (void)allocator_.add_region(reinterpret_cast<void *>(heap::kVirtualBase + start_offset),
-                                        mapped_pages * paging::kPageSize);
+            ++failed_allocations_;
+            return 0;
         }
         return mapped_pages;
     }

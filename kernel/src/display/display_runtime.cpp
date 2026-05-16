@@ -87,6 +87,53 @@ display::Rect terminal_app_bounds_for(const limine_framebuffer & framebuffer,
     return app_bounds;
 }
 
+void try_init_debug_overlay(const limine_framebuffer & framebuffer,
+                            display::DisplayPalette palette,
+                            display::Rect overlay_bounds)
+{
+    if (overlay_bounds.empty())
+    {
+        return;
+    }
+
+    const bool overlay_registered = g_state.targets.register_target({
+        debug_overlay::kSurfaceId,
+        display::DisplayTargetKind::DebugOverlay,
+        overlay_bounds,
+        false,
+        false,
+    });
+    const display::SurfaceDescriptor * overlay_target =
+        g_state.targets.find(debug_overlay::kSurfaceId);
+    if (!overlay_registered || overlay_target == nullptr)
+    {
+        return;
+    }
+
+    const bool overlay_layer_registered = display::compositor::register_layer({
+        display::LayerKind::DebugOverlay,
+        debug_overlay::kSurfaceId,
+        overlay_bounds,
+        true,
+    });
+    if (!overlay_layer_registered)
+    {
+        return;
+    }
+
+    const display::Color overlay_foreground{
+        pack_rgb(framebuffer, palette.debug_overlay_foreground)};
+    const display::Color overlay_background{
+        pack_rgb(framebuffer, palette.debug_overlay_background)};
+    if (!debug_overlay::init(g_state.surface,
+                             *overlay_target,
+                             overlay_foreground,
+                             overlay_background))
+    {
+        return;
+    }
+}
+
 } // namespace
 
 namespace kernel::display::runtime
@@ -220,40 +267,9 @@ bool init(
         return false;
     }
 
-    const display::Rect overlay_bounds =
-        debug_overlay::bounds_for(framebuffer->width, framebuffer->height);
-    if (!overlay_bounds.empty())
-    {
-        const bool overlay_registered = g_state.targets.register_target({
-            debug_overlay::kSurfaceId,
-            display::DisplayTargetKind::DebugOverlay,
-            overlay_bounds,
-            false,
-            false,
-        });
-        const display::SurfaceDescriptor * overlay_target =
-            g_state.targets.find(debug_overlay::kSurfaceId);
-        if (overlay_registered && overlay_target != nullptr)
-        {
-            const bool overlay_layer_registered = display::compositor::register_layer({
-                display::LayerKind::DebugOverlay,
-                debug_overlay::kSurfaceId,
-                overlay_bounds,
-                true,
-            });
-            if (overlay_layer_registered)
-            {
-                const display::Color overlay_foreground{
-                    pack_rgb(*framebuffer, palette.debug_overlay_foreground)};
-                const display::Color overlay_background{
-                    pack_rgb(*framebuffer, palette.debug_overlay_background)};
-                (void)debug_overlay::init(g_state.surface,
-                                          *overlay_target,
-                                          overlay_foreground,
-                                          overlay_background);
-            }
-        }
-    }
+    try_init_debug_overlay(*framebuffer,
+                           palette,
+                           debug_overlay::bounds_for(framebuffer->width, framebuffer->height));
 
     g_state.terminal_foreground = {pack_rgb(*framebuffer, palette.terminal_foreground)};
     g_state.terminal_background = {pack_rgb(*framebuffer, palette.terminal_background)};
@@ -278,7 +294,13 @@ HitTestResult pointer_target()
 
 void refresh_desktop()
 {
-    desktop_background::refresh_now();
+    if (!g_state.surface.ready())
+    {
+        return;
+    }
+
+    display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground,
+                                             {0, 0, g_state.surface.width(), g_state.surface.height()});
 }
 
 void repaint_layers_above_terminal_app(Rect rect)

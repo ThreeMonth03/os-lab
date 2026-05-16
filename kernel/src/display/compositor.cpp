@@ -302,7 +302,10 @@ LayerRepaintPlan Compositor::repaint_plan_from(LayerKind base_layer, Rect dirty_
         {
             continue;
         }
-        (void)plan.push(layer.kind);
+        if (!plan.push(layer.kind))
+        {
+            break;
+        }
     }
 
     return plan;
@@ -323,7 +326,10 @@ LayerRepaintPlan Compositor::repaint_plan_above(LayerKind updated_layer, Rect di
         {
             continue;
         }
-        (void)plan.push(layer.kind);
+        if (!plan.push(layer.kind))
+        {
+            break;
+        }
     }
 
     return plan;

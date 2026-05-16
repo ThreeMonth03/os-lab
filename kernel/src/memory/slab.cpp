@@ -158,7 +158,11 @@ private:
         }
         if (!registry_.add_slab(id, memory, slab::kBackingPageCount * paging::kPageSize))
         {
-            (void)kernel::memory::heap::free(memory);
+            if (!kernel::memory::heap::free(memory))
+            {
+                registry_.record_failed_backing_allocation(id);
+                return false;
+            }
             registry_.record_failed_backing_allocation(id);
             return false;
         }

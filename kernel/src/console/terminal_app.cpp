@@ -138,7 +138,10 @@ void TerminalApp::render_text_cell(uint64_t column, uint64_t row, char glyph)
     {
         renderer_.draw_glyph(glyph, column, row);
     }
-    (void)render_cache_.mark_rendered(column, row, glyph);
+    if (!render_cache_.mark_rendered(column, row, glyph))
+    {
+        render_cache_.invalidate();
+    }
 }
 
 void TerminalApp::render_buffer_cell(uint64_t column, uint64_t row)

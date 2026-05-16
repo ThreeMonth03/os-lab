@@ -98,7 +98,10 @@ bool init_memory_and_paging()
     const bool memory_ready = kernel::memory::init();
     if (memory_ready)
     {
-        (void)kernel::arch::x86_64::paging::init_foundation();
+        if (!kernel::arch::x86_64::paging::init_foundation())
+        {
+            kernel::drivers::serial::write_line("os-lab: x86_64 paging foundation unavailable");
+        }
     }
     return memory_ready;
 }

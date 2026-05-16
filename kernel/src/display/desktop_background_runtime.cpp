@@ -65,15 +65,4 @@ bool init(Surface & surface, Rect bounds, SolidColorSource source)
     return true;
 }
 
-void refresh_now()
-{
-    if (!background_ready())
-    {
-        return;
-    }
-
-    repaint_background(g_state.bounds);
-    compositor::repaint_layers_above(LayerKind::DesktopBackground, g_state.bounds);
-}
-
 } // namespace kernel::display::desktop_background

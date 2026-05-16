@@ -26,10 +26,8 @@ paging::PageTable * table_from_physical(uint64_t physical_address, void *)
     return reinterpret_cast<paging::PageTable *>(physical_address + kernel::boot::hhdm_offset());
 }
 
-bool allocate_table(paging::PageTable *& table, uint64_t & physical_address, void * context)
+bool allocate_table(paging::PageTable *& table, uint64_t & physical_address, void *)
 {
-    (void)context;
-
     kernel::memory::PhysicalFrame frame;
     if (!kernel::memory::allocate_frame(frame))
     {
