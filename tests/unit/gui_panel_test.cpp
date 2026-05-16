@@ -3,6 +3,7 @@
 #include "kernel/display/compositor.hpp"
 #include "kernel/display/debug_overlay.hpp"
 #include "kernel/display/gui_panel.hpp"
+#include "kernel/display/gui_panel_renderer.hpp"
 
 namespace
 {
@@ -18,6 +19,28 @@ void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t 
 kernel::display::Layer layer(kernel::display::LayerKind kind, kernel::display::SurfaceId id)
 {
     return {kind, id, {0, 0, 320, 200}, true};
+}
+
+kernel::display::GuiSurface visible_panel(kernel::display::Rect bounds = {10, 10, 80, 30})
+{
+    return kernel::display::make_gui_surface(kernel::display::gui_panel::kGuiSurfaceId,
+                                             bounds,
+                                             true,
+                                             false);
+}
+
+kernel::display::gui_panel::Palette test_palette()
+{
+    return {{1}, {2}, {3}};
+}
+
+template <size_t Size>
+void fill_pixels(uint32_t (&pixels)[Size], uint32_t value)
+{
+    for (uint32_t & pixel : pixels)
+    {
+        pixel = value;
+    }
 }
 
 } // namespace
@@ -125,4 +148,91 @@ TEST(GuiPanelTest, CompositorCanTrackConsolePanelOverlayAndCursor)
     const kernel::display::Layer * top = compositor.top_visible_layer();
     ASSERT_NE(top, nullptr);
     EXPECT_EQ(top->kind, kernel::display::LayerKind::MouseCursor);
+}
+
+TEST(GuiPanelTest, ComputesRepaintRegionForVisiblePanelOnly)
+{
+    const kernel::display::GuiSurface panel = visible_panel({10, 10, 40, 20});
+
+    expect_rect(kernel::display::gui_panel::repaint_region(panel, {5, 5, 20, 20}),
+                10,
+                10,
+                15,
+                15);
+
+    kernel::display::GuiSurface hidden = panel;
+    hidden.visible = false;
+    EXPECT_TRUE(kernel::display::gui_panel::repaint_region(hidden, panel.bounds).empty());
+    EXPECT_TRUE(kernel::display::gui_panel::repaint_region(panel, {90, 90, 2, 2}).empty());
+}
+
+TEST(GuiPanelTest, DirtyRegionPaintsTouchedBorderSegments)
+{
+    constexpr uint64_t width = 120;
+    constexpr uint64_t height = 80;
+    uint32_t pixels[width * height] = {};
+    fill_pixels(pixels, 9);
+
+    kernel::display::Surface surface(pixels, width, height, width * sizeof(uint32_t));
+    const kernel::display::GuiSurface panel = visible_panel({10, 10, 40, 20});
+    const kernel::display::gui_panel::Palette palette = test_palette();
+
+    kernel::display::gui_panel::paint_region(surface, panel, palette, {10, 10, 40, 1});
+    EXPECT_EQ(surface.pixel(10, 10).value, 1u);
+    EXPECT_EQ(surface.pixel(49, 10).value, 1u);
+    EXPECT_EQ(surface.pixel(11, 11).value, 9u);
+
+    kernel::display::gui_panel::paint_region(surface, panel, palette, {10, 10, 1, 20});
+    EXPECT_EQ(surface.pixel(10, 20).value, 1u);
+
+    kernel::display::gui_panel::paint_region(surface, panel, palette, {49, 10, 1, 20});
+    EXPECT_EQ(surface.pixel(49, 20).value, 1u);
+
+    kernel::display::gui_panel::paint_region(surface, panel, palette, {10, 29, 40, 1});
+    EXPECT_EQ(surface.pixel(20, 29).value, 1u);
+}
+
+TEST(GuiPanelTest, DirtyRegionOutsidePanelDoesNotPaint)
+{
+    constexpr uint64_t width = 120;
+    constexpr uint64_t height = 80;
+    uint32_t pixels[width * height] = {};
+    fill_pixels(pixels, 9);
+
+    kernel::display::Surface surface(pixels, width, height, width * sizeof(uint32_t));
+    kernel::display::gui_panel::paint_region(surface,
+                                             visible_panel({10, 10, 40, 20}),
+                                             test_palette(),
+                                             {80, 60, 4, 4});
+
+    EXPECT_EQ(surface.pixel(10, 10).value, 9u);
+    EXPECT_EQ(surface.pixel(20, 20).value, 9u);
+}
+
+TEST(GuiPanelTest, DirtyContentRegionRestoresBackgroundAndTitle)
+{
+    constexpr uint64_t width = 140;
+    constexpr uint64_t height = 80;
+    uint32_t pixels[width * height] = {};
+    fill_pixels(pixels, 9);
+
+    kernel::display::Surface surface(pixels, width, height, width * sizeof(uint32_t));
+    const kernel::display::GuiSurface panel = visible_panel({10, 10, 100, 40});
+    const kernel::display::Rect content = kernel::display::gui_panel::content_bounds(panel.bounds);
+
+    kernel::display::gui_panel::paint_region(surface, panel, test_palette(), content);
+
+    bool found_foreground = false;
+    bool found_background = false;
+    for (uint64_t y = content.y; y < content.y + content.height; ++y)
+    {
+        for (uint64_t x = content.x; x < content.x + content.width; ++x)
+        {
+            found_foreground = found_foreground || surface.pixel(x, y).value == 3u;
+            found_background = found_background || surface.pixel(x, y).value == 2u;
+        }
+    }
+
+    EXPECT_TRUE(found_foreground);
+    EXPECT_TRUE(found_background);
 }

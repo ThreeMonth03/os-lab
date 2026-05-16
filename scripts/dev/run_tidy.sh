@@ -32,6 +32,7 @@ mapfile -d '' sources < <(
         "${project_root}/kernel/src/display/display.cpp" \
         "${project_root}/kernel/src/display/display_target.cpp" \
         "${project_root}/kernel/src/display/gui_panel.cpp" \
+        "${project_root}/kernel/src/display/gui_panel_renderer.cpp" \
         "${project_root}/kernel/src/display/gui_surface.cpp" \
         "${project_root}/kernel/src/display/hit_test.cpp" \
         "${project_root}/kernel/src/display/terminal_render_cache.cpp" \

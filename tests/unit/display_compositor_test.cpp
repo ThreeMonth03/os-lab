@@ -163,6 +163,29 @@ TEST(DisplayCompositorTest, PlansRepaintOrderFromConsoleToCursor)
     EXPECT_EQ(plan.at(3), kernel::display::LayerKind::MouseCursor);
 }
 
+TEST(DisplayCompositorTest, CursorDirtyOverPanelPlansPanelBeforeCursor)
+{
+    kernel::display::Compositor compositor({0, 0, 800, 600});
+
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::Console,
+                                                        kernel::display::kConsoleSurfaceId,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::GuiSurface,
+                                                        100,
+                                                        {10, 10, 80, 40})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::MouseCursor,
+                                                        kernel::display::kMouseCursorLayerSurfaceId,
+                                                        {0, 0, 800, 600})));
+
+    const kernel::display::LayerRepaintPlan plan =
+        compositor.repaint_plan_from(kernel::display::LayerKind::Console, {12, 12, 10, 16});
+
+    ASSERT_EQ(plan.count, 3u);
+    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::Console);
+    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::GuiSurface);
+    EXPECT_EQ(plan.at(2), kernel::display::LayerKind::MouseCursor);
+}
+
 TEST(DisplayCompositorTest, PlansOnlyHigherIntersectingLayersAfterConsoleUpdate)
 {
     kernel::display::Compositor compositor({0, 0, 800, 600});
