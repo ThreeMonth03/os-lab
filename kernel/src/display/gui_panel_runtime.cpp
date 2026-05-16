@@ -62,15 +62,4 @@ bool init(Surface & surface, const GuiSurface & panel, Color border, Color backg
     return true;
 }
 
-void refresh_now()
-{
-    if (!panel_ready())
-    {
-        return;
-    }
-
-    paint_panel_region(g_state.panel.bounds);
-    compositor::repaint_layers_above(LayerKind::GuiSurface, g_state.panel.bounds);
-}
-
 } // namespace kernel::display::gui_panel

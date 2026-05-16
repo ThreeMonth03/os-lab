@@ -24,7 +24,6 @@ namespace kernel::drivers::mouse
 {
 
 [[nodiscard]] bool init();
-bool ready();
 input::DeviceMode input_mode();
 void handle_irq();
 [[nodiscard]] bool poll(kernel::mouse::MouseEvent & event);

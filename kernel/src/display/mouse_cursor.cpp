@@ -168,8 +168,6 @@ bool init()
     return true;
 }
 
-bool ready() { return g_state.initialized; }
-
 Position position()
 {
     if (!g_state.initialized)

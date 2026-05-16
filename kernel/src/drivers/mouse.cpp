@@ -120,8 +120,6 @@ bool init()
     return true;
 }
 
-bool ready() { return g_ready; }
-
 kernel::input::DeviceMode input_mode() { return g_input_mode; }
 
 void handle_irq()

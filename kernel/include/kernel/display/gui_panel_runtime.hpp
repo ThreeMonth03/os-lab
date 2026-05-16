@@ -11,6 +11,5 @@ namespace kernel::display::gui_panel
                         Color background,
                         Color foreground,
                         Config config = {});
-void refresh_now();
 
 } // namespace kernel::display::gui_panel
