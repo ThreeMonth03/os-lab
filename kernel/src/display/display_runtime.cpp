@@ -257,6 +257,7 @@ void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
         debug_overlay::kSurfaceId,
         overlay_bounds,
         true,
+        display::LayerOpacity::Opaque,
     });
     if (!overlay_layer_registered)
     {

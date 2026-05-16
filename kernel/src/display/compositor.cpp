@@ -48,6 +48,72 @@ kernel::display::Rect clip_to_bounds(kernel::display::Rect rect, kernel::display
     return {left, top, right - left, bottom - top};
 }
 
+size_t subtract_rect(kernel::display::Rect rect,
+                     kernel::display::Rect occluder,
+                     kernel::display::Rect (&pieces)[4])
+{
+    const kernel::display::Rect overlap = clip_to_bounds(rect, occluder);
+    if (overlap.empty())
+    {
+        pieces[0] = rect;
+        return 1;
+    }
+
+    const uint64_t rect_right = saturating_end(rect.x, rect.width);
+    const uint64_t rect_bottom = saturating_end(rect.y, rect.height);
+    const uint64_t overlap_right = saturating_end(overlap.x, overlap.width);
+    const uint64_t overlap_bottom = saturating_end(overlap.y, overlap.height);
+
+    size_t count = 0;
+    if (overlap.y > rect.y)
+    {
+        pieces[count++] = {rect.x, rect.y, rect.width, overlap.y - rect.y};
+    }
+    if (overlap_bottom < rect_bottom)
+    {
+        pieces[count++] = {rect.x, overlap_bottom, rect.width, rect_bottom - overlap_bottom};
+    }
+    if (overlap.x > rect.x)
+    {
+        pieces[count++] = {rect.x, overlap.y, overlap.x - rect.x, overlap.height};
+    }
+    if (overlap_right < rect_right)
+    {
+        pieces[count++] = {overlap_right, overlap.y, rect_right - overlap_right, overlap.height};
+    }
+    return count;
+}
+
+bool subtract_occluder_from_regions(kernel::display::Rect (&regions)[kernel::display::kMaxLayerRepaintEntries],
+                                    size_t & region_count,
+                                    kernel::display::Rect occluder)
+{
+    kernel::display::Rect next_regions[kernel::display::kMaxLayerRepaintEntries] = {};
+    size_t next_count = 0;
+
+    for (size_t region_index = 0; region_index < region_count; ++region_index)
+    {
+        kernel::display::Rect pieces[4] = {};
+        const size_t piece_count = subtract_rect(regions[region_index], occluder, pieces);
+        for (size_t piece_index = 0; piece_index < piece_count; ++piece_index)
+        {
+            if (next_count >= kernel::display::kMaxLayerRepaintEntries)
+            {
+                region_count = 0;
+                return false;
+            }
+            next_regions[next_count++] = pieces[piece_index];
+        }
+    }
+
+    for (size_t region_index = 0; region_index < next_count; ++region_index)
+    {
+        regions[region_index] = next_regions[region_index];
+    }
+    region_count = next_count;
+    return true;
+}
+
 } // namespace
 
 namespace kernel::display
@@ -58,21 +124,21 @@ bool Layer::valid() const
     return kind != LayerKind::None && !bounds.empty();
 }
 
-bool LayerRepaintPlan::push(LayerKind kind)
+bool LayerRepaintPlan::push(LayerKind kind, Rect rect)
 {
-    if (kind == LayerKind::None || count >= kMaxCompositorLayers || contains(kind))
+    if (kind == LayerKind::None || rect.empty() || count >= kMaxLayerRepaintEntries)
     {
         return false;
     }
 
     size_t insert_at = count;
-    while (insert_at > 0 && layer_order(kind) < layer_order(layers[insert_at - 1]))
+    while (insert_at > 0 && layer_order(kind) < layer_order(entries[insert_at - 1].kind))
     {
-        layers[insert_at] = layers[insert_at - 1];
+        entries[insert_at] = entries[insert_at - 1];
         --insert_at;
     }
 
-    layers[insert_at] = kind;
+    entries[insert_at] = {kind, rect};
     ++count;
     return true;
 }
@@ -81,7 +147,7 @@ bool LayerRepaintPlan::contains(LayerKind kind) const
 {
     for (size_t index = 0; index < count; ++index)
     {
-        if (layers[index] == kind)
+        if (entries[index].kind == kind)
         {
             return true;
         }
@@ -95,7 +161,16 @@ LayerKind LayerRepaintPlan::at(size_t index) const
     {
         return LayerKind::None;
     }
-    return layers[index];
+    return entries[index].kind;
+}
+
+Rect LayerRepaintPlan::rect_at(size_t index) const
+{
+    if (index >= count)
+    {
+        return {};
+    }
+    return entries[index].rect;
 }
 
 uint8_t layer_order(LayerKind kind)
@@ -302,9 +377,39 @@ LayerRepaintPlan Compositor::repaint_plan_from(LayerKind base_layer, Rect dirty_
         {
             continue;
         }
-        if (!plan.push(layer.kind))
+
+        Rect regions[kMaxLayerRepaintEntries] = {};
+        size_t region_count = 1;
+        regions[0] = clip_to_bounds(dirty_rect, layer.bounds);
+
+        for (size_t occluder_index = 0; occluder_index < layer_count_; ++occluder_index)
         {
-            break;
+            const Layer & occluder = layers_[occluder_index];
+            if (!occluder.visible || !occluder.valid() || !occluder.opaque() ||
+                !layer_above(occluder.kind, layer.kind) || !rects_overlap(occluder.bounds, dirty_rect))
+            {
+                continue;
+            }
+
+            const bool split_ok = subtract_occluder_from_regions(regions, region_count, occluder.bounds);
+            if (!split_ok)
+            {
+                region_count = 1;
+                regions[0] = clip_to_bounds(dirty_rect, layer.bounds);
+                break;
+            }
+            if (region_count == 0)
+            {
+                break;
+            }
+        }
+
+        for (size_t region_index = 0; region_index < region_count; ++region_index)
+        {
+            if (!plan.push(layer.kind, regions[region_index]))
+            {
+                return plan;
+            }
         }
     }
 
@@ -326,7 +431,8 @@ LayerRepaintPlan Compositor::repaint_plan_above(LayerKind updated_layer, Rect di
         {
             continue;
         }
-        if (!plan.push(layer.kind))
+        const Rect repaint_rect = clip_to_bounds(dirty_rect, layer.bounds);
+        if (!plan.push(layer.kind, repaint_rect))
         {
             break;
         }

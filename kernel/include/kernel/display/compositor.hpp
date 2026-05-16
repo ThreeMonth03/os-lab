@@ -11,6 +11,7 @@ namespace kernel::display
 
 inline constexpr size_t kMaxDirtyRects = 16;
 inline constexpr size_t kMaxCompositorLayers = 8;
+inline constexpr size_t kMaxLayerRepaintEntries = 32;
 inline constexpr SurfaceId kMouseCursorLayerSurfaceId = 3;
 
 class DirtyRectQueue;
@@ -33,24 +34,39 @@ enum class LayerKind
     MouseCursor,
 };
 
+enum class LayerOpacity
+{
+    Transparent,
+    Opaque,
+};
+
 struct Layer
 {
     LayerKind kind = LayerKind::None;
     SurfaceId surface_id = kInvalidSurfaceId;
     Rect bounds;
     bool visible = true;
+    LayerOpacity opacity = LayerOpacity::Transparent;
 
     bool valid() const;
+    bool opaque() const { return opacity == LayerOpacity::Opaque; }
+};
+
+struct LayerRepaintEntry
+{
+    LayerKind kind = LayerKind::None;
+    Rect rect;
 };
 
 struct LayerRepaintPlan
 {
-    LayerKind layers[kMaxCompositorLayers] = {};
+    LayerRepaintEntry entries[kMaxLayerRepaintEntries] = {};
     size_t count = 0;
 
-    bool push(LayerKind kind);
+    bool push(LayerKind kind, Rect rect);
     bool contains(LayerKind kind) const;
     LayerKind at(size_t index) const;
+    Rect rect_at(size_t index) const;
 };
 
 [[nodiscard]] uint8_t layer_order(LayerKind kind);

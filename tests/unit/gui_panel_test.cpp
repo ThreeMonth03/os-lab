@@ -20,7 +20,10 @@ void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t 
 
 kernel::display::Layer layer(kernel::display::LayerKind kind, kernel::display::SurfaceId id)
 {
-    return {kind, id, {0, 0, 320, 200}, true};
+    const kernel::display::LayerOpacity opacity =
+        kind == kernel::display::LayerKind::MouseCursor ? kernel::display::LayerOpacity::Transparent
+                                                        : kernel::display::LayerOpacity::Opaque;
+    return {kind, id, {0, 0, 320, 200}, true, opacity};
 }
 
 kernel::display::GuiSurface visible_panel(kernel::display::Rect bounds = {10, 10, 80, 30})

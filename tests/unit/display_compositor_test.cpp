@@ -16,15 +16,28 @@ void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t 
 
 kernel::display::Layer layer(kernel::display::LayerKind kind, kernel::display::SurfaceId id)
 {
-    return {kind, id, {0, 0, 640, 480}, true};
+    const kernel::display::LayerOpacity opacity =
+        kind == kernel::display::LayerKind::MouseCursor ? kernel::display::LayerOpacity::Transparent
+                                                        : kernel::display::LayerOpacity::Opaque;
+    return {kind, id, {0, 0, 640, 480}, true, opacity};
 }
 
 kernel::display::Layer bounded_layer(kernel::display::LayerKind kind,
                                      kernel::display::SurfaceId id,
                                      kernel::display::Rect bounds,
-                                     bool visible = true)
+                                     bool visible = true,
+                                     kernel::display::LayerOpacity opacity = kernel::display::LayerOpacity::Opaque)
 {
-    return {kind, id, bounds, visible};
+    return {kind, id, bounds, visible, opacity};
+}
+
+kernel::display::Layer cursor_layer(kernel::display::Rect bounds = {0, 0, 800, 600})
+{
+    return bounded_layer(kernel::display::LayerKind::MouseCursor,
+                         kernel::display::kMouseCursorLayerSurfaceId,
+                         bounds,
+                         true,
+                         kernel::display::LayerOpacity::Transparent);
 }
 
 } // namespace
@@ -138,35 +151,45 @@ TEST(DisplayCompositorTest, MouseCursorLayerIsTopmost)
     EXPECT_EQ(top->kind, kernel::display::LayerKind::MouseCursor);
 }
 
-TEST(DisplayCompositorTest, PlansRepaintOrderFromDesktopToCursor)
+TEST(DisplayCompositorTest, MarksOpaqueLayerMetadata)
+{
+    const kernel::display::Layer overlay = bounded_layer(kernel::display::LayerKind::DebugOverlay,
+                                                         kernel::display::debug_overlay::kSurfaceId,
+                                                         {700, 0, 80, 20});
+    const kernel::display::Layer app = bounded_layer(kernel::display::LayerKind::AppSurface,
+                                                     200,
+                                                     {0, 0, 800, 600});
+    const kernel::display::Layer cursor = cursor_layer();
+
+    EXPECT_TRUE(overlay.opaque());
+    EXPECT_TRUE(app.opaque());
+    EXPECT_FALSE(cursor.opaque());
+}
+
+TEST(DisplayCompositorTest, SkipsAppLayerWhenDirtyRectIsCoveredByOpaqueOverlay)
 {
     kernel::display::Compositor compositor({0, 0, 800, 600});
 
-    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::MouseCursor,
-                                                        kernel::display::kMouseCursorLayerSurfaceId,
-                                                        {0, 0, 800, 600})));
     ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DebugOverlay,
                                                         kernel::display::debug_overlay::kSurfaceId,
-                                                        {0, 0, 120, 20})));
+                                                        {700, 0, 80, 20})));
     ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DesktopBackground,
                                                         100,
                                                         {0, 0, 800, 600})));
-    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::GuiSurface,
-                                                        150,
-                                                        {10, 10, 80, 40})));
     ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::AppSurface,
                                                         200,
-                                                        {10, 10, 780, 580})));
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(cursor_layer()));
 
     const kernel::display::LayerRepaintPlan plan =
-        compositor.repaint_plan_from(kernel::display::LayerKind::DesktopBackground, {12, 12, 4, 4});
+        compositor.repaint_plan_from(kernel::display::LayerKind::DesktopBackground, {704, 4, 10, 10});
 
-    ASSERT_EQ(plan.count, 5u);
-    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::DesktopBackground);
-    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::GuiSurface);
-    EXPECT_EQ(plan.at(2), kernel::display::LayerKind::AppSurface);
-    EXPECT_EQ(plan.at(3), kernel::display::LayerKind::DebugOverlay);
-    EXPECT_EQ(plan.at(4), kernel::display::LayerKind::MouseCursor);
+    ASSERT_EQ(plan.count, 2u);
+    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::DebugOverlay);
+    expect_rect(plan.rect_at(0), 704, 4, 10, 10);
+    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::MouseCursor);
+    expect_rect(plan.rect_at(1), 704, 4, 10, 10);
+    EXPECT_FALSE(plan.contains(kernel::display::LayerKind::AppSurface));
 }
 
 TEST(DisplayCompositorTest, CursorDirtyOverPanelPlansDesktopGuiAndCursor)
@@ -182,17 +205,67 @@ TEST(DisplayCompositorTest, CursorDirtyOverPanelPlansDesktopGuiAndCursor)
     ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::AppSurface,
                                                         200,
                                                         {10, 60, 780, 500})));
-    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::MouseCursor,
-                                                        kernel::display::kMouseCursorLayerSurfaceId,
-                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(cursor_layer()));
 
     const kernel::display::LayerRepaintPlan plan =
         compositor.repaint_plan_from(kernel::display::LayerKind::DesktopBackground, {12, 12, 10, 16});
 
-    ASSERT_EQ(plan.count, 3u);
-    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::DesktopBackground);
-    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::GuiSurface);
-    EXPECT_EQ(plan.at(2), kernel::display::LayerKind::MouseCursor);
+    ASSERT_EQ(plan.count, 2u);
+    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::GuiSurface);
+    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::MouseCursor);
+}
+
+TEST(DisplayCompositorTest, RepaintsAppLayerOutsideOpaqueOverlay)
+{
+    kernel::display::Compositor compositor({0, 0, 800, 600});
+
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DesktopBackground,
+                                                        100,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::AppSurface,
+                                                        200,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DebugOverlay,
+                                                        kernel::display::debug_overlay::kSurfaceId,
+                                                        {700, 0, 80, 20})));
+    ASSERT_TRUE(compositor.register_layer(cursor_layer()));
+
+    const kernel::display::LayerRepaintPlan plan =
+        compositor.repaint_plan_from(kernel::display::LayerKind::DesktopBackground, {12, 12, 4, 4});
+
+    ASSERT_EQ(plan.count, 2u);
+    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::AppSurface);
+    expect_rect(plan.rect_at(0), 12, 12, 4, 4);
+    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::MouseCursor);
+}
+
+TEST(DisplayCompositorTest, SplitsAppRepaintAroundOpaqueOverlay)
+{
+    kernel::display::Compositor compositor({0, 0, 800, 600});
+    const kernel::display::Rect overlay_bounds{700, 0, 80, 20};
+
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DesktopBackground,
+                                                        100,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::AppSurface,
+                                                        200,
+                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DebugOverlay,
+                                                        kernel::display::debug_overlay::kSurfaceId,
+                                                        overlay_bounds)));
+    ASSERT_TRUE(compositor.register_layer(cursor_layer()));
+
+    const kernel::display::LayerRepaintPlan plan =
+        compositor.repaint_plan_from(kernel::display::LayerKind::DesktopBackground, {690, 10, 40, 20});
+
+    ASSERT_EQ(plan.count, 4u);
+    EXPECT_EQ(plan.at(0), kernel::display::LayerKind::AppSurface);
+    EXPECT_FALSE(kernel::display::rects_overlap(plan.rect_at(0), overlay_bounds));
+    EXPECT_EQ(plan.at(1), kernel::display::LayerKind::AppSurface);
+    EXPECT_FALSE(kernel::display::rects_overlap(plan.rect_at(1), overlay_bounds));
+    EXPECT_EQ(plan.at(2), kernel::display::LayerKind::DebugOverlay);
+    expect_rect(plan.rect_at(2), 700, 10, 30, 10);
+    EXPECT_EQ(plan.at(3), kernel::display::LayerKind::MouseCursor);
 }
 
 TEST(DisplayCompositorTest, PlansOnlyHigherIntersectingLayersAfterAppUpdate)
@@ -208,9 +281,7 @@ TEST(DisplayCompositorTest, PlansOnlyHigherIntersectingLayersAfterAppUpdate)
     ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DebugOverlay,
                                                         kernel::display::debug_overlay::kSurfaceId,
                                                         {700, 0, 80, 20})));
-    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::MouseCursor,
-                                                        kernel::display::kMouseCursorLayerSurfaceId,
-                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(cursor_layer()));
 
     const kernel::display::LayerRepaintPlan plan =
         compositor.repaint_plan_above(kernel::display::LayerKind::AppSurface, {12, 12, 4, 4});
@@ -232,9 +303,7 @@ TEST(DisplayCompositorTest, FullAppRepaintRestoresOverlayAndCursorLayers)
     ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::DebugOverlay,
                                                         kernel::display::debug_overlay::kSurfaceId,
                                                         {700, 0, 80, 20})));
-    ASSERT_TRUE(compositor.register_layer(bounded_layer(kernel::display::LayerKind::MouseCursor,
-                                                        kernel::display::kMouseCursorLayerSurfaceId,
-                                                        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_layer(cursor_layer()));
 
     const kernel::display::LayerRepaintPlan plan =
         compositor.repaint_plan_above(kernel::display::LayerKind::AppSurface, {0, 0, 800, 600});
