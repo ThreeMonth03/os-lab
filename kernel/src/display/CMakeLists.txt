@@ -6,6 +6,7 @@ add_library(os_lab_kernel_display OBJECT
     debug_overlay.cpp
     debug_overlay_runtime.cpp
     display.cpp
+    display_runtime.cpp
     display_target.cpp
     gui_panel.cpp
     gui_panel_renderer.cpp

@@ -1,10 +1,13 @@
 #include "kernel/console/terminal.hpp"
 
 #include "terminal_app.hpp"
-#include "terminal_display_runtime.hpp"
+
+#include "kernel/display/display_runtime.hpp"
 
 namespace
 {
+
+namespace display = kernel::display;
 
 kernel::console::TerminalApp g_terminal_app;
 
@@ -20,11 +23,24 @@ namespace kernel::console::terminal
 
 bool init()
 {
-    if (!terminal_display_runtime().init(g_terminal_app, repaint_terminal_text_region))
+    if (!display::runtime::init(TerminalApp::kCellWidth,
+                                TerminalApp::kCellHeight,
+                                repaint_terminal_text_region))
     {
         return false;
     }
 
+    const display::runtime::TerminalAppConfig config = display::runtime::terminal_app_config();
+    if (!config.valid() ||
+        !g_terminal_app.reset(*config.surface,
+                              config.app_surface,
+                              config.foreground,
+                              config.background))
+    {
+        return false;
+    }
+
+    display::runtime::refresh_desktop();
     clear();
     return true;
 }
@@ -52,7 +68,7 @@ ScopedUpdate::~ScopedUpdate()
 
 bool ready()
 {
-    return terminal_display_runtime().ready() && g_terminal_app.ready();
+    return display::runtime::ready() && g_terminal_app.ready();
 }
 
 uint64_t columns()
@@ -77,7 +93,7 @@ uint64_t cursor_row()
 
 kernel::display::HitTestResult pointer_target()
 {
-    return terminal_display_runtime().pointer_target();
+    return display::runtime::pointer_target();
 }
 
 void clear()
@@ -152,7 +168,7 @@ void write_decimal(uint64_t value)
 
 void update_pointer_target(uint64_t x, uint64_t y)
 {
-    terminal_display_runtime().update_pointer_target(x, y);
+    display::runtime::update_pointer_target(x, y);
 }
 
 } // namespace kernel::console::terminal
