@@ -251,34 +251,37 @@ void TerminalApp::repaint_region(display::Rect dirty_rect)
     }
 }
 
-void TerminalApp::apply_repaint_request(display::TerminalRepaintRequest request)
+void TerminalApp::apply_repaint(display::Rect dirty_rect,
+                                bool repaint_text_layer,
+                                bool repaint_entire_text_layer,
+                                bool repaint_higher_layers)
 {
-    display::Rect dirty_rect = request.dirty_rect;
-    if (request.repaint_text_layer)
+    if (repaint_text_layer)
     {
-        dirty_rect = display::bounding_rect(dirty_rect,
-                                            render_text_repaint(request.repaint_entire_text_layer));
+        dirty_rect =
+            display::bounding_rect(dirty_rect, render_text_repaint(repaint_entire_text_layer));
     }
 
-    if (request.repaint_higher_layers)
+    if (repaint_higher_layers)
     {
         repaint_layers_above(dirty_rect);
     }
 }
 
+void TerminalApp::apply_repaint_request(display::TerminalRepaintRequest request)
+{
+    apply_repaint(request.dirty_rect,
+                  request.repaint_text_layer,
+                  request.repaint_entire_text_layer,
+                  request.repaint_higher_layers);
+}
+
 void TerminalApp::apply_repaint_flush(display::TerminalRepaintFlush flush)
 {
-    display::Rect dirty_rect = flush.dirty_rect;
-    if (flush.repaint_text_layer)
-    {
-        dirty_rect = display::bounding_rect(dirty_rect,
-                                            render_text_repaint(flush.repaint_entire_text_layer));
-    }
-
-    if (flush.repaint_higher_layers)
-    {
-        repaint_layers_above(dirty_rect);
-    }
+    apply_repaint(flush.dirty_rect,
+                  flush.repaint_text_layer,
+                  flush.repaint_entire_text_layer,
+                  flush.repaint_higher_layers);
 }
 
 void TerminalApp::record_console_dirty(display::Rect dirty_rect)
@@ -322,6 +325,30 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
     }
 
     return dirty_rect;
+}
+
+display::Rect TerminalApp::apply_write_character(char value)
+{
+    switch (value)
+    {
+    case '\n':
+        return apply_console_update(console_.newline());
+    case '\r':
+        console_.carriage_return();
+        return {};
+    case '\b':
+        return apply_console_update(console_.backspace());
+    default:
+        return apply_console_update(console_.write_char(value));
+    }
+}
+
+void TerminalApp::write_tab()
+{
+    for (int index = 0; index < 4; ++index)
+    {
+        write_char(' ');
+    }
 }
 
 void TerminalApp::clear()
@@ -423,30 +450,11 @@ void TerminalApp::write_char(char value)
 
     if (value == '\t')
     {
-        for (int index = 0; index < 4; ++index)
-        {
-            write_char(' ');
-        }
+        write_tab();
         return;
     }
 
-    display::Rect dirty_rect;
-    switch (value)
-    {
-    case '\n':
-        dirty_rect = apply_console_update(console_.newline());
-        break;
-    case '\r':
-        console_.carriage_return();
-        break;
-    case '\b':
-        dirty_rect = apply_console_update(console_.backspace());
-        break;
-    default:
-        dirty_rect = apply_console_update(console_.write_char(value));
-        break;
-    }
-    record_console_dirty(dirty_rect);
+    record_console_dirty(apply_write_character(value));
 }
 
 void TerminalApp::write_string(StringView value)

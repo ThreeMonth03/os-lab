@@ -76,10 +76,16 @@ private:
     display::Rect render_dirty_text_cells();
     display::Rect render_text_repaint(bool repaint_entire_layer);
     void repaint_layers_above(display::Rect dirty_rect);
+    void apply_repaint(display::Rect dirty_rect,
+                       bool repaint_text_layer,
+                       bool repaint_entire_text_layer,
+                       bool repaint_higher_layers);
     void apply_repaint_request(display::TerminalRepaintRequest request);
     void apply_repaint_flush(display::TerminalRepaintFlush flush);
     void record_console_dirty(display::Rect dirty_rect);
     display::Rect apply_console_update(text::TextConsoleUpdate update);
+    display::Rect apply_write_character(char value);
+    void write_tab();
 
     display::AppSurface app_surface_;
     display::TerminalRenderer renderer_;
