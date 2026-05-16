@@ -47,35 +47,6 @@ TEST(TerminalRenderCacheTest, UnchangedCellsDoNotRequireRendering)
     EXPECT_EQ(cache.count_dirty_cells(logical), 0u);
 }
 
-TEST(TerminalRenderCacheTest, ScrollsRenderedCellsToMatchLogicalScroll)
-{
-    kernel::text::TextBuffer logical;
-    kernel::display::TerminalRenderCache cache;
-    ASSERT_TRUE(logical.reset(2, 3));
-    ASSERT_TRUE(cache.reset(2, 3));
-    ASSERT_TRUE(logical.put(0, 1, 'a'));
-    ASSERT_TRUE(logical.put(1, 2, 'b'));
-    cache.synchronize_from(logical);
-
-    ASSERT_TRUE(logical.scroll_up());
-    ASSERT_TRUE(cache.scroll_up(1));
-
-    EXPECT_TRUE(cache.valid());
-    EXPECT_EQ(cache.glyph_at(0, 0), 'a');
-    EXPECT_EQ(cache.glyph_at(1, 1), 'b');
-    EXPECT_EQ(cache.count_dirty_cells(logical), 0u);
-}
-
-TEST(TerminalRenderCacheTest, OversizedScrollInvalidatesCache)
-{
-    kernel::display::TerminalRenderCache cache;
-    ASSERT_TRUE(cache.reset(2, 2));
-    cache.clear_rendered();
-
-    EXPECT_FALSE(cache.scroll_up(2));
-    EXPECT_FALSE(cache.valid());
-}
-
 TEST(TerminalRenderCacheTest, ClearRenderedResetsCacheToBlank)
 {
     kernel::text::TextBuffer logical;

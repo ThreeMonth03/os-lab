@@ -65,38 +65,6 @@ bool TerminalRenderCache::mark_rendered(uint64_t column, uint64_t row, char glyp
     return true;
 }
 
-bool TerminalRenderCache::scroll_up(uint64_t rows)
-{
-    if (!valid_ || !ready() || rows == 0)
-    {
-        return false;
-    }
-
-    if (rows >= rows_)
-    {
-        invalidate();
-        return false;
-    }
-
-    for (uint64_t row = rows; row < rows_; ++row)
-    {
-        for (uint64_t column = 0; column < columns_; ++column)
-        {
-            cells_[index_of(column, row - rows)] = cells_[index_of(column, row)];
-        }
-    }
-
-    for (uint64_t row = rows_ - rows; row < rows_; ++row)
-    {
-        for (uint64_t column = 0; column < columns_; ++column)
-        {
-            cells_[index_of(column, row)] = text::kTextBufferBlank;
-        }
-    }
-
-    return true;
-}
-
 bool TerminalRenderCache::needs_render(const text::TextBuffer & logical, uint64_t column, uint64_t row) const
 {
     if (!valid_ || !in_bounds(column, row))

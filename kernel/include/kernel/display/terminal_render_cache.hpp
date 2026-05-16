@@ -24,7 +24,6 @@ public:
     uint64_t rows() const { return rows_; }
 
     [[nodiscard]] bool mark_rendered(uint64_t column, uint64_t row, char glyph);
-    [[nodiscard]] bool scroll_up(uint64_t rows);
     [[nodiscard]] bool needs_render(const text::TextBuffer & logical, uint64_t column, uint64_t row) const;
     [[nodiscard]] uint64_t count_dirty_cells(const text::TextBuffer & logical) const;
     [[nodiscard]] char glyph_at(uint64_t column, uint64_t row) const;
