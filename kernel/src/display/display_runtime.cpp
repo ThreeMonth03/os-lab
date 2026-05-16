@@ -32,8 +32,8 @@ struct DisplayRuntimeState
 
 DisplayRuntimeState g_state;
 
-const limine_framebuffer * usable_framebuffer(uint64_t terminal_cell_width,
-                                              uint64_t terminal_cell_height)
+const limine_framebuffer * select_usable_framebuffer(uint64_t terminal_cell_width,
+                                                     uint64_t terminal_cell_height)
 {
     const auto * response = kernel::boot::framebuffer();
     if (response == nullptr || response->framebuffer_count == 0)
@@ -53,7 +53,7 @@ const limine_framebuffer * usable_framebuffer(uint64_t terminal_cell_width,
     return framebuffer;
 }
 
-uint32_t pack_rgb(const limine_framebuffer & framebuffer, display::RgbColor color)
+uint32_t pack_framebuffer_rgb(const limine_framebuffer & framebuffer, display::RgbColor color)
 {
     return (static_cast<uint32_t>(color.red) << framebuffer.red_mask_shift) |
            (static_cast<uint32_t>(color.green) << framebuffer.green_mask_shift) |
@@ -62,7 +62,7 @@ uint32_t pack_rgb(const limine_framebuffer & framebuffer, display::RgbColor colo
 
 display::Color color_for(const limine_framebuffer & framebuffer, display::RgbColor color)
 {
-    return {pack_rgb(framebuffer, color)};
+    return {pack_framebuffer_rgb(framebuffer, color)};
 }
 
 uint64_t max_u64(uint64_t lhs, uint64_t rhs)
@@ -115,7 +115,7 @@ display::Rect terminal_app_bounds_for(const limine_framebuffer & framebuffer,
     return app_bounds;
 }
 
-void reset_runtime_state(const limine_framebuffer & framebuffer)
+void reset_display_runtime_state(const limine_framebuffer & framebuffer)
 {
     g_state = {};
     g_state.surface = display::Surface(framebuffer.address,
@@ -125,17 +125,17 @@ void reset_runtime_state(const limine_framebuffer & framebuffer)
     display::compositor::init(framebuffer_bounds(framebuffer));
 }
 
-bool init_desktop_background(const limine_framebuffer & framebuffer,
-                             display::DisplayPalette palette)
+bool init_desktop_background_layer(const limine_framebuffer & framebuffer,
+                                   display::DisplayPalette palette)
 {
     return desktop_background::init(g_state.surface,
                                     framebuffer_bounds(framebuffer),
                                     {color_for(framebuffer, palette.desktop_background)});
 }
 
-display::Rect try_init_gui_panel(const limine_framebuffer & framebuffer,
-                                 display::DisplayPalette palette,
-                                 gui_panel::Config panel_config)
+display::Rect init_optional_gui_panel_layer(const limine_framebuffer & framebuffer,
+                                            display::DisplayPalette palette,
+                                            gui_panel::Config panel_config)
 {
     const display::Rect panel_bounds =
         gui_panel::bounds_for(framebuffer.width, framebuffer.height, panel_config);
@@ -176,13 +176,13 @@ display::Rect try_init_gui_panel(const limine_framebuffer & framebuffer,
     return panel_bounds;
 }
 
-bool init_terminal_app(const limine_framebuffer & framebuffer,
-                       display::DisplayPalette palette,
-                       gui_panel::Config panel_config,
-                       display::Rect active_panel_bounds,
-                       uint64_t terminal_cell_width,
-                       uint64_t terminal_cell_height,
-                       display::compositor::LayerRepaintCallback repaint_callback)
+bool init_terminal_app_layer(const limine_framebuffer & framebuffer,
+                             display::DisplayPalette palette,
+                             gui_panel::Config panel_config,
+                             display::Rect active_panel_bounds,
+                             uint64_t terminal_cell_width,
+                             uint64_t terminal_cell_height,
+                             display::compositor::LayerRepaintCallback repaint_callback)
 {
     g_state.terminal_app_surface =
         display::make_app_surface(display::kTerminalAppSurfaceId,
@@ -228,9 +228,9 @@ bool init_terminal_app(const limine_framebuffer & framebuffer,
                                                                 repaint_callback);
 }
 
-void try_init_debug_overlay(const limine_framebuffer & framebuffer,
-                            display::DisplayPalette palette,
-                            display::Rect overlay_bounds)
+void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
+                                       display::DisplayPalette palette,
+                                       display::Rect overlay_bounds)
 {
     if (overlay_bounds.empty())
     {
@@ -293,37 +293,38 @@ bool init(
     }
 
     const limine_framebuffer * framebuffer =
-        usable_framebuffer(terminal_cell_width, terminal_cell_height);
+        select_usable_framebuffer(terminal_cell_width, terminal_cell_height);
     if (framebuffer == nullptr)
     {
         return false;
     }
 
-    reset_runtime_state(*framebuffer);
+    reset_display_runtime_state(*framebuffer);
 
     const gui_panel::Config panel_config = gui_panel::default_config();
     constexpr display::DisplayPalette palette = display::default_display_palette();
-    if (!init_desktop_background(*framebuffer, palette))
+    if (!init_desktop_background_layer(*framebuffer, palette))
     {
         return false;
     }
 
     const display::Rect active_panel_bounds =
-        try_init_gui_panel(*framebuffer, palette, panel_config);
-    if (!init_terminal_app(*framebuffer,
-                           palette,
-                           panel_config,
-                           active_panel_bounds,
-                           terminal_cell_width,
-                           terminal_cell_height,
-                           terminal_repaint_callback))
+        init_optional_gui_panel_layer(*framebuffer, palette, panel_config);
+    if (!init_terminal_app_layer(*framebuffer,
+                                 palette,
+                                 panel_config,
+                                 active_panel_bounds,
+                                 terminal_cell_width,
+                                 terminal_cell_height,
+                                 terminal_repaint_callback))
     {
         return false;
     }
 
-    try_init_debug_overlay(*framebuffer,
-                           palette,
-                           debug_overlay::bounds_for(framebuffer->width, framebuffer->height));
+    init_optional_debug_overlay_layer(
+        *framebuffer,
+        palette,
+        debug_overlay::bounds_for(framebuffer->width, framebuffer->height));
 
     return true;
 }
