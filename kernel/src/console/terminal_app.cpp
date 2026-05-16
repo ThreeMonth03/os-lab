@@ -202,10 +202,9 @@ display::Rect TerminalApp::render_dirty_text_cells()
     return dirty_rect;
 }
 
-display::Rect TerminalApp::render_text_repaint(bool full_repaint, uint64_t scroll_rows)
+display::Rect TerminalApp::render_text_repaint(bool repaint_entire_layer)
 {
-    (void)scroll_rows;
-    if (full_repaint || !render_cache_.valid())
+    if (repaint_entire_layer || !render_cache_.valid())
     {
         repaint_text_layer();
         return bounds();
@@ -255,8 +254,7 @@ void TerminalApp::apply_repaint_request(display::TerminalRepaintRequest request)
     if (request.repaint_text_layer)
     {
         dirty_rect = display::bounding_rect(dirty_rect,
-                                            render_text_repaint(request.full_text_repaint,
-                                                                request.scroll_rows));
+                                            render_text_repaint(request.repaint_entire_text_layer));
     }
 
     if (request.repaint_higher_layers)
@@ -271,8 +269,7 @@ void TerminalApp::apply_repaint_flush(display::TerminalRepaintFlush flush)
     if (flush.repaint_text_layer)
     {
         dirty_rect = display::bounding_rect(dirty_rect,
-                                            render_text_repaint(flush.full_text_repaint,
-                                                                flush.scroll_rows));
+                                            render_text_repaint(flush.repaint_entire_text_layer));
     }
 
     if (flush.repaint_higher_layers)
@@ -317,7 +314,7 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
     if (update.scroll)
     {
         text_buffer_.scroll_up();
-        apply_repaint_request(repaint_.record_scroll(bounds(), text_buffer_.rows()));
+        apply_repaint_request(repaint_.record_scroll(bounds()));
         return {};
     }
 

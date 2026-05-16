@@ -74,7 +74,7 @@ private:
     void clear_gutter_region(display::Rect gutter, display::Rect dirty_rect);
     void clear_terminal_gutters(display::Rect dirty_rect);
     display::Rect render_dirty_text_cells();
-    display::Rect render_text_repaint(bool full_repaint, uint64_t scroll_rows);
+    display::Rect render_text_repaint(bool repaint_entire_layer);
     void repaint_layers_above(display::Rect dirty_rect);
     void apply_repaint_request(display::TerminalRepaintRequest request);
     void apply_repaint_flush(display::TerminalRepaintFlush flush);

@@ -34,10 +34,9 @@ TerminalRepaintFlush TerminalRepaintState::end_batch()
 
     TerminalRepaintFlush flush = {};
     flush.outermost_batch_ended = true;
-    flush.repaint_text_layer = pending_full_repaint_ || pending_scroll_rows_ > 0;
-    flush.full_text_repaint = pending_full_repaint_;
+    flush.repaint_text_layer = pending_text_layer_repaint_;
+    flush.repaint_entire_text_layer = pending_text_layer_repaint_;
     flush.repaint_higher_layers = pending_dirty_valid_;
-    flush.scroll_rows = pending_full_repaint_ ? 0 : pending_scroll_rows_;
     flush.dirty_rect = pending_dirty_;
     clear_pending();
     return flush;
@@ -52,14 +51,14 @@ TerminalRepaintRequest TerminalRepaintState::record_dirty(Rect rect)
 
     if (!in_batch())
     {
-        return {false, false, true, 0, rect};
+        return {false, false, true, rect};
     }
 
     record_pending_dirty(rect);
     return {};
 }
 
-TerminalRepaintRequest TerminalRepaintState::record_scroll(Rect bounds, uint64_t visible_rows)
+TerminalRepaintRequest TerminalRepaintState::record_scroll(Rect bounds)
 {
     if (bounds.empty())
     {
@@ -68,11 +67,10 @@ TerminalRepaintRequest TerminalRepaintState::record_scroll(Rect bounds, uint64_t
 
     if (!in_batch())
     {
-        (void)visible_rows;
-        return {true, true, true, 0, bounds};
+        return {true, true, true, bounds};
     }
 
-    record_pending_scroll(bounds, visible_rows);
+    record_pending_text_repaint(bounds);
     return {};
 }
 
@@ -80,8 +78,7 @@ void TerminalRepaintState::clear_pending()
 {
     pending_dirty_ = {};
     pending_dirty_valid_ = false;
-    pending_full_repaint_ = false;
-    pending_scroll_rows_ = 0;
+    pending_text_layer_repaint_ = false;
 }
 
 void TerminalRepaintState::record_pending_dirty(Rect rect)
@@ -91,7 +88,7 @@ void TerminalRepaintState::record_pending_dirty(Rect rect)
         return;
     }
 
-    if (pending_full_repaint_ && pending_dirty_valid_)
+    if (pending_text_layer_repaint_ && pending_dirty_valid_)
     {
         return;
     }
@@ -106,10 +103,9 @@ void TerminalRepaintState::record_pending_dirty(Rect rect)
     pending_dirty_ = bounding_rect(pending_dirty_, rect);
 }
 
-void TerminalRepaintState::record_pending_full_repaint(Rect bounds)
+void TerminalRepaintState::record_pending_text_repaint(Rect bounds)
 {
-    pending_full_repaint_ = true;
-    pending_scroll_rows_ = 0;
+    pending_text_layer_repaint_ = true;
     if (!pending_dirty_valid_)
     {
         pending_dirty_ = bounds;
@@ -118,18 +114,6 @@ void TerminalRepaintState::record_pending_full_repaint(Rect bounds)
     }
 
     pending_dirty_ = bounding_rect(pending_dirty_, bounds);
-}
-
-void TerminalRepaintState::record_pending_scroll(Rect bounds, uint64_t visible_rows)
-{
-    (void)visible_rows;
-    if (pending_full_repaint_)
-    {
-        record_pending_dirty(bounds);
-        return;
-    }
-
-    record_pending_full_repaint(bounds);
 }
 
 } // namespace kernel::display
