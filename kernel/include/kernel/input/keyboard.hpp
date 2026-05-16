@@ -35,9 +35,14 @@ struct KeyEvent
     bool extended = false;
 };
 
+} // namespace kernel::keyboard
+
+namespace kernel::drivers::keyboard
+{
+
 [[nodiscard]] bool init_irq();
 input::DeviceMode input_mode();
 void handle_irq();
-[[nodiscard]] bool poll_key(KeyEvent & event);
+[[nodiscard]] bool poll_key(kernel::keyboard::KeyEvent & event);
 
-} // namespace kernel::keyboard
+} // namespace kernel::drivers::keyboard

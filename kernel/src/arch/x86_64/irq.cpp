@@ -114,11 +114,11 @@ extern "C" void kernel_x86_64_irq_dispatch(const IrqFrame * frame)
     }
     else if (irq_line == 1)
     {
-        kernel::keyboard::handle_irq();
+        kernel::drivers::keyboard::handle_irq();
     }
     else if (irq_line == 12)
     {
-        kernel::mouse::handle_irq();
+        kernel::drivers::mouse::handle_irq();
     }
 
     kernel::arch::x86_64::pic::send_eoi(irq_line);

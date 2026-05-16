@@ -18,10 +18,15 @@ struct MouseEvent
     bool y_overflow = false;
 };
 
+} // namespace kernel::mouse
+
+namespace kernel::drivers::mouse
+{
+
 [[nodiscard]] bool init();
 bool ready();
 input::DeviceMode input_mode();
 void handle_irq();
-[[nodiscard]] bool poll(MouseEvent & event);
+[[nodiscard]] bool poll(kernel::mouse::MouseEvent & event);
 
-} // namespace kernel::mouse
+} // namespace kernel::drivers::mouse

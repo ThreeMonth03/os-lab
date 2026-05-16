@@ -39,13 +39,13 @@ bool queue_full()
 
 bool poll_keyboard()
 {
-    if (kernel::keyboard::input_mode() == kernel::input::DeviceMode::Irq)
+    if (kernel::drivers::keyboard::input_mode() == kernel::input::DeviceMode::Irq)
     {
         return false;
     }
 
     kernel::keyboard::KeyEvent key;
-    if (!kernel::keyboard::poll_key(key))
+    if (!kernel::drivers::keyboard::poll_key(key))
     {
         return false;
     }
@@ -60,7 +60,7 @@ bool poll_keyboard()
 bool poll_mouse()
 {
     kernel::mouse::MouseEvent mouse;
-    if (!kernel::mouse::poll(mouse))
+    if (!kernel::drivers::mouse::poll(mouse))
     {
         return false;
     }
@@ -132,8 +132,8 @@ Stats stats()
     kernel::arch::x86_64::InterruptGuard guard;
     EventQueue & events = event_queue();
     Stats result = g_stats.snapshot(events.size(), events.capacity(), events.available());
-    result.keyboard_mode = kernel::keyboard::input_mode();
-    result.mouse_mode = kernel::mouse::input_mode();
+    result.keyboard_mode = kernel::drivers::keyboard::input_mode();
+    result.mouse_mode = kernel::drivers::mouse::input_mode();
     return result;
 }
 

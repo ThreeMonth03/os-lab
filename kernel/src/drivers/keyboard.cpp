@@ -42,7 +42,7 @@ bool enqueue_key_event(const kernel::keyboard::KeyEvent & key)
 
 } // namespace
 
-namespace kernel::keyboard
+namespace kernel::drivers::keyboard
 {
 
 bool init_irq()
@@ -71,16 +71,16 @@ kernel::input::DeviceMode input_mode() { return g_input_mode; }
 
 void handle_irq()
 {
-    KeyEvent key;
+    kernel::keyboard::KeyEvent key;
     if (read_decoded_key(key))
     {
         enqueue_key_event(key);
     }
 }
 
-bool poll_key(KeyEvent & event)
+bool poll_key(kernel::keyboard::KeyEvent & event)
 {
     return read_decoded_key(event);
 }
 
-} // namespace kernel::keyboard
+} // namespace kernel::drivers::keyboard

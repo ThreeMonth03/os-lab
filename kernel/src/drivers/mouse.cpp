@@ -83,7 +83,7 @@ void enqueue_mouse_event(const kernel::mouse::MousePacket & packet)
 
 } // namespace
 
-namespace kernel::mouse
+namespace kernel::drivers::mouse
 {
 
 bool init()
@@ -137,14 +137,14 @@ void handle_irq()
         return;
     }
 
-    MousePacket packet;
+    kernel::mouse::MousePacket packet;
     if (g_decoder.decode(data, packet))
     {
         enqueue_mouse_event(packet);
     }
 }
 
-bool poll(MouseEvent & event)
+bool poll(kernel::mouse::MouseEvent & event)
 {
     event = {};
     if (!g_ready || g_input_mode == kernel::input::DeviceMode::Irq)
@@ -158,7 +158,7 @@ bool poll(MouseEvent & event)
         return false;
     }
 
-    MousePacket packet;
+    kernel::mouse::MousePacket packet;
     if (!g_decoder.decode(data, packet))
     {
         return false;
@@ -174,4 +174,4 @@ bool poll(MouseEvent & event)
     return true;
 }
 
-} // namespace kernel::mouse
+} // namespace kernel::drivers::mouse

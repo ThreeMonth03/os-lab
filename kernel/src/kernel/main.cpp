@@ -189,7 +189,7 @@ void write_terminal_status(bool terminal_ready)
 
 void init_mouse_cursor()
 {
-    const bool mouse_ready = kernel::mouse::init();
+    const bool mouse_ready = kernel::drivers::mouse::init();
     const bool mouse_cursor_ready = mouse_ready && kernel::display::mouse_cursor::init();
     if (mouse_cursor_ready && mouse_ready)
     {
@@ -207,7 +207,7 @@ void init_mouse_cursor()
 void init_timer_interrupts()
 {
     kernel::time::timer::init();
-    if (kernel::keyboard::init_irq())
+    if (kernel::drivers::keyboard::init_irq())
     {
         kernel::drivers::serial::write_line("os-lab: ps/2 keyboard IRQ active");
     }
