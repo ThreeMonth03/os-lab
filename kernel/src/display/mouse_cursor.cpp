@@ -1,5 +1,6 @@
 #include "kernel/display/mouse_cursor.hpp"
 
+#include "kernel/display/composited_surface.hpp"
 #include "kernel/display/compositor.hpp"
 #include "kernel/display/cursor_geometry.hpp"
 #include "kernel/display/display.hpp"
@@ -149,13 +150,11 @@ bool init()
     g_state.pointer.reset(framebuffer->width, framebuffer->height);
     g_state.outline = pack_rgb(*framebuffer, 0x00, 0x00, 0x00);
     g_state.fill = pack_rgb(*framebuffer, 0xff, 0xff, 0xff);
-    const bool layer_registered = display::compositor::register_layer({
-        display::LayerKind::MouseCursor,
-        display::kMouseCursorLayerSurfaceId,
-        {0, 0, framebuffer->width, framebuffer->height},
-        true,
-        display::LayerOcclusion::Transparent,
-    });
+    const display::CompositedSurfaceDescriptor cursor_surface =
+        display::make_composited_surface(display::kMouseCursorLayerSurfaceId,
+                                         display::CompositedSurfaceRole::Cursor,
+                                         {0, 0, framebuffer->width, framebuffer->height});
+    const bool layer_registered = display::compositor::register_surface(cursor_surface);
     const bool repaint_registered =
         display::compositor::register_layer_repaint_callback(display::LayerKind::MouseCursor,
                                                              repaint_cursor);

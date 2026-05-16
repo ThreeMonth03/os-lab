@@ -1,5 +1,6 @@
 #include "desktop_background_runtime.hpp"
 
+#include "kernel/display/composited_surface.hpp"
 #include "kernel/display/compositor.hpp"
 
 namespace
@@ -46,13 +47,9 @@ bool init(Surface & surface, Rect bounds, BackgroundSource source)
         return false;
     }
 
-    if (!compositor::register_layer({
-            LayerKind::DesktopBackground,
-            kSurfaceId,
-            bounds,
-            true,
-            LayerOcclusion::Opaque,
-        }) ||
+    const CompositedSurfaceDescriptor surface =
+        make_composited_surface(kSurfaceId, CompositedSurfaceRole::Background, bounds);
+    if (!compositor::register_surface(surface) ||
         !compositor::register_layer_repaint_callback(LayerKind::DesktopBackground,
                                                      repaint_background))
     {

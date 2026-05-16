@@ -6,6 +6,7 @@
 #include "gui_panel_runtime.hpp"
 
 #include "kernel/boot/limine_support.hpp"
+#include "kernel/display/composited_surface.hpp"
 #include "kernel/display/display_palette.hpp"
 #include "kernel/display/display_target.hpp"
 #include "kernel/display/gui_surface.hpp"
@@ -159,7 +160,7 @@ display::Rect init_optional_gui_panel_layer(const limine_framebuffer & framebuff
         return {};
     }
 
-    if (!display::compositor::register_layer(registered_panel->layer()))
+    if (!display::compositor::register_surface(registered_panel->composited_surface()))
     {
         return {};
     }
@@ -224,7 +225,7 @@ bool init_terminal_app_layer(const limine_framebuffer & framebuffer,
     g_state.terminal_foreground = color_for(framebuffer, palette.terminal_foreground);
     g_state.terminal_background = color_for(framebuffer, palette.terminal_background);
 
-    return display::compositor::register_layer(registered_app->layer()) &&
+    return display::compositor::register_surface(registered_app->composited_surface()) &&
            display::compositor::register_layer_repaint_callback(display::LayerKind::AppSurface,
                                                                 repaint_callback);
 }
@@ -238,13 +239,11 @@ void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
         return;
     }
 
-    const bool overlay_registered = g_state.targets.register_target({
-        debug_overlay::kSurfaceId,
-        display::DisplayTargetKind::DebugOverlay,
-        overlay_bounds,
-        false,
-        false,
-    });
+    const display::CompositedSurfaceDescriptor overlay =
+        display::make_composited_surface(debug_overlay::kSurfaceId,
+                                         display::CompositedSurfaceRole::Overlay,
+                                         overlay_bounds);
+    const bool overlay_registered = g_state.targets.register_target(overlay.display_target());
     const display::SurfaceDescriptor * overlay_target =
         g_state.targets.find(debug_overlay::kSurfaceId);
     if (!overlay_registered || overlay_target == nullptr)
@@ -252,13 +251,7 @@ void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
         return;
     }
 
-    const bool overlay_layer_registered = display::compositor::register_layer({
-        display::LayerKind::DebugOverlay,
-        debug_overlay::kSurfaceId,
-        overlay_bounds,
-        true,
-        display::LayerOcclusion::Opaque,
-    });
+    const bool overlay_layer_registered = display::compositor::register_surface(overlay);
     if (!overlay_layer_registered)
     {
         return;
