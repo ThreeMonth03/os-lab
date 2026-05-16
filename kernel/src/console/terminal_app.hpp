@@ -21,6 +21,29 @@ struct TerminalRepaintSink
     bool ready() const { return repaint_layers_above != nullptr; }
 };
 
+struct TerminalCursorState
+{
+    uint64_t column = 0;
+    uint64_t row = 0;
+    bool visible = false;
+
+    void reset()
+    {
+        column = 0;
+        row = 0;
+        visible = false;
+    }
+
+    void show(uint64_t next_column, uint64_t next_row)
+    {
+        column = next_column;
+        row = next_row;
+        visible = true;
+    }
+
+    void hide() { visible = false; }
+};
+
 class TerminalApp
 {
 public:
@@ -94,9 +117,7 @@ private:
     text::TextBuffer text_buffer_;
     display::TerminalRenderCache render_cache_;
     display::TerminalRepaintState repaint_;
-    uint64_t visible_cursor_column_ = 0;
-    uint64_t visible_cursor_row_ = 0;
-    bool cursor_visible_ = false;
+    TerminalCursorState cursor_;
 };
 
 } // namespace kernel::console

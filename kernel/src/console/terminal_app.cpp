@@ -30,9 +30,7 @@ bool TerminalApp::reset(display::Surface & surface,
     renderer_.reset(surface, app_surface_.bounds, foreground, background);
     repaint_sink_ = repaint_sink;
     repaint_.reset();
-    visible_cursor_column_ = 0;
-    visible_cursor_row_ = 0;
-    cursor_visible_ = false;
+    cursor_.reset();
     return renderer_.ready();
 }
 
@@ -102,13 +100,13 @@ display::Rect TerminalApp::row_tail_rect(uint64_t column, uint64_t row) const
 
 void TerminalApp::hide_text_cursor()
 {
-    if (!cursor_visible_)
+    if (!cursor_.visible)
     {
         return;
     }
 
-    renderer_.erase_cursor(visible_cursor_column_, visible_cursor_row_);
-    cursor_visible_ = false;
+    renderer_.erase_cursor(cursor_.column, cursor_.row);
+    cursor_.hide();
 }
 
 void TerminalApp::repaint_text_layer()
@@ -244,10 +242,9 @@ void TerminalApp::repaint_region(display::Rect dirty_rect)
         }
     }
 
-    if (cursor_visible_ &&
-        display::rects_overlap(cell_rect(visible_cursor_column_, visible_cursor_row_), dirty_rect))
+    if (cursor_.visible && display::rects_overlap(cell_rect(cursor_.column, cursor_.row), dirty_rect))
     {
-        renderer_.draw_cursor(visible_cursor_column_, visible_cursor_row_);
+        renderer_.draw_cursor(cursor_.column, cursor_.row);
     }
 }
 
@@ -358,7 +355,7 @@ void TerminalApp::clear()
         return;
     }
 
-    cursor_visible_ = false;
+    cursor_.hide();
     renderer_.clear_screen();
     console_.clear();
     text_buffer_.clear();
@@ -424,21 +421,21 @@ void TerminalApp::show_cursor()
 
     hide_text_cursor();
     renderer_.draw_cursor(console_.cursor_column(), console_.cursor_row());
-    visible_cursor_column_ = console_.cursor_column();
-    visible_cursor_row_ = console_.cursor_row();
-    cursor_visible_ = true;
+    cursor_.show(console_.cursor_column(), console_.cursor_row());
     record_console_dirty(cell_rect(console_.cursor_column(), console_.cursor_row()));
 }
 
 void TerminalApp::hide_cursor()
 {
-    if (!ready() || !cursor_visible_)
+    if (!ready() || !cursor_.visible)
     {
         return;
     }
 
+    const uint64_t column = cursor_.column;
+    const uint64_t row = cursor_.row;
     hide_text_cursor();
-    record_console_dirty(cell_rect(visible_cursor_column_, visible_cursor_row_));
+    record_console_dirty(cell_rect(column, row));
 }
 
 void TerminalApp::write_char(char value)
