@@ -10,6 +10,7 @@ set(OS_LAB_HOST_LOGIC_DISPLAY_SOURCES
     ${PROJECT_SOURCE_DIR}/kernel/src/display/debug_overlay_renderer.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/display.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/display_frame.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/display/display_profile.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/display_stats.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/display_target.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/framebuffer_presenter.cpp

@@ -2,12 +2,15 @@
 
 #include <stdint.h>
 
+#include "kernel/display/display_profile.hpp"
 #include "kernel/drivers/serial.hpp"
 
 namespace
 {
 
 namespace serial = kernel::drivers::serial;
+
+kernel::display::CommandProfileTracker g_command_profile;
 
 void write_stat(kernel::StringView name, uint64_t value)
 {
@@ -37,6 +40,20 @@ void write_display_profile_delta(StringView command, display::DisplayPipelineSta
     write_stat("scene scroll copy pixels", delta.compositor.scene_scroll_copy_pixels);
     write_stat("presenter fast-copy pixels", delta.presenter.fast_path_copy_pixels);
     write_stat("overlay blend pixels", delta.presenter.overlay_blend_pixels);
+}
+
+void begin_display_profile_command(StringView command, display::DisplayPipelineStats before)
+{
+    g_command_profile.begin(command, before);
+}
+
+void finish_display_profile_command(display::DisplayPipelineStats after)
+{
+    const display::CommandProfileDelta result = g_command_profile.finish(after);
+    if (result.valid)
+    {
+        write_display_profile_delta(result.command, result.delta);
+    }
 }
 
 } // namespace kernel::debug

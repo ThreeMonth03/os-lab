@@ -13,6 +13,7 @@ add_library(os_lab_kernel_display OBJECT
     debug_overlay_runtime.cpp
     display.cpp
     display_frame.cpp
+    display_profile.cpp
     display_runtime.cpp
     display_stats.cpp
     display_target.cpp

@@ -389,8 +389,10 @@ void execute_command(StringView command)
     }
 
 #if OS_LAB_DISPLAY_PROFILING
-    const kernel::display::DisplayStatsSnapshot profile_before =
-        kernel::display::make_display_stats_snapshot(display_runtime::stats());
+    if (parsed.kind != ShellCommandKind::Display && parsed.kind != ShellCommandKind::Halt)
+    {
+        kernel::debug::begin_display_profile_command(parsed.name, display_runtime::stats());
+    }
 #endif
 
     {
@@ -438,16 +440,6 @@ void execute_command(StringView command)
             break;
         }
     }
-
-#if OS_LAB_DISPLAY_PROFILING
-    if (parsed.kind != ShellCommandKind::Display && parsed.kind != ShellCommandKind::Halt)
-    {
-        const kernel::display::DisplayStatsSnapshot profile_after =
-            kernel::display::make_display_stats_snapshot(display_runtime::stats());
-        kernel::debug::write_display_profile_delta(parsed.name,
-                                                   kernel::display::display_stats_delta(profile_before, profile_after));
-    }
-#endif
 }
 
 } // namespace kernel::shell

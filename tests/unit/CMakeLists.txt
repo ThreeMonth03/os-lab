@@ -9,6 +9,7 @@ add_executable(os_lab_unit_tests
     display_compositor_test.cpp
     display_frame_test.cpp
     display_palette_test.cpp
+    display_profile_test.cpp
     display_stats_test.cpp
     display_test.cpp
     display_target_test.cpp

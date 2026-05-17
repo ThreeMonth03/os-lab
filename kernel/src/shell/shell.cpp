@@ -9,6 +9,7 @@
 #include "kernel/input/input_router.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/input/keyboard.hpp"
+#include "kernel/debug/display_profile.hpp"
 #include "kernel/display/display_runtime.hpp"
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/drivers/serial.hpp"
@@ -17,6 +18,10 @@
 #include "kernel/text/history.hpp"
 #include "kernel/text/line_editor.hpp"
 
+#ifndef OS_LAB_DISPLAY_PROFILING
+#define OS_LAB_DISPLAY_PROFILING 0
+#endif
+
 namespace
 {
 
@@ -24,6 +29,19 @@ namespace mouse_cursor = kernel::display::mouse_cursor;
 namespace display_runtime = kernel::display::runtime;
 namespace serial = kernel::drivers::serial;
 namespace terminal = kernel::console::terminal;
+
+#if OS_LAB_DISPLAY_PROFILING
+
+void finish_display_profile_after_frame()
+{
+    kernel::debug::finish_display_profile_command(display_runtime::stats());
+}
+
+#else
+
+void finish_display_profile_after_frame() {}
+
+#endif
 
 char lowercase(char value)
 {
@@ -218,8 +236,11 @@ void handle_routed_event(const kernel::input::RoutedEvent & routed, kernel::text
     case kernel::input::EventTarget::Shell:
         if (routed.event.kind == kernel::input::EventKind::Key)
         {
-            terminal::ScopedUpdate terminal_update;
-            handle_key_event(routed.event.key, line, view, caps_lock, history);
+            {
+                terminal::ScopedUpdate terminal_update;
+                handle_key_event(routed.event.key, line, view, caps_lock, history);
+            }
+            finish_display_profile_after_frame();
         }
         break;
     case kernel::input::EventTarget::GuiSurface:
@@ -254,6 +275,7 @@ namespace kernel::shell
         execute_command("help");
         view.write_new_prompt_and_line(line, caps_lock);
     }
+    finish_display_profile_after_frame();
     serial::write_line("os-lab: interactive terminal ready");
 
     while (true)
