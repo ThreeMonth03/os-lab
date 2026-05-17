@@ -392,9 +392,7 @@ void submit_terminal_app_damage(FrameDamage damage)
 {
     if (damage.has_scroll())
     {
-        display::compositor::scroll_layer_region_up(display::LayerKind::AppSurface,
-                                                    damage.scroll.rect,
-                                                    damage.scroll.distance);
+        damage.dirty_rect = display::bounding_rect(damage.dirty_rect, damage.scroll.rect);
     }
 
     if (damage.has_dirty())

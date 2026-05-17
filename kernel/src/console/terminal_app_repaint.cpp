@@ -138,14 +138,12 @@ void TerminalApp::flush_pre_scroll_terminal_region(display::Rect current_dirty)
 
 void TerminalApp::apply_repaint(display::FrameDamage damage)
 {
+    const display::Rect backing_dirty = render_text_repaint(false);
+    damage.dirty_rect = display::bounding_rect(damage.dirty_rect, backing_dirty);
+
     if (damage.empty())
     {
         return;
-    }
-
-    if (!render_cache_.valid())
-    {
-        damage.dirty_rect = display::bounding_rect(damage.dirty_rect, render_text_repaint(true));
     }
 
     if (repaint_sink_.submit_terminal_damage != nullptr)

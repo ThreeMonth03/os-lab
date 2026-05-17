@@ -113,32 +113,6 @@ bool FramebufferPresenter::present_rect(Rect rect)
     return true;
 }
 
-bool FramebufferPresenter::restore_overlay_regions()
-{
-    for (size_t index = 0; index < kMaxPresenterOverlays; ++index)
-    {
-        const Rect bounds = overlay_bounds(index);
-        if (!bounds.empty() && !copy_scene_to_front(bounds))
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool FramebufferPresenter::present_overlay_regions()
-{
-    for (size_t index = kMaxPresenterOverlays; index > 0; --index)
-    {
-        const Rect bounds = overlay_bounds(index - 1);
-        if (!bounds.empty() && !present_rect(bounds))
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
 bool FramebufferPresenter::copy_scene_to_front(Rect rect)
 {
     if (!ready())
@@ -166,32 +140,6 @@ bool FramebufferPresenter::copy_scene_to_front(Rect rect)
         front_buffer_->put_pixels(rect.x, y, pixels + (rect.x - scene_bounds.x), rect.width);
     }
     return true;
-}
-
-bool FramebufferPresenter::copy_scene_rect(Rect source,
-                                           uint64_t destination_x,
-                                           uint64_t destination_y)
-{
-    if (!ready())
-    {
-        return false;
-    }
-
-    if (!restore_overlay_regions())
-    {
-        return false;
-    }
-
-    const Rect copied = scene_buffer_->copy_rect(source, destination_x, destination_y);
-    if (copied.empty())
-    {
-        return false;
-    }
-    if (!copy_scene_to_front(copied))
-    {
-        return false;
-    }
-    return present_overlay_regions();
 }
 
 } // namespace kernel::display

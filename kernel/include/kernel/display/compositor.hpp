@@ -170,7 +170,6 @@ void set_presenter(FramebufferPresenter & presenter);
 [[nodiscard]] bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback);
 [[nodiscard]] bool register_layer_bounds_callback(LayerKind kind, LayerBoundsCallback callback);
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
-void scroll_layer_region_up(LayerKind layer, Rect rect, uint64_t distance);
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds);
 
 } // namespace compositor

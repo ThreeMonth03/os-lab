@@ -377,58 +377,6 @@ void repaint_layers_from(LayerKind base_layer, Rect dirty_rect)
     compose_backed_region_from(base_layer, dirty_rect);
 }
 
-void scroll_layer_region_up(LayerKind layer, Rect rect, uint64_t distance)
-{
-    if (g_scene_buffer == nullptr || !g_scene_buffer->ready() || g_presenter == nullptr ||
-        !g_presenter->ready() || rect.empty() || distance == 0)
-    {
-        repaint_layers_from(layer, rect);
-        return;
-    }
-
-    rect = kernel::display::intersect_rect(rect, g_scene_buffer->bounds());
-    if (rect.empty())
-    {
-        return;
-    }
-
-    const LayerRepaintPlan plan = g_compositor.repaint_plan_from(layer, rect);
-    for (size_t index = 0; index < plan.count; ++index)
-    {
-        if (plan.at(index) != layer)
-        {
-            continue;
-        }
-
-        const Rect piece = plan.rect_at(index);
-        if (piece.height <= distance)
-        {
-            repaint_layers_from(layer, piece);
-            continue;
-        }
-
-        const Rect source = {
-            piece.x,
-            piece.y + distance,
-            piece.width,
-            piece.height - distance,
-        };
-        if (!g_presenter->copy_scene_rect(source, piece.x, piece.y))
-        {
-            repaint_layers_from(layer, piece);
-            continue;
-        }
-
-        const Rect exposed = {
-            piece.x,
-            piece.y + piece.height - distance,
-            piece.width,
-            distance,
-        };
-        repaint_layers_from(layer, exposed);
-    }
-}
-
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds)
 {
     DirtyRectQueue cursor_dirty(g_compositor.bounds());

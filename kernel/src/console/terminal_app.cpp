@@ -195,6 +195,10 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
             render_text_cell(update.cell.column, update.cell.row, text::kTextBufferBlank);
             pre_scroll_dirty = cell_rect(update.cell.column, update.cell.row);
         }
+        if (can_scroll_backing)
+        {
+            pre_scroll_dirty = display::bounding_rect(pre_scroll_dirty, render_text_repaint(false));
+        }
 
         if (!repaint_.in_batch())
         {
