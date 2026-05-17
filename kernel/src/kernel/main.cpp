@@ -228,14 +228,17 @@ void init_timer_interrupts()
 extern "C" [[noreturn]] void kernel_main()
 {
     kernel::drivers::serial::write_line("os-lab: kernel main entered");
+
+    run_utility_smoke();
+    const bool memory_ready = init_memory_and_paging();
+    init_kernel_heap();
+    init_kernel_slab();
+
     const bool terminal_ready = init_terminal();
 
     kernel::arch::x86_64::run_exception_smoke();
 
-    run_utility_smoke();
-    write_memory_summary(init_memory_and_paging());
-    init_kernel_heap();
-    init_kernel_slab();
+    write_memory_summary(memory_ready);
     kernel::debug::run_heap_smoke();
     kernel::debug::run_slab_smoke();
     kernel::debug::run_paging_smoke();
