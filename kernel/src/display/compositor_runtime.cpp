@@ -33,6 +33,132 @@ LayerBoundsCallbackSlot g_layer_bounds_callbacks[kernel::display::kMaxCompositor
 kernel::display::SceneBuffer * g_scene_buffer = nullptr;
 kernel::display::FramebufferPresenter * g_presenter = nullptr;
 
+uint64_t saturating_end(uint64_t origin, uint64_t size)
+{
+    const uint64_t end = origin + size;
+    return end < origin ? UINT64_MAX : end;
+}
+
+uint64_t min_u64(uint64_t lhs, uint64_t rhs)
+{
+    return lhs < rhs ? lhs : rhs;
+}
+
+uint64_t max_u64(uint64_t lhs, uint64_t rhs)
+{
+    return lhs > rhs ? lhs : rhs;
+}
+
+kernel::display::Rect clip_rect(kernel::display::Rect rect, kernel::display::Rect bounds)
+{
+    if (rect.empty() || bounds.empty())
+    {
+        return {};
+    }
+
+    const uint64_t left = max_u64(rect.x, bounds.x);
+    const uint64_t top = max_u64(rect.y, bounds.y);
+    const uint64_t right = min_u64(saturating_end(rect.x, rect.width),
+                                   saturating_end(bounds.x, bounds.width));
+    const uint64_t bottom = min_u64(saturating_end(rect.y, rect.height),
+                                    saturating_end(bounds.y, bounds.height));
+    if (right <= left || bottom <= top)
+    {
+        return {};
+    }
+    return {left, top, right - left, bottom - top};
+}
+
+size_t subtract_rect(kernel::display::Rect rect,
+                     kernel::display::Rect occluder,
+                     kernel::display::Rect (&pieces)[4])
+{
+    const kernel::display::Rect overlap = clip_rect(rect, occluder);
+    if (overlap.empty())
+    {
+        pieces[0] = rect;
+        return 1;
+    }
+
+    const uint64_t rect_right = saturating_end(rect.x, rect.width);
+    const uint64_t rect_bottom = saturating_end(rect.y, rect.height);
+    const uint64_t overlap_right = saturating_end(overlap.x, overlap.width);
+    const uint64_t overlap_bottom = saturating_end(overlap.y, overlap.height);
+
+    size_t count = 0;
+    if (overlap.y > rect.y)
+    {
+        pieces[count++] = {rect.x, rect.y, rect.width, overlap.y - rect.y};
+    }
+    if (overlap_bottom < rect_bottom)
+    {
+        pieces[count++] = {rect.x, overlap_bottom, rect.width, rect_bottom - overlap_bottom};
+    }
+    if (overlap.x > rect.x)
+    {
+        pieces[count++] = {rect.x, overlap.y, overlap.x - rect.x, overlap.height};
+    }
+    if (overlap_right < rect_right)
+    {
+        pieces[count++] = {overlap_right, overlap.y, rect_right - overlap_right, overlap.height};
+    }
+    return count;
+}
+
+bool subtract_occluder_from_regions(kernel::display::Rect (&regions)[kernel::display::kMaxLayerRepaintEntries],
+                                    size_t & region_count,
+                                    kernel::display::Rect occluder,
+                                    kernel::display::Rect & repaint_rect)
+{
+    kernel::display::Rect next_regions[kernel::display::kMaxLayerRepaintEntries] = {};
+    size_t next_count = 0;
+
+    for (size_t region_index = 0; region_index < region_count; ++region_index)
+    {
+        repaint_rect =
+            kernel::display::bounding_rect(repaint_rect, clip_rect(regions[region_index], occluder));
+
+        kernel::display::Rect pieces[4] = {};
+        const size_t piece_count = subtract_rect(regions[region_index], occluder, pieces);
+        for (size_t piece_index = 0; piece_index < piece_count; ++piece_index)
+        {
+            if (next_count >= kernel::display::kMaxLayerRepaintEntries)
+            {
+                return false;
+            }
+            next_regions[next_count++] = pieces[piece_index];
+        }
+    }
+
+    for (size_t index = 0; index < next_count; ++index)
+    {
+        regions[index] = next_regions[index];
+    }
+    region_count = next_count;
+    return true;
+}
+
+kernel::display::Rect source_occluder_to_destination(kernel::display::Rect occluder,
+                                                     uint64_t distance)
+{
+    if (occluder.empty())
+    {
+        return {};
+    }
+
+    if (occluder.y >= distance)
+    {
+        return {occluder.x, occluder.y - distance, occluder.width, occluder.height};
+    }
+
+    const uint64_t trimmed = distance - occluder.y;
+    if (trimmed >= occluder.height)
+    {
+        return {};
+    }
+    return {occluder.x, 0, occluder.width, occluder.height - trimmed};
+}
+
 kernel::display::compositor::LayerPixelCallback layer_pixel_callback_for(
     kernel::display::LayerKind kind)
 {
@@ -216,7 +342,9 @@ bool can_compose_region_from(kernel::display::LayerKind base_layer,
     return true;
 }
 
-bool compose_backed_region_from(kernel::display::LayerKind base_layer, kernel::display::Rect dirty_rect)
+bool compose_backed_region_from(kernel::display::LayerKind base_layer,
+                                kernel::display::Rect dirty_rect,
+                                bool present)
 {
     if (g_scene_buffer == nullptr || !g_scene_buffer->ready() || g_presenter == nullptr ||
         !g_presenter->ready() || dirty_rect.empty())
@@ -236,11 +364,11 @@ bool compose_backed_region_from(kernel::display::LayerKind base_layer, kernel::d
         g_compositor.repaint_plan_from(base_layer, dirty_rect);
     if (compose_repaint_plan(plan, sources, source_count))
     {
-        return g_presenter->present_rect(dirty_rect);
+        return !present || g_presenter->present_rect(dirty_rect);
     }
     if (plan.count == 0 && base_layer == kernel::display::LayerKind::MouseCursor)
     {
-        return g_presenter->present_rect(dirty_rect);
+        return !present || g_presenter->present_rect(dirty_rect);
     }
 
     if (!can_compose_region_from(base_layer, dirty_rect, sources, source_count))
@@ -261,7 +389,103 @@ bool compose_backed_region_from(kernel::display::LayerKind base_layer, kernel::d
             }
         }
     }
-    return g_presenter->present_rect(dirty_rect);
+    return !present || g_presenter->present_rect(dirty_rect);
+}
+
+kernel::display::Rect copy_scene_scroll_piece(kernel::display::Rect piece, uint64_t distance)
+{
+    if (g_scene_buffer == nullptr || !g_scene_buffer->ready() || piece.height <= distance)
+    {
+        return {};
+    }
+
+    const kernel::display::Rect source = {
+        piece.x,
+        piece.y + distance,
+        piece.width,
+        piece.height - distance,
+    };
+    return g_scene_buffer->copy_rect(source, piece.x, piece.y);
+}
+
+kernel::display::Rect apply_scene_scroll(kernel::display::LayerKind layer,
+                                         kernel::display::Rect rect,
+                                         uint64_t distance)
+{
+    if (g_scene_buffer == nullptr || !g_scene_buffer->ready() || rect.empty() || distance == 0)
+    {
+        return {};
+    }
+
+    rect = kernel::display::intersect_rect(rect, g_scene_buffer->bounds());
+    if (rect.empty())
+    {
+        return {};
+    }
+
+    kernel::display::Rect touched_rect;
+    kernel::display::Rect repaint_rect;
+    const kernel::display::LayerRepaintPlan plan = g_compositor.repaint_plan_from(layer, rect);
+    for (size_t index = 0; index < plan.count; ++index)
+    {
+        if (plan.at(index) != layer)
+        {
+            continue;
+        }
+
+        kernel::display::Rect safe_regions[kernel::display::kMaxLayerRepaintEntries] = {};
+        size_t safe_count = 1;
+        safe_regions[0] = plan.rect_at(index);
+
+        for (kernel::display::LayerKind occluder_kind : kTopDownLayerOrder)
+        {
+            const kernel::display::Layer * occluder = g_compositor.find_layer(occluder_kind);
+            if (occluder == nullptr || !occluder->visible || !occluder->valid() ||
+                !occluder->occludes_lower_repaint() ||
+                !kernel::display::layer_above(occluder->kind, layer))
+            {
+                continue;
+            }
+
+            const kernel::display::Rect unsafe_source =
+                source_occluder_to_destination(occluder->bounds, distance);
+            if (unsafe_source.empty())
+            {
+                continue;
+            }
+
+            if (!subtract_occluder_from_regions(safe_regions,
+                                                safe_count,
+                                                unsafe_source,
+                                                repaint_rect))
+            {
+                repaint_rect = kernel::display::bounding_rect(repaint_rect, plan.rect_at(index));
+                safe_count = 0;
+                break;
+            }
+        }
+
+        for (size_t region_index = 0; region_index < safe_count; ++region_index)
+        {
+            const kernel::display::Rect region = safe_regions[region_index];
+            if (region.height <= distance)
+            {
+                repaint_rect = kernel::display::bounding_rect(repaint_rect, region);
+                continue;
+            }
+
+            touched_rect = kernel::display::bounding_rect(
+                touched_rect,
+                copy_scene_scroll_piece(region, distance));
+        }
+    }
+
+    if (!repaint_rect.empty())
+    {
+        compose_backed_region_from(layer, repaint_rect, false);
+        touched_rect = kernel::display::bounding_rect(touched_rect, repaint_rect);
+    }
+    return touched_rect;
 }
 
 } // namespace
@@ -374,7 +598,37 @@ bool register_layer_bounds_callback(LayerKind kind, LayerBoundsCallback callback
 
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect)
 {
-    compose_backed_region_from(base_layer, dirty_rect);
+    compose_backed_region_from(base_layer, dirty_rect, true);
+}
+
+void apply_layer_damage(LayerKind base_layer, FrameDamage damage)
+{
+    if (g_presenter == nullptr || !g_presenter->ready() || damage.empty())
+    {
+        return;
+    }
+
+    Rect present_rect;
+    if (damage.has_scroll())
+    {
+        present_rect = bounding_rect(
+            present_rect,
+            apply_scene_scroll(base_layer, damage.scroll.rect, damage.scroll.distance));
+    }
+
+    if (damage.has_dirty())
+    {
+        compose_backed_region_from(base_layer, damage.dirty_rect, false);
+        present_rect = bounding_rect(present_rect, damage.dirty_rect);
+    }
+
+    if (!present_rect.empty())
+    {
+        if (!g_presenter->present_rect(present_rect))
+        {
+            return;
+        }
+    }
 }
 
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds)

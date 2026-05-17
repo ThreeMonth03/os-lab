@@ -7,6 +7,7 @@
 #include "kernel/display/display_target.hpp"
 #include "kernel/display/backing_surface.hpp"
 #include "kernel/display/framebuffer_presenter.hpp"
+#include "kernel/display/frame_damage.hpp"
 #include "kernel/display/scene_buffer.hpp"
 
 namespace kernel::display
@@ -170,6 +171,7 @@ void set_presenter(FramebufferPresenter & presenter);
 [[nodiscard]] bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback);
 [[nodiscard]] bool register_layer_bounds_callback(LayerKind kind, LayerBoundsCallback callback);
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
+void apply_layer_damage(LayerKind base_layer, FrameDamage damage);
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds);
 
 } // namespace compositor
