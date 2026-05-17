@@ -67,10 +67,28 @@ DisplayFrameSubmit DisplayFrame::submit(FrameDamage damage)
 
 void DisplayFrame::accumulate(FrameDamage damage)
 {
+    if (damage.has_steps())
+    {
+        for (size_t index = 0; index < damage.step_count; ++index)
+        {
+            const FrameDamageStep step = damage.steps[index];
+            if (step.dirty())
+            {
+                damage_.mark_dirty(step.rect);
+            }
+            if (step.scroll())
+            {
+                damage_.record_scroll(step.rect, step.distance);
+            }
+        }
+        return;
+    }
+
     if (damage.has_dirty())
     {
         damage_.mark_dirty(damage.dirty_rect);
     }
+
     if (damage.has_scroll())
     {
         damage_.record_scroll(damage.scroll.rect, damage.scroll.distance);

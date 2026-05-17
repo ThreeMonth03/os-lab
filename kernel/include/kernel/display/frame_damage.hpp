@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
 #include "kernel/display/display.hpp"
 
@@ -15,14 +16,40 @@ struct ScrollDamage
     bool valid() const { return !rect.empty() && distance > 0; }
 };
 
+enum class FrameDamageStepKind
+{
+    None,
+    DirtyRect,
+    Scroll,
+};
+
+struct FrameDamageStep
+{
+    FrameDamageStepKind kind = FrameDamageStepKind::None;
+    Rect rect;
+    uint64_t distance = 0;
+    bool scroll_exposed_dirty = false;
+
+    bool dirty() const { return kind == FrameDamageStepKind::DirtyRect && !rect.empty(); }
+    bool scroll() const { return kind == FrameDamageStepKind::Scroll && !rect.empty() && distance > 0; }
+};
+
+inline constexpr size_t kMaxFrameDamageSteps = 64;
+
 struct FrameDamage
 {
     Rect dirty_rect;
     ScrollDamage scroll;
+    FrameDamageStep steps[kMaxFrameDamageSteps] = {};
+    size_t step_count = 0;
 
     bool has_dirty() const { return !dirty_rect.empty(); }
     bool has_scroll() const { return scroll.valid(); }
-    bool empty() const { return !has_dirty() && !has_scroll(); }
+    bool has_steps() const { return step_count > 0; }
+    bool empty() const { return !has_steps() && !has_dirty() && !has_scroll(); }
+
+    [[nodiscard]] bool append_dirty(Rect rect, bool scroll_exposed_dirty = false);
+    [[nodiscard]] bool append_scroll(ScrollDamage scroll_damage);
 };
 
 class DamageAccumulator
@@ -42,10 +69,11 @@ public:
     bool empty() const { return pending_.empty(); }
 
 private:
-    void fallback_scroll_to_dirty(Rect rect);
+    void fallback_to_final_dirty(Rect rect);
 
     Rect bounds_;
     FrameDamage pending_;
+    bool final_dirty_fallback_ = false;
 };
 
 [[nodiscard]] Rect exposed_scroll_region(ScrollDamage scroll);

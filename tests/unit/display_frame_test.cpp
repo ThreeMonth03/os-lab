@@ -34,6 +34,23 @@ TEST(DisplayFrameTest, AccumulatesDirtyAndScrollInsideFrame)
     EXPECT_EQ(flush.damage.scroll.rect.height, 90u);
 }
 
+TEST(DisplayFrameTest, KeepsDirtyBeforeScrollOrdering)
+{
+    kernel::display::DisplayFrame frame({0, 0, 80, 100});
+    frame.begin();
+
+    EXPECT_FALSE(frame.submit({{0, 72, 80, 18}, {}}).immediate);
+    EXPECT_FALSE(frame.submit({{}, {{0, 0, 80, 90}, 18}}).immediate);
+
+    const kernel::display::DisplayFrameFlush flush = frame.end();
+
+    ASSERT_TRUE(flush.outermost_frame_ended);
+    ASSERT_EQ(flush.damage.step_count, 3u);
+    EXPECT_EQ(flush.damage.steps[0].kind, kernel::display::FrameDamageStepKind::DirtyRect);
+    EXPECT_EQ(flush.damage.steps[1].kind, kernel::display::FrameDamageStepKind::Scroll);
+    EXPECT_EQ(flush.damage.steps[2].kind, kernel::display::FrameDamageStepKind::DirtyRect);
+}
+
 TEST(DisplayFrameTest, CollapsesMultipleScrolls)
 {
     kernel::display::DisplayFrame frame({0, 0, 80, 100});

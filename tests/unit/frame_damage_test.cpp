@@ -45,7 +45,25 @@ TEST(FrameDamageTest, RectDirtyAndScrollDamageCanCoexist)
     expect_rect(flush.dirty_rect, 0, 2, 80, 88);
 }
 
-TEST(FrameDamageTest, DifferentScrollRegionsFallbackToDirtyRects)
+TEST(FrameDamageTest, PreservesDirtyBeforeScrollOrder)
+{
+    kernel::display::DamageAccumulator damage({0, 0, 80, 100});
+
+    damage.mark_dirty({0, 72, 80, 18});
+    damage.record_scroll({0, 0, 80, 90}, 18);
+
+    const kernel::display::FrameDamage flush = damage.flush();
+    ASSERT_EQ(flush.step_count, 3u);
+    EXPECT_EQ(flush.steps[0].kind, kernel::display::FrameDamageStepKind::DirtyRect);
+    expect_rect(flush.steps[0].rect, 0, 72, 80, 18);
+    EXPECT_EQ(flush.steps[1].kind, kernel::display::FrameDamageStepKind::Scroll);
+    expect_rect(flush.steps[1].rect, 0, 0, 80, 90);
+    EXPECT_EQ(flush.steps[1].distance, 18u);
+    EXPECT_EQ(flush.steps[2].kind, kernel::display::FrameDamageStepKind::DirtyRect);
+    expect_rect(flush.steps[2].rect, 0, 72, 80, 18);
+}
+
+TEST(FrameDamageTest, DifferentScrollRegionsPreserveOrderedSteps)
 {
     kernel::display::DamageAccumulator damage({0, 0, 80, 100});
 
@@ -53,9 +71,15 @@ TEST(FrameDamageTest, DifferentScrollRegionsFallbackToDirtyRects)
     damage.record_scroll({0, 10, 80, 80}, 18);
 
     const kernel::display::FrameDamage flush = damage.flush();
-    EXPECT_FALSE(flush.has_scroll());
-    ASSERT_TRUE(flush.has_dirty());
-    expect_rect(flush.dirty_rect, 0, 0, 80, 90);
+    ASSERT_EQ(flush.step_count, 4u);
+    EXPECT_EQ(flush.steps[0].kind, kernel::display::FrameDamageStepKind::Scroll);
+    expect_rect(flush.steps[0].rect, 0, 0, 80, 90);
+    EXPECT_EQ(flush.steps[1].kind, kernel::display::FrameDamageStepKind::DirtyRect);
+    expect_rect(flush.steps[1].rect, 0, 72, 80, 18);
+    EXPECT_EQ(flush.steps[2].kind, kernel::display::FrameDamageStepKind::Scroll);
+    expect_rect(flush.steps[2].rect, 0, 10, 80, 80);
+    EXPECT_EQ(flush.steps[3].kind, kernel::display::FrameDamageStepKind::DirtyRect);
+    expect_rect(flush.steps[3].rect, 0, 72, 80, 18);
 }
 
 TEST(FrameDamageTest, ScrollOverflowFallbacksToDirtyRegion)

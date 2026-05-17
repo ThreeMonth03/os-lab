@@ -121,25 +121,13 @@ display::Rect TerminalApp::render_text_repaint(bool repaint_entire_layer)
     return render_dirty_text_cells();
 }
 
-void TerminalApp::compose_terminal_region(display::Rect dirty_rect)
-{
-    if (!dirty_rect.empty() && repaint_sink_.submit_terminal_damage != nullptr)
-    {
-        repaint_sink_.submit_terminal_damage({dirty_rect, {}});
-    }
-}
-
-void TerminalApp::flush_pre_scroll_terminal_region(display::Rect current_dirty)
-{
-    const display::TerminalRepaintFlush pending = repaint_.flush_pending();
-    apply_repaint_flush(pending);
-    compose_terminal_region(current_dirty);
-}
-
 void TerminalApp::apply_repaint(display::FrameDamage damage)
 {
     const display::Rect backing_dirty = render_text_repaint(false);
-    damage.dirty_rect = display::bounding_rect(damage.dirty_rect, backing_dirty);
+    if (!backing_dirty.empty() && !damage.append_dirty(backing_dirty))
+    {
+        damage = {display::bounding_rect(damage.dirty_rect, backing_dirty), {}};
+    }
 
     if (damage.empty())
     {

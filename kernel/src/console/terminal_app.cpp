@@ -200,9 +200,9 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
             pre_scroll_dirty = display::bounding_rect(pre_scroll_dirty, render_text_repaint(false));
         }
 
-        if (!repaint_.in_batch())
+        if (!pre_scroll_dirty.empty())
         {
-            flush_pre_scroll_terminal_region(pre_scroll_dirty);
+            apply_repaint_request(repaint_.record_dirty(pre_scroll_dirty));
         }
 
         if (!text_buffer_.scroll_up())

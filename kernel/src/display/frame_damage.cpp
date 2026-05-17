@@ -3,6 +3,100 @@
 namespace kernel::display
 {
 
+namespace
+{
+
+bool same_scroll_region(ScrollDamage lhs, ScrollDamage rhs)
+{
+    return lhs.rect.x == rhs.rect.x && lhs.rect.y == rhs.rect.y &&
+           lhs.rect.width == rhs.rect.width && lhs.rect.height == rhs.rect.height;
+}
+
+bool can_merge_exposed_scroll(const FrameDamage & damage, ScrollDamage scroll_damage)
+{
+    if (damage.step_count < 2)
+    {
+        return false;
+    }
+
+    const FrameDamageStep & scroll_step = damage.steps[damage.step_count - 2];
+    const FrameDamageStep & dirty_step = damage.steps[damage.step_count - 1];
+    return scroll_step.kind == FrameDamageStepKind::Scroll &&
+           dirty_step.kind == FrameDamageStepKind::DirtyRect &&
+           dirty_step.scroll_exposed_dirty && scroll_step.rect.x == scroll_damage.rect.x &&
+           scroll_step.rect.y == scroll_damage.rect.y &&
+           scroll_step.rect.width == scroll_damage.rect.width &&
+           scroll_step.rect.height == scroll_damage.rect.height;
+}
+
+} // namespace
+
+bool FrameDamage::append_dirty(Rect rect, bool scroll_exposed_dirty)
+{
+    if (rect.empty())
+    {
+        return true;
+    }
+
+    dirty_rect = bounding_rect(dirty_rect, rect);
+    if (step_count > 0 && steps[step_count - 1].kind == FrameDamageStepKind::DirtyRect)
+    {
+        steps[step_count - 1].rect = bounding_rect(steps[step_count - 1].rect, rect);
+        steps[step_count - 1].scroll_exposed_dirty =
+            steps[step_count - 1].scroll_exposed_dirty && scroll_exposed_dirty;
+        return true;
+    }
+
+    if (step_count >= kMaxFrameDamageSteps)
+    {
+        return false;
+    }
+
+    steps[step_count] = {FrameDamageStepKind::DirtyRect, rect, 0, scroll_exposed_dirty};
+    ++step_count;
+    return true;
+}
+
+bool FrameDamage::append_scroll(ScrollDamage scroll_damage)
+{
+    if (!scroll_damage.valid())
+    {
+        return true;
+    }
+
+    if (scroll.valid() && same_scroll_region(scroll, scroll_damage))
+    {
+        scroll.distance += scroll_damage.distance;
+    }
+    else if (!scroll.valid())
+    {
+        scroll = scroll_damage;
+    }
+    else
+    {
+        scroll = {};
+    }
+
+    if (step_count > 0 && steps[step_count - 1].kind == FrameDamageStepKind::Scroll &&
+        steps[step_count - 1].rect.x == scroll_damage.rect.x &&
+        steps[step_count - 1].rect.y == scroll_damage.rect.y &&
+        steps[step_count - 1].rect.width == scroll_damage.rect.width &&
+        steps[step_count - 1].rect.height == scroll_damage.rect.height)
+    {
+        steps[step_count - 1].distance += scroll_damage.distance;
+        return steps[step_count - 1].distance < steps[step_count - 1].rect.height;
+    }
+
+    if (step_count >= kMaxFrameDamageSteps)
+    {
+        return false;
+    }
+
+    steps[step_count] = {FrameDamageStepKind::Scroll, scroll_damage.rect, scroll_damage.distance};
+    ++step_count;
+    return true;
+}
+
 void DamageAccumulator::reset(Rect bounds)
 {
     bounds_ = bounds;
@@ -12,6 +106,7 @@ void DamageAccumulator::reset(Rect bounds)
 void DamageAccumulator::clear()
 {
     pending_ = {};
+    final_dirty_fallback_ = false;
 }
 
 void DamageAccumulator::mark_dirty(Rect rect)
@@ -22,17 +117,32 @@ void DamageAccumulator::mark_dirty(Rect rect)
         return;
     }
 
-    pending_.dirty_rect = bounding_rect(pending_.dirty_rect, rect);
+    if (final_dirty_fallback_)
+    {
+        pending_.dirty_rect = bounding_rect(pending_.dirty_rect, rect);
+        pending_.steps[0] = {FrameDamageStepKind::DirtyRect, pending_.dirty_rect, 0, false};
+        pending_.step_count = 1;
+        return;
+    }
+
+    if (!pending_.append_dirty(rect))
+    {
+        fallback_to_final_dirty(bounds_);
+    }
 }
 
-void DamageAccumulator::fallback_scroll_to_dirty(Rect rect)
+void DamageAccumulator::fallback_to_final_dirty(Rect rect)
 {
-    if (pending_.scroll.valid())
+    pending_ = {};
+    final_dirty_fallback_ = true;
+    rect = intersect_rect(bounds_, rect);
+    if (rect.empty())
     {
-        mark_dirty(pending_.scroll.rect);
-        pending_.scroll = {};
+        rect = bounds_;
     }
-    mark_dirty(rect);
+    pending_.dirty_rect = rect;
+    pending_.steps[0] = {FrameDamageStepKind::DirtyRect, rect, 0, false};
+    pending_.step_count = 1;
 }
 
 void DamageAccumulator::record_scroll(Rect rect, uint64_t distance)
@@ -43,27 +153,48 @@ void DamageAccumulator::record_scroll(Rect rect, uint64_t distance)
         return;
     }
 
-    if (!pending_.scroll.valid())
+    if (final_dirty_fallback_)
     {
-        pending_.scroll = {rect, distance};
-        mark_dirty(exposed_scroll_region(pending_.scroll));
+        mark_dirty(bounds_);
         return;
     }
 
-    if (pending_.scroll.rect.x == rect.x && pending_.scroll.rect.y == rect.y &&
-        pending_.scroll.rect.width == rect.width && pending_.scroll.rect.height == rect.height)
+    if (distance >= rect.height)
     {
-        pending_.scroll.distance += distance;
-        if (pending_.scroll.distance >= pending_.scroll.rect.height)
+        fallback_to_final_dirty(rect);
+        return;
+    }
+
+    const ScrollDamage scroll{rect, distance};
+    if (can_merge_exposed_scroll(pending_, scroll))
+    {
+        FrameDamageStep & scroll_step = pending_.steps[pending_.step_count - 2];
+        FrameDamageStep & exposed_step = pending_.steps[pending_.step_count - 1];
+        const uint64_t total_distance = scroll_step.distance + distance;
+        if (total_distance >= scroll_step.rect.height)
         {
-            fallback_scroll_to_dirty(pending_.scroll.rect);
+            fallback_to_final_dirty(scroll_step.rect);
             return;
         }
-        mark_dirty(exposed_scroll_region(pending_.scroll));
+
+        scroll_step.distance = total_distance;
+        exposed_step.rect = exposed_scroll_region({scroll_step.rect, total_distance});
+        pending_.scroll = {scroll_step.rect, total_distance};
+        pending_.dirty_rect = bounding_rect(pending_.dirty_rect, exposed_step.rect);
         return;
     }
 
-    fallback_scroll_to_dirty(rect);
+    if (!pending_.append_scroll(scroll))
+    {
+        fallback_to_final_dirty(bounds_);
+        return;
+    }
+
+    const Rect exposed = exposed_scroll_region(scroll);
+    if (!pending_.append_dirty(exposed, true))
+    {
+        fallback_to_final_dirty(bounds_);
+    }
 }
 
 FrameDamage DamageAccumulator::flush()

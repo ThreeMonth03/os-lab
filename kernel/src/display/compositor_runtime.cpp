@@ -601,6 +601,22 @@ void repaint_layers_from(LayerKind base_layer, Rect dirty_rect)
     compose_backed_region_from(base_layer, dirty_rect, true);
 }
 
+Rect apply_damage_step(LayerKind base_layer, FrameDamageStep step)
+{
+    if (step.dirty())
+    {
+        compose_backed_region_from(base_layer, step.rect, false);
+        return step.rect;
+    }
+
+    if (step.scroll())
+    {
+        return apply_scene_scroll(base_layer, step.rect, step.distance);
+    }
+
+    return {};
+}
+
 void apply_layer_damage(LayerKind base_layer, FrameDamage damage)
 {
     if (g_presenter == nullptr || !g_presenter->ready() || damage.empty())
@@ -609,17 +625,28 @@ void apply_layer_damage(LayerKind base_layer, FrameDamage damage)
     }
 
     Rect present_rect;
-    if (damage.has_scroll())
+    if (damage.has_steps())
     {
-        present_rect = bounding_rect(
-            present_rect,
-            apply_scene_scroll(base_layer, damage.scroll.rect, damage.scroll.distance));
+        for (size_t index = 0; index < damage.step_count; ++index)
+        {
+            present_rect =
+                bounding_rect(present_rect, apply_damage_step(base_layer, damage.steps[index]));
+        }
     }
-
-    if (damage.has_dirty())
+    else
     {
-        compose_backed_region_from(base_layer, damage.dirty_rect, false);
-        present_rect = bounding_rect(present_rect, damage.dirty_rect);
+        if (damage.has_scroll())
+        {
+            present_rect = bounding_rect(
+                present_rect,
+                apply_scene_scroll(base_layer, damage.scroll.rect, damage.scroll.distance));
+        }
+
+        if (damage.has_dirty())
+        {
+            compose_backed_region_from(base_layer, damage.dirty_rect, false);
+            present_rect = bounding_rect(present_rect, damage.dirty_rect);
+        }
     }
 
     if (!present_rect.empty())

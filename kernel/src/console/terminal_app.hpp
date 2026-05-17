@@ -101,8 +101,6 @@ private:
     display::Rect render_dirty_text_cells();
     display::Rect render_text_repaint(bool repaint_entire_layer);
     bool allocate_backing_surface();
-    void compose_terminal_region(display::Rect dirty_rect);
-    void flush_pre_scroll_terminal_region(display::Rect current_dirty);
     void apply_repaint(display::FrameDamage damage);
     void apply_repaint_request(display::TerminalRepaintRequest request);
     void apply_repaint_flush(display::TerminalRepaintFlush flush);
