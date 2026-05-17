@@ -174,6 +174,8 @@ void handle_key_event(const kernel::input::keyboard::KeyEvent & event, kernel::t
         break;
     }
     case kernel::input::keyboard::Key::Enter:
+    {
+        terminal::ScopedUpdate terminal_update;
         terminal::hide_cursor();
         view.move_to_line_end(line, caps_lock);
         terminal::write_char('\n');
@@ -186,6 +188,7 @@ void handle_key_event(const kernel::input::keyboard::KeyEvent & event, kernel::t
         history.reset_browse();
         view.write_new_prompt_and_line(line, caps_lock);
         break;
+    }
     case kernel::input::keyboard::Key::CapsLock:
     {
         const kernel::text::EditorSnapshot before = view.snapshot(line, caps_lock);

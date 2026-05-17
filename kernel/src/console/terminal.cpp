@@ -66,6 +66,7 @@ ScopedUpdate::ScopedUpdate()
         return;
     }
 
+    display::runtime::begin_frame();
     g_terminal_app.begin_update();
     active_ = true;
 }
@@ -78,6 +79,7 @@ ScopedUpdate::~ScopedUpdate()
     }
 
     g_terminal_app.end_update();
+    display::runtime::end_frame();
 }
 
 bool ready()

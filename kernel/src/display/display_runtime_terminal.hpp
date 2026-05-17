@@ -24,6 +24,8 @@ struct TerminalAppConfig
 [[nodiscard]] bool ready();
 [[nodiscard]] TerminalAppConfig terminal_app_config();
 
+void begin_frame();
+void end_frame();
 void refresh_desktop();
 void submit_terminal_app_damage(FrameDamage damage);
 [[nodiscard]] bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback);

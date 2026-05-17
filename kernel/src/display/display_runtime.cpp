@@ -7,6 +7,7 @@
 
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/display/composited_surface.hpp"
+#include "kernel/display/display_frame.hpp"
 #include "kernel/display/display_palette.hpp"
 #include "kernel/display/display_target.hpp"
 #include "kernel/display/framebuffer_presenter.hpp"
@@ -27,6 +28,7 @@ struct DisplayRuntimeState
     display::Surface surface;
     display::SceneBuffer scene;
     display::FramebufferPresenter presenter;
+    display::DisplayFrame frame;
     display::DisplayTargetRegistry targets;
     display::AppSurfaceRegistry app_surfaces;
     display::GuiSurfaceRegistry gui_surfaces;
@@ -159,6 +161,7 @@ bool reset_display_runtime_state(const limine_framebuffer & framebuffer)
     display::compositor::init(framebuffer_bounds(framebuffer));
     display::compositor::set_scene_buffer(g_state.scene);
     display::compositor::set_presenter(g_state.presenter);
+    g_state.frame.reset(bounds);
     return true;
 }
 
@@ -372,6 +375,33 @@ HitTestResult pointer_target()
     return g_state.pointer_target;
 }
 
+void begin_frame()
+{
+    if (ready())
+    {
+        g_state.frame.begin();
+    }
+}
+
+void flush_terminal_app_damage(FrameDamage damage)
+{
+    display::compositor::apply_layer_damage(display::LayerKind::AppSurface, damage);
+}
+
+void end_frame()
+{
+    if (!ready())
+    {
+        return;
+    }
+
+    const DisplayFrameFlush flush = g_state.frame.end();
+    if (flush.outermost_frame_ended)
+    {
+        flush_terminal_app_damage(flush.damage);
+    }
+}
+
 void refresh_desktop()
 {
     if (!g_state.surface.ready())
@@ -390,15 +420,10 @@ void refresh_debug_overlay_if_due()
 
 void submit_terminal_app_damage(FrameDamage damage)
 {
-    if (damage.has_scroll())
+    const DisplayFrameSubmit submit = g_state.frame.submit(damage);
+    if (submit.immediate)
     {
-        damage.dirty_rect = display::bounding_rect(damage.dirty_rect, damage.scroll.rect);
-    }
-
-    if (damage.has_dirty())
-    {
-        display::compositor::repaint_layers_from(display::LayerKind::AppSurface,
-                                                 damage.dirty_rect);
+        flush_terminal_app_damage(submit.damage);
     }
 }
 
