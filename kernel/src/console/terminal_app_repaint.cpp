@@ -143,11 +143,11 @@ display::Rect TerminalApp::render_text_repaint(bool repaint_entire_layer)
     return render_dirty_text_cells();
 }
 
-void TerminalApp::repaint_layers_above(display::Rect dirty_rect)
+void TerminalApp::compose_terminal_region(display::Rect dirty_rect)
 {
-    if (!dirty_rect.empty() && repaint_sink_.repaint_layers_above != nullptr)
+    if (!dirty_rect.empty() && repaint_sink_.repaint_terminal_region != nullptr)
     {
-        repaint_sink_.repaint_layers_above(dirty_rect);
+        repaint_sink_.repaint_terminal_region(dirty_rect);
     }
 }
 
@@ -190,7 +190,7 @@ void TerminalApp::apply_repaint(display::Rect dirty_rect,
 
     if (repaint_higher_layers)
     {
-        repaint_layers_above(dirty_rect);
+        compose_terminal_region(dirty_rect);
     }
 }
 

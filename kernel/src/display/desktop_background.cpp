@@ -29,6 +29,28 @@ Rect repaint_region(Rect bounds, Rect dirty_rect)
     return intersect_rect(bounds, dirty_rect);
 }
 
+PixelSample sample(BackgroundSource source, Rect bounds, uint64_t x, uint64_t y)
+{
+    if (intersect_rect(bounds, {x, y, 1, 1}).empty())
+    {
+        return transparent_pixel();
+    }
+
+    if (source.has_wallpaper())
+    {
+        const Rect image_bounds = source.wallpaper.image.bounds_at(bounds.x + source.wallpaper.x,
+                                                                   bounds.y + source.wallpaper.y);
+        if (!intersect_rect(image_bounds, {x, y, 1, 1}).empty())
+        {
+            return opaque_pixel(pack_color(source.wallpaper.image.pixel(x - image_bounds.x,
+                                                                        y - image_bounds.y),
+                                           source.wallpaper.color_layout));
+        }
+    }
+
+    return opaque_pixel(source.solid.color);
+}
+
 void paint(Surface & surface, Rect bounds, BackgroundSource source, Rect dirty_rect)
 {
     if (!surface.ready())

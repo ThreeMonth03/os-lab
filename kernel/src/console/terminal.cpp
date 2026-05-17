@@ -16,6 +16,11 @@ void repaint_terminal_text_region(kernel::display::Rect dirty_rect)
     g_terminal_app.repaint_region(dirty_rect);
 }
 
+kernel::display::PixelSample sample_terminal_pixel(uint64_t x, uint64_t y)
+{
+    return g_terminal_app.sample_pixel(x, y);
+}
+
 } // namespace
 
 namespace kernel::console::terminal
@@ -32,20 +37,21 @@ bool init()
 
     const display::runtime::TerminalAppConfig config = display::runtime::terminal_app_config();
     const TerminalRepaintSink repaint_sink{
-        display::runtime::repaint_layers_above_terminal_app,
+        display::runtime::compose_terminal_app_region,
     };
     if (!config.valid() ||
-        !g_terminal_app.reset(*config.surface,
-                              config.app_surface,
-                              config.foreground,
-                              config.background,
-                              repaint_sink))
+        !g_terminal_app.reset(config.app_surface, config.foreground, config.background, repaint_sink))
     {
         return false;
     }
 
-    display::runtime::refresh_desktop();
+    if (!display::runtime::register_terminal_app_pixel_source(sample_terminal_pixel))
+    {
+        return false;
+    }
+
     clear();
+    display::runtime::refresh_desktop();
     return true;
 }
 

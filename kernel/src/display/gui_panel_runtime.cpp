@@ -35,6 +35,16 @@ void paint_panel_region(kernel::display::Rect dirty_rect)
                                              dirty_rect);
 }
 
+kernel::display::PixelSample sample_panel_pixel(uint64_t x, uint64_t y)
+{
+    if (!panel_ready())
+    {
+        return kernel::display::transparent_pixel();
+    }
+
+    return kernel::display::gui_panel::sample_pixel(g_state.panel, g_state.palette, x, y);
+}
+
 } // namespace
 
 namespace kernel::display::gui_panel
@@ -52,7 +62,8 @@ bool init(Surface & surface, const GuiSurface & panel, Color border, Color backg
     g_state.panel = panel;
     g_state.palette = {border, background, foreground};
     g_state.config = config;
-    if (!compositor::register_layer_repaint_callback(LayerKind::GuiSurface, paint_panel_region))
+    if (!compositor::register_layer_repaint_callback(LayerKind::GuiSurface, paint_panel_region) ||
+        !compositor::register_layer_pixel_callback(LayerKind::GuiSurface, sample_panel_pixel))
     {
         g_state = {};
         return false;

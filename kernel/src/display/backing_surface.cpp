@@ -3,6 +3,30 @@
 namespace kernel::display
 {
 
+bool backing_surface_required_bytes(Rect bounds, size_t & bytes)
+{
+    bytes = 0;
+    if (bounds.empty())
+    {
+        return false;
+    }
+
+    constexpr size_t kBytesPerPixel = sizeof(uint32_t);
+    if (bounds.width > static_cast<size_t>(-1) / bounds.height)
+    {
+        return false;
+    }
+
+    const size_t pixels = bounds.width * bounds.height;
+    if (pixels > static_cast<size_t>(-1) / kBytesPerPixel)
+    {
+        return false;
+    }
+
+    bytes = pixels * kBytesPerPixel;
+    return true;
+}
+
 BackingSurface::BackingSurface(uint32_t * pixels, Rect bounds, uint64_t stride_pixels)
     : pixels_(pixels)
     , bounds_(bounds)

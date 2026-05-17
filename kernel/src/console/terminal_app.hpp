@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "kernel/base/string_view.hpp"
@@ -16,9 +17,9 @@ namespace kernel::console
 
 struct TerminalRepaintSink
 {
-    void (*repaint_layers_above)(display::Rect rect) = nullptr;
+    void (*repaint_terminal_region)(display::Rect rect) = nullptr;
 
-    bool ready() const { return repaint_layers_above != nullptr; }
+    bool ready() const { return repaint_terminal_region != nullptr; }
 };
 
 struct TerminalCursorState
@@ -52,8 +53,7 @@ public:
 
     TerminalApp() = default;
 
-    bool reset(display::Surface & surface,
-               display::AppSurface app_surface,
+    bool reset(display::AppSurface app_surface,
                display::Color foreground,
                display::Color background,
                TerminalRepaintSink repaint_sink);
@@ -68,6 +68,7 @@ public:
     void begin_update();
     void end_update();
     void repaint_region(display::Rect dirty_rect);
+    display::PixelSample sample_pixel(uint64_t x, uint64_t y) const;
 
     void clear();
     void clear_cell_at(uint64_t column, uint64_t row);
@@ -98,7 +99,8 @@ private:
     void clear_terminal_gutters(display::Rect dirty_rect);
     display::Rect render_dirty_text_cells();
     display::Rect render_text_repaint(bool repaint_entire_layer);
-    void repaint_layers_above(display::Rect dirty_rect);
+    bool allocate_backing_surface();
+    void compose_terminal_region(display::Rect dirty_rect);
     void apply_repaint(display::Rect dirty_rect,
                        bool repaint_text_layer,
                        bool repaint_entire_text_layer,
@@ -111,6 +113,7 @@ private:
     void write_tab();
 
     display::AppSurface app_surface_;
+    display::BackingSurface backing_;
     display::TerminalRenderer renderer_;
     TerminalRepaintSink repaint_sink_;
     text::TextConsole console_;
@@ -118,6 +121,8 @@ private:
     display::TerminalRenderCache render_cache_;
     display::TerminalRepaintState repaint_;
     TerminalCursorState cursor_;
+    uint32_t * backing_memory_ = nullptr;
+    size_t backing_bytes_ = 0;
 };
 
 } // namespace kernel::console

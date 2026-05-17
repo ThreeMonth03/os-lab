@@ -34,6 +34,16 @@ void repaint_background(kernel::display::Rect dirty_rect)
                                                dirty_rect);
 }
 
+kernel::display::PixelSample sample_background_pixel(uint64_t x, uint64_t y)
+{
+    if (!background_ready())
+    {
+        return kernel::display::transparent_pixel();
+    }
+
+    return kernel::display::desktop_background::sample(g_state.source, g_state.bounds, x, y);
+}
+
 } // namespace
 
 namespace kernel::display::desktop_background
@@ -51,7 +61,9 @@ bool init(Surface & surface, Rect bounds, BackgroundSource source)
         make_composited_surface(kSurfaceId, CompositedSurfaceRole::Background, bounds);
     if (!compositor::register_surface(background_surface) ||
         !compositor::register_layer_repaint_callback(LayerKind::DesktopBackground,
-                                                     repaint_background))
+                                                     repaint_background) ||
+        !compositor::register_layer_pixel_callback(LayerKind::DesktopBackground,
+                                                   sample_background_pixel))
     {
         return false;
     }

@@ -23,7 +23,7 @@ TEST(TerminalRendererTest, ClearScreenOnlyClearsViewport)
     uint32_t pixels[width * height] = {};
     fill_pixels(pixels, 9);
 
-    kernel::display::Surface surface(pixels, width, height, width * sizeof(uint32_t));
+    kernel::display::BackingSurface surface(pixels, {0, 0, width, height}, width);
     kernel::display::TerminalRenderer renderer;
     renderer.reset(surface, {4, 3, 20, 18}, {1}, {2});
 
@@ -43,7 +43,7 @@ TEST(TerminalRendererTest, DrawGlyphUsesViewportOrigin)
     uint32_t pixels[width * height] = {};
     fill_pixels(pixels, 9);
 
-    kernel::display::Surface surface(pixels, width, height, width * sizeof(uint32_t));
+    kernel::display::BackingSurface surface(pixels, {0, 0, width, height}, width);
     kernel::display::TerminalRenderer renderer;
     renderer.reset(surface, {4, 3, 20, 18}, {1}, {2});
 

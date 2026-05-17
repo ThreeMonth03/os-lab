@@ -2,17 +2,29 @@
 
 #include <stddef.h>
 
+#include "kernel/memory/heap.hpp"
+
 namespace kernel::console
 {
 
-bool TerminalApp::reset(display::Surface & surface,
-                        display::AppSurface app_surface,
+bool TerminalApp::reset(display::AppSurface app_surface,
                         display::Color foreground,
                         display::Color background,
                         TerminalRepaintSink repaint_sink)
 {
+    if (backing_memory_ != nullptr)
+    {
+        if (!kernel::memory::heap::free(backing_memory_))
+        {
+            return false;
+        }
+        backing_memory_ = nullptr;
+        backing_bytes_ = 0;
+        backing_ = {};
+    }
+
     app_surface_ = app_surface;
-    if (!surface.ready() || !app_surface_.valid() || !repaint_sink.ready())
+    if (!app_surface_.valid() || !repaint_sink.ready())
     {
         return false;
     }
@@ -26,8 +38,14 @@ bool TerminalApp::reset(display::Surface & surface,
         return false;
     }
 
+    if (!allocate_backing_surface())
+    {
+        app_surface_ = {};
+        return false;
+    }
+
     console_.reset(column_count, row_count);
-    renderer_.reset(surface, app_surface_.bounds, foreground, background);
+    renderer_.reset(backing_, app_surface_.bounds, foreground, background);
     repaint_sink_ = repaint_sink;
     repaint_.reset();
     cursor_.reset();
@@ -36,7 +54,32 @@ bool TerminalApp::reset(display::Surface & surface,
 
 bool TerminalApp::ready() const
 {
-    return renderer_.ready() && app_surface_.valid();
+    return renderer_.ready() && backing_.ready() && app_surface_.valid();
+}
+
+bool TerminalApp::allocate_backing_surface()
+{
+    size_t bytes = 0;
+    if (!display::backing_surface_required_bytes(app_surface_.bounds, bytes))
+    {
+        return false;
+    }
+
+    void * memory = kernel::memory::heap::allocate(bytes, alignof(uint32_t));
+    if (memory == nullptr)
+    {
+        return false;
+    }
+
+    backing_memory_ = static_cast<uint32_t *>(memory);
+    backing_bytes_ = bytes;
+    backing_ = display::BackingSurface(backing_memory_, app_surface_.bounds, app_surface_.bounds.width);
+    return backing_.ready();
+}
+
+display::PixelSample TerminalApp::sample_pixel(uint64_t x, uint64_t y) const
+{
+    return ready() ? backing_.sample(x, y) : display::transparent_pixel();
 }
 
 uint64_t TerminalApp::text_grid_width() const

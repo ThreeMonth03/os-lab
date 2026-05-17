@@ -144,3 +144,34 @@ TEST(DesktopBackgroundTest, DirtyRegionOutsideWallpaperKeepsSolidFallback)
     EXPECT_EQ(surface.pixel(0, 0).value, 9u);
     EXPECT_EQ(surface.pixel(3, 2).value, 0x222222u);
 }
+
+TEST(DesktopBackgroundTest, SamplesSolidAndWallpaperPixels)
+{
+    constexpr uint8_t wallpaper_pixels[] = {
+        0x10,
+        0x20,
+        0x30,
+        0xff,
+    };
+    const kernel::display::ImageView wallpaper(wallpaper_pixels,
+                                               1,
+                                               1,
+                                               4,
+                                               kernel::display::PixelFormat::Rgba8888);
+    const kernel::display::desktop_background::BackgroundSource source =
+        kernel::display::desktop_background::wallpaper_background(
+            {0x222222u},
+            wallpaper,
+            kernel::display::xrgb8888_color_layout());
+
+    const kernel::display::PixelSample wallpaper_sample =
+        kernel::display::desktop_background::sample(source, {0, 0, 4, 4}, 0, 0);
+    const kernel::display::PixelSample solid_sample =
+        kernel::display::desktop_background::sample(source, {0, 0, 4, 4}, 3, 3);
+
+    ASSERT_TRUE(wallpaper_sample.opaque());
+    EXPECT_EQ(wallpaper_sample.color.value, 0x102030u);
+    ASSERT_TRUE(solid_sample.opaque());
+    EXPECT_EQ(solid_sample.color.value, 0x222222u);
+    EXPECT_FALSE(kernel::display::desktop_background::sample(source, {0, 0, 4, 4}, 4, 4).opaque());
+}

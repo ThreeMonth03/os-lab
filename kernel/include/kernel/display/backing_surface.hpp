@@ -32,6 +32,8 @@ struct PixelSample
     return {PixelSampleKind::Opaque, color};
 }
 
+[[nodiscard]] bool backing_surface_required_bytes(Rect bounds, size_t & bytes);
+
 class BackingSurface
 {
 public:

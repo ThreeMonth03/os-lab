@@ -3,10 +3,10 @@
 namespace kernel::display
 {
 
-void TerminalRenderer::reset(Surface & surface, Rect viewport, Color foreground, Color background)
+void TerminalRenderer::reset(BackingSurface & surface, Rect viewport, Color foreground, Color background)
 {
     surface_ = &surface;
-    viewport_ = clip_rect(viewport, surface.width(), surface.height());
+    viewport_ = intersect_rect(viewport, surface.bounds());
     foreground_ = foreground;
     background_ = background;
 }

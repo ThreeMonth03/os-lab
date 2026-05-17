@@ -75,6 +75,16 @@ TEST(DisplayTest, BackingSurfaceUsesAbsoluteBounds)
     EXPECT_EQ(surface.sample(11, 21).color.value, 7u);
 }
 
+TEST(DisplayTest, ComputesBackingSurfaceStorageBytes)
+{
+    size_t bytes = 0;
+
+    ASSERT_TRUE(kernel::display::backing_surface_required_bytes({10, 20, 4, 3}, bytes));
+    EXPECT_EQ(bytes, 48u);
+
+    EXPECT_FALSE(kernel::display::backing_surface_required_bytes({}, bytes));
+}
+
 TEST(DisplayTest, BackingSurfaceFillRectIsClipped)
 {
     uint32_t pixels[12] = {};

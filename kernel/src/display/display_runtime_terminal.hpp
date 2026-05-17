@@ -27,6 +27,7 @@ struct TerminalAppConfig
 [[nodiscard]] TerminalAppConfig terminal_app_config();
 
 void refresh_desktop();
-void repaint_layers_above_terminal_app(Rect rect);
+void compose_terminal_app_region(Rect rect);
+[[nodiscard]] bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback);
 
 } // namespace kernel::display::runtime

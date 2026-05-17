@@ -243,3 +243,34 @@ TEST(GuiPanelTest, DirtyContentRegionRestoresBackgroundAndTitle)
     EXPECT_TRUE(found_foreground);
     EXPECT_TRUE(found_background);
 }
+
+TEST(GuiPanelTest, SamplesPanelPixelsForFinalComposition)
+{
+    const kernel::display::GuiSurface panel = visible_panel({10, 10, 100, 40});
+    const kernel::display::gui_panel::Palette palette = test_palette();
+    const kernel::display::Rect content = kernel::display::gui_panel::content_bounds(panel.bounds);
+
+    const kernel::display::PixelSample border =
+        kernel::display::gui_panel::sample_pixel(panel, palette, 10, 10);
+    const kernel::display::PixelSample background =
+        kernel::display::gui_panel::sample_pixel(panel, palette, 11, 11);
+
+    ASSERT_TRUE(border.opaque());
+    EXPECT_EQ(border.color.value, 1u);
+    ASSERT_TRUE(background.opaque());
+    EXPECT_EQ(background.color.value, 2u);
+
+    bool found_foreground = false;
+    for (uint64_t y = content.y; y < content.y + content.height; ++y)
+    {
+        for (uint64_t x = content.x; x < content.x + content.width; ++x)
+        {
+            const kernel::display::PixelSample sample =
+                kernel::display::gui_panel::sample_pixel(panel, palette, x, y);
+            found_foreground = found_foreground || (sample.opaque() && sample.color.value == 3u);
+        }
+    }
+
+    EXPECT_TRUE(found_foreground);
+    EXPECT_FALSE(kernel::display::gui_panel::sample_pixel(panel, palette, 0, 0).opaque());
+}

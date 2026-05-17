@@ -356,9 +356,14 @@ void refresh_debug_overlay_if_due()
     debug_overlay::refresh_if_due();
 }
 
-void repaint_layers_above_terminal_app(Rect rect)
+void compose_terminal_app_region(Rect rect)
 {
-    display::compositor::repaint_layers_above(display::LayerKind::AppSurface, rect);
+    display::compositor::repaint_layers_from(display::LayerKind::AppSurface, rect);
+}
+
+bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback)
+{
+    return display::compositor::register_layer_pixel_callback(display::LayerKind::AppSurface, callback);
 }
 
 void update_pointer_target(uint64_t x, uint64_t y)
