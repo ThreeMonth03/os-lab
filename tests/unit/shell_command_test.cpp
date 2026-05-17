@@ -29,6 +29,7 @@ TEST(ShellCommandTest, TrimsKnownCommands)
     expect_command("  clear  ", kernel::shell::ShellCommandKind::Clear, "clear", "clear");
     expect_command("\tabout\t", kernel::shell::ShellCommandKind::About, "about", "about");
     expect_command(" input ", kernel::shell::ShellCommandKind::Input, "input", "input");
+    expect_command(" display ", kernel::shell::ShellCommandKind::Display, "display", "display");
     expect_command(" mem ", kernel::shell::ShellCommandKind::Mem, "mem", "mem");
     expect_command(" heap ", kernel::shell::ShellCommandKind::Heap, "heap", "heap");
     expect_command(" slab ", kernel::shell::ShellCommandKind::Slab, "slab", "slab");
@@ -48,6 +49,7 @@ TEST(ShellCommandTest, TreatsKnownCommandsWithArgumentsAsUnknown)
     expect_command("clear now", kernel::shell::ShellCommandKind::Unknown, "clear now", "clear");
     expect_command("about now", kernel::shell::ShellCommandKind::Unknown, "about now", "about");
     expect_command("input now", kernel::shell::ShellCommandKind::Unknown, "input now", "input");
+    expect_command("display now", kernel::shell::ShellCommandKind::Unknown, "display now", "display");
     expect_command("mem now", kernel::shell::ShellCommandKind::Unknown, "mem now", "mem");
     expect_command("heap now", kernel::shell::ShellCommandKind::Unknown, "heap now", "heap");
     expect_command("slab now", kernel::shell::ShellCommandKind::Unknown, "slab now", "slab");

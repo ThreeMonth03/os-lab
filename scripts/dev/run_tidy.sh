@@ -33,6 +33,7 @@ mapfile -d '' sources < <(
         "${project_root}/kernel/src/display/debug_overlay_renderer.cpp" \
         "${project_root}/kernel/src/display/display.cpp" \
         "${project_root}/kernel/src/display/display_frame.cpp" \
+        "${project_root}/kernel/src/display/display_stats.cpp" \
         "${project_root}/kernel/src/display/display_target.cpp" \
         "${project_root}/kernel/src/display/framebuffer_presenter.cpp" \
         "${project_root}/kernel/src/display/frame_damage.cpp" \

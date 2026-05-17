@@ -57,6 +57,10 @@ kernel::shell::ShellCommandKind command_kind(kernel::StringView name)
     {
         return kernel::shell::ShellCommandKind::Input;
     }
+    if (name == "display")
+    {
+        return kernel::shell::ShellCommandKind::Display;
+    }
     if (name == "mem")
     {
         return kernel::shell::ShellCommandKind::Mem;

@@ -13,6 +13,7 @@ add_library(os_lab_kernel_display OBJECT
     display.cpp
     display_frame.cpp
     display_runtime.cpp
+    display_stats.cpp
     display_target.cpp
     framebuffer_presenter.cpp
     frame_damage.cpp

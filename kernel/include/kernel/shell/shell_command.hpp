@@ -12,6 +12,7 @@ enum class ShellCommandKind
     Clear,
     About,
     Input,
+    Display,
     Mem,
     Heap,
     Slab,

@@ -2,20 +2,11 @@
 
 #include <stdint.h>
 
-#include "kernel/display/compositor.hpp"
-#include "kernel/display/display_frame.hpp"
-#include "kernel/display/framebuffer_presenter.hpp"
+#include "kernel/display/display_stats.hpp"
 #include "kernel/display/hit_test.hpp"
 
 namespace kernel::display::runtime
 {
-
-struct DisplayPipelineStats
-{
-    DisplayFrameStats frame;
-    FramebufferPresenterStats presenter;
-    CompositorRuntimeStats compositor;
-};
 
 [[nodiscard]] HitTestResult pointer_target();
 [[nodiscard]] DisplayPipelineStats stats();
