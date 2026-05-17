@@ -6,6 +6,7 @@ add_executable(os_lab_unit_tests
     desktop_background_test.cpp
     debug_overlay_test.cpp
     display_compositor_test.cpp
+    display_frame_test.cpp
     display_palette_test.cpp
     display_test.cpp
     display_target_test.cpp
