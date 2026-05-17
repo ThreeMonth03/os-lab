@@ -16,6 +16,16 @@ kernel::display::PixelSample sample_terminal_pixel(uint64_t x, uint64_t y)
     return g_terminal_app.sample_pixel(x, y);
 }
 
+kernel::display::PixelSample sample_terminal_caret_pixel(uint64_t x, uint64_t y)
+{
+    return g_terminal_app.sample_caret_pixel(x, y);
+}
+
+kernel::display::Rect terminal_caret_bounds()
+{
+    return g_terminal_app.caret_bounds();
+}
+
 } // namespace
 
 namespace kernel::console::terminal
@@ -39,7 +49,8 @@ bool init()
         return false;
     }
 
-    if (!display::runtime::register_terminal_app_pixel_source(sample_terminal_pixel))
+    if (!display::runtime::register_terminal_app_pixel_source(sample_terminal_pixel) ||
+        !display::runtime::register_terminal_caret(sample_terminal_caret_pixel, terminal_caret_bounds))
     {
         return false;
     }

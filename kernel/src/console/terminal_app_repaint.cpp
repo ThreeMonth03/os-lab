@@ -27,29 +27,6 @@ void TerminalApp::end_update()
     }
 }
 
-void TerminalApp::hide_text_cursor()
-{
-    if (!cursor_.visible)
-    {
-        return;
-    }
-
-    renderer_.erase_cursor(cursor_.column, cursor_.row);
-    cursor_.hide();
-}
-
-display::Rect TerminalApp::erase_text_cursor_for_scroll()
-{
-    if (!cursor_.visible)
-    {
-        return {};
-    }
-
-    const display::Rect dirty_rect = cell_rect(cursor_.column, cursor_.row);
-    hide_text_cursor();
-    return dirty_rect;
-}
-
 void TerminalApp::repaint_text_layer()
 {
     renderer_.clear_screen();

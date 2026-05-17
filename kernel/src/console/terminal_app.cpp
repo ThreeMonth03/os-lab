@@ -82,6 +82,13 @@ display::PixelSample TerminalApp::sample_pixel(uint64_t x, uint64_t y) const
     return ready() ? backing_.sample(x, y) : display::transparent_pixel();
 }
 
+display::PixelSample TerminalApp::sample_caret_pixel(uint64_t x, uint64_t y) const
+{
+    return ready() && cursor_.visible && !display::intersect_rect(caret_bounds(), {x, y, 1, 1}).empty()
+               ? display::opaque_pixel(renderer_.foreground())
+               : display::transparent_pixel();
+}
+
 uint64_t TerminalApp::text_grid_width() const
 {
     return text_buffer_.columns() * kCellWidth;
@@ -110,6 +117,25 @@ display::Rect TerminalApp::cell_rect(uint64_t column, uint64_t row) const
         kCellWidth,
         kCellHeight,
     };
+}
+
+display::Rect TerminalApp::caret_rect(uint64_t column, uint64_t row) const
+{
+    static constexpr uint64_t kCursorTop =
+        (text::Glyph5x7::height * display::TerminalRenderer::kGlyphScale) + 1;
+    static constexpr uint64_t kCursorHeight = display::TerminalRenderer::kGlyphScale;
+
+    return {
+        app_surface_.bounds.x + (column * kCellWidth),
+        app_surface_.bounds.y + (row * kCellHeight) + kCursorTop,
+        text::Glyph5x7::width * display::TerminalRenderer::kGlyphScale,
+        kCursorHeight,
+    };
+}
+
+display::Rect TerminalApp::caret_bounds() const
+{
+    return ready() && cursor_.visible ? caret_rect(cursor_.column, cursor_.row) : display::Rect{};
 }
 
 display::Rect TerminalApp::row_tail_rect(uint64_t column, uint64_t row) const
@@ -170,7 +196,6 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
             pre_scroll_dirty = cell_rect(update.cell.column, update.cell.row);
         }
 
-        pre_scroll_dirty = display::bounding_rect(pre_scroll_dirty, erase_text_cursor_for_scroll());
         if (!repaint_.in_batch())
         {
             flush_pre_scroll_terminal_region(pre_scroll_dirty);
@@ -299,10 +324,9 @@ void TerminalApp::show_cursor()
         return;
     }
 
-    hide_text_cursor();
-    renderer_.draw_cursor(console_.cursor_column(), console_.cursor_row());
+    const display::Rect old_bounds = caret_bounds();
     cursor_.show(console_.cursor_column(), console_.cursor_row());
-    record_console_dirty(cell_rect(console_.cursor_column(), console_.cursor_row()));
+    record_console_dirty(display::bounding_rect(old_bounds, caret_bounds()));
 }
 
 void TerminalApp::hide_cursor()
@@ -312,10 +336,9 @@ void TerminalApp::hide_cursor()
         return;
     }
 
-    const uint64_t column = cursor_.column;
-    const uint64_t row = cursor_.row;
-    hide_text_cursor();
-    record_console_dirty(cell_rect(column, row));
+    const display::Rect dirty_rect = caret_bounds();
+    cursor_.hide();
+    record_console_dirty(dirty_rect);
 }
 
 void TerminalApp::write_char(char value)

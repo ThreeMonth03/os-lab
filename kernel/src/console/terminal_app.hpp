@@ -69,6 +69,8 @@ public:
     void begin_update();
     void end_update();
     display::PixelSample sample_pixel(uint64_t x, uint64_t y) const;
+    display::PixelSample sample_caret_pixel(uint64_t x, uint64_t y) const;
+    display::Rect caret_bounds() const;
 
     void clear();
     void clear_cell_at(uint64_t column, uint64_t row);
@@ -92,8 +94,7 @@ private:
     display::Rect cell_rect(uint64_t column, uint64_t row) const;
     display::Rect row_tail_rect(uint64_t column, uint64_t row) const;
 
-    void hide_text_cursor();
-    display::Rect erase_text_cursor_for_scroll();
+    display::Rect caret_rect(uint64_t column, uint64_t row) const;
     void repaint_text_layer();
     void render_text_cell(uint64_t column, uint64_t row, char glyph);
     void render_buffer_cell(uint64_t column, uint64_t row);

@@ -258,7 +258,16 @@ bool init_terminal_app_layer(const limine_framebuffer & framebuffer,
     g_state.terminal_foreground = color_for(framebuffer, palette.terminal_foreground);
     g_state.terminal_background = color_for(framebuffer, palette.terminal_background);
 
-    return display::compositor::register_surface(registered_app->composited_surface());
+    if (!display::compositor::register_surface(registered_app->composited_surface()))
+    {
+        return false;
+    }
+
+    const display::CompositedSurfaceDescriptor caret_surface =
+        display::make_composited_surface(display::kTerminalCaretLayerSurfaceId,
+                                         display::CompositedSurfaceRole::TextCaret,
+                                         registered_app->bounds);
+    return display::compositor::register_surface(caret_surface);
 }
 
 void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
@@ -392,6 +401,15 @@ void scroll_terminal_app_region_up(Rect rect, uint64_t distance)
 bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback)
 {
     return display::compositor::register_layer_pixel_callback(display::LayerKind::AppSurface, callback);
+}
+
+bool register_terminal_caret(compositor::LayerPixelCallback pixel_callback,
+                             compositor::LayerBoundsCallback bounds_callback)
+{
+    return display::compositor::register_layer_pixel_callback(display::LayerKind::TerminalCaret,
+                                                              pixel_callback) &&
+           display::compositor::register_layer_bounds_callback(display::LayerKind::TerminalCaret,
+                                                               bounds_callback);
 }
 
 void update_pointer_target(uint64_t x, uint64_t y)

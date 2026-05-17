@@ -422,6 +422,74 @@ TEST(DisplayCompositorTest, FinalPixelComposesTerminalUnderOverlayAndCursor)
     EXPECT_EQ(color.value, 9u);
 }
 
+TEST(DisplayCompositorTest, TerminalCaretIsTransientAboveAppAndBelowOverlayAndCursor)
+{
+    const kernel::display::PixelSample terminal = kernel::display::opaque_pixel({3});
+    const kernel::display::PixelSample caret = kernel::display::opaque_pixel({5});
+    const kernel::display::PixelSample overlay = kernel::display::opaque_pixel({7});
+    const kernel::display::PixelSample cursor = kernel::display::opaque_pixel({9});
+    const kernel::display::LayerPixelSource caret_sources[] = {
+        {kernel::display::LayerKind::TerminalCaret,
+         {10, 10, 1, 1},
+         kernel::display::LayerOcclusion::Transparent,
+         &caret,
+         fixed_sample,
+         true},
+        {kernel::display::LayerKind::AppSurface,
+         {0, 0, 100, 100},
+         kernel::display::LayerOcclusion::Opaque,
+         &terminal,
+         fixed_sample,
+         true},
+    };
+    const kernel::display::LayerPixelSource overlay_sources[] = {
+        {kernel::display::LayerKind::DebugOverlay,
+         {10, 10, 1, 1},
+         kernel::display::LayerOcclusion::Opaque,
+         &overlay,
+         fixed_sample,
+         true},
+        caret_sources[0],
+        caret_sources[1],
+    };
+    const kernel::display::LayerPixelSource cursor_sources[] = {
+        {kernel::display::LayerKind::MouseCursor,
+         {10, 10, 1, 1},
+         kernel::display::LayerOcclusion::Transparent,
+         &cursor,
+         fixed_sample,
+         true},
+        overlay_sources[0],
+        overlay_sources[1],
+        overlay_sources[2],
+    };
+
+    kernel::display::Color color;
+    ASSERT_TRUE(kernel::display::final_pixel_at(caret_sources,
+                                                2,
+                                                kernel::display::LayerKind::DesktopBackground,
+                                                10,
+                                                10,
+                                                color));
+    EXPECT_EQ(color.value, 5u);
+
+    ASSERT_TRUE(kernel::display::final_pixel_at(overlay_sources,
+                                                3,
+                                                kernel::display::LayerKind::DesktopBackground,
+                                                10,
+                                                10,
+                                                color));
+    EXPECT_EQ(color.value, 7u);
+
+    ASSERT_TRUE(kernel::display::final_pixel_at(cursor_sources,
+                                                4,
+                                                kernel::display::LayerKind::DesktopBackground,
+                                                10,
+                                                10,
+                                                color));
+    EXPECT_EQ(color.value, 9u);
+}
+
 TEST(DisplayCompositorTest, SkipsAppLayerWhenDirtyRectIsCoveredByOpaqueOverlay)
 {
     kernel::display::Compositor compositor({0, 0, 800, 600});

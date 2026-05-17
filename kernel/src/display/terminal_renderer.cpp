@@ -86,22 +86,4 @@ void TerminalRenderer::draw_glyph(char value, uint64_t column, uint64_t row)
     }
 }
 
-void TerminalRenderer::draw_cursor(uint64_t column, uint64_t row)
-{
-    fill_rect(viewport_.x + (column * kCellWidth),
-              viewport_.y + (row * kCellHeight) + kCursorTop,
-              text::Glyph5x7::width * kGlyphScale,
-              kCursorHeight,
-              foreground_);
-}
-
-void TerminalRenderer::erase_cursor(uint64_t column, uint64_t row)
-{
-    fill_rect(viewport_.x + (column * kCellWidth),
-              viewport_.y + (row * kCellHeight) + kCursorTop,
-              text::Glyph5x7::width * kGlyphScale,
-              kCursorHeight,
-              background_);
-}
-
 } // namespace kernel::display

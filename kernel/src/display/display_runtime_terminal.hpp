@@ -27,5 +27,7 @@ void refresh_desktop();
 void compose_terminal_app_region(Rect rect);
 void scroll_terminal_app_region_up(Rect rect, uint64_t distance);
 [[nodiscard]] bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback);
+[[nodiscard]] bool register_terminal_caret(compositor::LayerPixelCallback pixel_callback,
+                                           compositor::LayerBoundsCallback bounds_callback);
 
 } // namespace kernel::display::runtime
