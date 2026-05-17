@@ -27,7 +27,7 @@ add_executable(os_lab_unit_tests
     mouse_packet_decoder_test.cpp
     paging_test.cpp
     pointer_state_test.cpp
-    present_region_list_test.cpp
+    present_operation_list_test.cpp
     shell_command_test.cpp
     string_view_test.cpp
     terminal_render_cache_test.cpp

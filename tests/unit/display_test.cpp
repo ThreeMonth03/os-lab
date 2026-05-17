@@ -86,6 +86,24 @@ TEST(DisplayTest, PutPixelAndFillRectAreClipped)
     EXPECT_EQ(pixels[0], 0u);
 }
 
+TEST(DisplayTest, SurfaceCopyRectHandlesOverlappingRows)
+{
+    uint32_t pixels[12] = {};
+    for (uint32_t index = 0; index < 12; ++index)
+    {
+        pixels[index] = index + 1;
+    }
+    kernel::display::Surface surface(pixels, 4, 3, 4 * sizeof(uint32_t));
+
+    const kernel::display::Rect copied = surface.copy_rect({0, 1, 4, 2}, 0, 0);
+
+    expect_rect(copied, 0, 0, 4, 2);
+    EXPECT_EQ(surface.pixel(0, 0).value, 5u);
+    EXPECT_EQ(surface.pixel(3, 0).value, 8u);
+    EXPECT_EQ(surface.pixel(0, 1).value, 9u);
+    EXPECT_EQ(surface.pixel(3, 1).value, 12u);
+}
+
 TEST(DisplayTest, BackingSurfaceUsesAbsoluteBounds)
 {
     uint32_t pixels[12] = {};
@@ -285,6 +303,60 @@ TEST(DisplayTest, PresenterDrawsMultipleTransientOverlaysWithCursorTopmost)
 
     EXPECT_EQ(front.pixel(2, 1).value, 99u);
     EXPECT_EQ(scene.pixel(2, 1).value, 7u);
+}
+
+TEST(DisplayTest, PresenterScrollsFrontBufferWhenTransientOverlaysAreOutsideScroll)
+{
+    uint32_t front_pixels[12] = {};
+    uint32_t scene_pixels[12] = {};
+    for (uint32_t index = 0; index < 12; ++index)
+    {
+        front_pixels[index] = index + 1;
+        scene_pixels[index] = 100 + index + 1;
+    }
+    kernel::display::Surface front(front_pixels, 4, 3, 4 * sizeof(uint32_t));
+    kernel::display::SceneBuffer scene(scene_pixels, {0, 0, 4, 3}, 4);
+    kernel::display::FramebufferPresenter presenter;
+    presenter.reset(front, scene);
+    presenter.set_cursor_overlay(test_cursor_pixel, test_cursor_bounds);
+
+    ASSERT_TRUE(presenter.present_scroll({0, 0, 2, 3}, 1));
+
+    EXPECT_EQ(front.pixel(0, 0).value, 5u);
+    EXPECT_EQ(front.pixel(1, 0).value, 6u);
+    EXPECT_EQ(front.pixel(0, 1).value, 9u);
+    EXPECT_EQ(front.pixel(1, 1).value, 10u);
+    const kernel::display::FramebufferPresenterStats stats = presenter.stats();
+    EXPECT_EQ(stats.present_scroll_count, 1u);
+    EXPECT_EQ(stats.front_scroll_copy_pixels, 4u);
+    EXPECT_EQ(stats.fast_path_copy_pixels, 0u);
+}
+
+TEST(DisplayTest, PresenterScrollFallsBackToSceneCopyWhenOverlayWouldMove)
+{
+    uint32_t front_pixels[12] = {};
+    uint32_t scene_pixels[12] = {};
+    for (uint32_t index = 0; index < 12; ++index)
+    {
+        front_pixels[index] = index + 1;
+        scene_pixels[index] = 100 + index + 1;
+    }
+    kernel::display::Surface front(front_pixels, 4, 3, 4 * sizeof(uint32_t));
+    kernel::display::SceneBuffer scene(scene_pixels, {0, 0, 4, 3}, 4);
+    kernel::display::FramebufferPresenter presenter;
+    presenter.reset(front, scene);
+    presenter.set_cursor_overlay(test_cursor_pixel, test_cursor_bounds);
+
+    ASSERT_TRUE(presenter.present_scroll({0, 0, 4, 3}, 1));
+
+    EXPECT_EQ(front.pixel(0, 0).value, 101u);
+    EXPECT_EQ(front.pixel(3, 1).value, 108u);
+    EXPECT_EQ(front.pixel(2, 1).value, 99u);
+    const kernel::display::FramebufferPresenterStats stats = presenter.stats();
+    EXPECT_EQ(stats.present_scroll_count, 1u);
+    EXPECT_EQ(stats.front_scroll_copy_pixels, 0u);
+    EXPECT_EQ(stats.fast_path_copy_pixels, 8u);
+    EXPECT_EQ(stats.overlay_blend_pixels, 1u);
 }
 
 } // namespace

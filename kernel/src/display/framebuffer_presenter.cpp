@@ -117,6 +117,68 @@ bool FramebufferPresenter::present_rect(Rect rect)
     return true;
 }
 
+bool FramebufferPresenter::present_scroll(Rect rect, uint64_t distance)
+{
+    if (!ready())
+    {
+        return false;
+    }
+
+    rect = intersect_rect(rect, front_bounds(*front_buffer_));
+    rect = intersect_rect(rect, scene_buffer_->bounds());
+    if (rect.empty() || distance == 0)
+    {
+        return true;
+    }
+    if (distance >= rect.height)
+    {
+        return present_rect(rect);
+    }
+
+    ++stats_.present_call_count;
+    ++stats_.present_scroll_count;
+
+    const Rect copied = {
+        rect.x,
+        rect.y,
+        rect.width,
+        rect.height - distance,
+    };
+    const uint64_t area = rect_area(copied);
+    stats_.total_presented_pixels += area;
+
+    if (!copy_front_scroll(rect, distance))
+    {
+        if (!copy_scene_to_front(copied))
+        {
+            return false;
+        }
+    }
+
+    for (size_t index = 0; index < kMaxPresenterOverlays; ++index)
+    {
+        const Rect overlay = intersect_rect(copied, overlay_bounds(index));
+        if (!present_overlay_rect(overlay))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool FramebufferPresenter::overlay_intersects(Rect rect) const
+{
+    for (size_t index = 0; index < kMaxPresenterOverlays; ++index)
+    {
+        if (!intersect_rect(rect, overlay_bounds(index)).empty())
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool FramebufferPresenter::present_overlay_rect(Rect rect)
 {
     if (!ready())
@@ -170,6 +232,40 @@ bool FramebufferPresenter::copy_scene_to_front(Rect rect)
         front_buffer_->put_pixels(rect.x, y, pixels + (rect.x - scene_bounds.x), rect.width);
         stats_.fast_path_copy_pixels += rect.width;
     }
+    return true;
+}
+
+bool FramebufferPresenter::copy_front_scroll(Rect rect, uint64_t distance)
+{
+    if (!ready() || rect.empty() || distance == 0 || distance >= rect.height)
+    {
+        return false;
+    }
+
+    const Rect source = {
+        rect.x,
+        rect.y + distance,
+        rect.width,
+        rect.height - distance,
+    };
+    const Rect destination = {
+        rect.x,
+        rect.y,
+        rect.width,
+        rect.height - distance,
+    };
+    if (overlay_intersects(source) || overlay_intersects(destination))
+    {
+        return false;
+    }
+
+    const Rect copied = front_buffer_->copy_rect(source, destination.x, destination.y);
+    if (copied.empty())
+    {
+        return false;
+    }
+
+    stats_.front_scroll_copy_pixels += copied.width * copied.height;
     return true;
 }
 

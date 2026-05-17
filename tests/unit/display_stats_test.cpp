@@ -6,17 +6,25 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
 {
     kernel::display::DisplayPipelineStats before;
     before.frame.frame_flush_count = 2;
+    before.frame.present_operation_count = 4;
     before.frame.present_rect_count = 3;
+    before.frame.present_scroll_count = 1;
     before.presenter.fast_path_copy_pixels = 100;
+    before.presenter.front_scroll_copy_pixels = 40;
     before.compositor.scene_compose_pixels = 20;
     before.compositor.scene_preflight_pixels = 7;
+    before.elapsed_ticks = 2;
 
     kernel::display::DisplayPipelineStats after;
     after.frame.frame_flush_count = 5;
+    after.frame.present_operation_count = 11;
     after.frame.present_rect_count = 9;
+    after.frame.present_scroll_count = 3;
     after.presenter.fast_path_copy_pixels = 180;
+    after.presenter.front_scroll_copy_pixels = 100;
     after.compositor.scene_compose_pixels = 35;
     after.compositor.scene_preflight_pixels = 7;
+    after.elapsed_ticks = 9;
 
     const kernel::display::DisplayPipelineStats delta =
         kernel::display::display_stats_delta(
@@ -24,10 +32,14 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
             kernel::display::make_display_stats_snapshot(after));
 
     EXPECT_EQ(delta.frame.frame_flush_count, 3u);
+    EXPECT_EQ(delta.frame.present_operation_count, 7u);
     EXPECT_EQ(delta.frame.present_rect_count, 6u);
+    EXPECT_EQ(delta.frame.present_scroll_count, 2u);
     EXPECT_EQ(delta.presenter.fast_path_copy_pixels, 80u);
+    EXPECT_EQ(delta.presenter.front_scroll_copy_pixels, 60u);
     EXPECT_EQ(delta.compositor.scene_compose_pixels, 15u);
     EXPECT_EQ(delta.compositor.scene_preflight_pixels, 0u);
+    EXPECT_EQ(delta.elapsed_ticks, 7u);
 }
 
 TEST(DisplayStatsTest, DeltaSaturatesWhenCountersReset)

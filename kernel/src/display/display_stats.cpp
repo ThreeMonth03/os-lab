@@ -15,7 +15,9 @@ DisplayFrameStats delta(DisplayFrameStats before, DisplayFrameStats after)
 {
     return {
         saturating_subtract(after.frame_flush_count, before.frame_flush_count),
+        saturating_subtract(after.present_operation_count, before.present_operation_count),
         saturating_subtract(after.present_rect_count, before.present_rect_count),
+        saturating_subtract(after.present_scroll_count, before.present_scroll_count),
         saturating_subtract(after.total_presented_pixels, before.total_presented_pixels),
         saturating_subtract(after.largest_present_rect_area, before.largest_present_rect_area),
         saturating_subtract(after.large_present_fallback_count,
@@ -29,9 +31,11 @@ FramebufferPresenterStats delta(FramebufferPresenterStats before,
     return {
         saturating_subtract(after.present_call_count, before.present_call_count),
         saturating_subtract(after.present_rect_count, before.present_rect_count),
+        saturating_subtract(after.present_scroll_count, before.present_scroll_count),
         saturating_subtract(after.total_presented_pixels, before.total_presented_pixels),
         saturating_subtract(after.largest_present_rect_area, before.largest_present_rect_area),
         saturating_subtract(after.fast_path_copy_pixels, before.fast_path_copy_pixels),
+        saturating_subtract(after.front_scroll_copy_pixels, before.front_scroll_copy_pixels),
         saturating_subtract(after.overlay_blend_pixels, before.overlay_blend_pixels),
     };
 }
@@ -63,6 +67,7 @@ DisplayPipelineStats display_stats_delta(DisplayStatsSnapshot before,
         delta(before.pipeline.frame, after.pipeline.frame),
         delta(before.pipeline.presenter, after.pipeline.presenter),
         delta(before.pipeline.compositor, after.pipeline.compositor),
+        saturating_subtract(after.pipeline.elapsed_ticks, before.pipeline.elapsed_ticks),
     };
 }
 

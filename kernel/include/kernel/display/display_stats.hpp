@@ -12,6 +12,7 @@ struct DisplayPipelineStats
     DisplayFrameStats frame;
     FramebufferPresenterStats presenter;
     CompositorRuntimeStats compositor;
+    uint64_t elapsed_ticks = 0;
 };
 
 struct DisplayStatsSnapshot

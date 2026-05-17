@@ -26,7 +26,7 @@ add_library(os_lab_kernel_display OBJECT
     hit_test.cpp
     image_view.cpp
     mouse_cursor.cpp
-    present_region_list.cpp
+    present_operation_list.cpp
     scene_buffer.cpp
     terminal_render_cache.cpp
     terminal_repaint_state.cpp

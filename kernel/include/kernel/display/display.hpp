@@ -36,6 +36,7 @@ public:
     void put_pixel(uint64_t x, uint64_t y, Color color);
     void put_pixels(uint64_t x, uint64_t y, const uint32_t * pixels, size_t count);
     void fill_rect(Rect rect, Color color);
+    [[nodiscard]] Rect copy_rect(Rect source, uint64_t destination_x, uint64_t destination_y);
 
 private:
     void * address_ = nullptr;

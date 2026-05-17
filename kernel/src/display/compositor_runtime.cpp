@@ -422,7 +422,7 @@ kernel::display::Rect copy_scene_scroll_piece(kernel::display::Rect piece, uint6
 void append_scene_scroll_regions(kernel::display::LayerKind layer,
                                  kernel::display::Rect rect,
                                  uint64_t distance,
-                                 kernel::display::PresentRegionList & regions)
+                                 kernel::display::PresentOperationList & operations)
 {
     if (g_scene_buffer == nullptr || !g_scene_buffer->ready() || rect.empty() || distance == 0)
     {
@@ -486,7 +486,11 @@ void append_scene_scroll_regions(kernel::display::LayerKind layer,
                 continue;
             }
 
-            regions.append(copy_scene_scroll_piece(region, distance));
+            const kernel::display::Rect copied = copy_scene_scroll_piece(region, distance);
+            if (!copied.empty())
+            {
+                operations.append_scroll(region, distance);
+            }
         }
     }
 
@@ -494,7 +498,7 @@ void append_scene_scroll_regions(kernel::display::LayerKind layer,
     {
         ++g_stats.repaint_plan_fallback_count;
         compose_backed_region_from(layer, repaint_rect, false);
-        regions.append(repaint_rect);
+        operations.append_rect(repaint_rect);
     }
 }
 
@@ -614,35 +618,35 @@ void repaint_layers_from(LayerKind base_layer, Rect dirty_rect)
 
 void append_damage_step_regions(LayerKind base_layer,
                                 FrameDamageStep step,
-                                PresentRegionList & regions)
+                                PresentOperationList & operations)
 {
     if (step.dirty())
     {
         compose_backed_region_from(base_layer, step.rect, false);
-        regions.append(step.rect);
+        operations.append_rect(step.rect);
         return;
     }
 
     if (step.scroll())
     {
-        append_scene_scroll_regions(base_layer, step.rect, step.distance, regions);
+        append_scene_scroll_regions(base_layer, step.rect, step.distance, operations);
         return;
     }
 }
 
-PresentRegionList update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage)
+PresentOperationList update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage)
 {
-    PresentRegionList regions(g_compositor.bounds());
+    PresentOperationList operations(g_compositor.bounds());
     if (damage.empty())
     {
-        return regions;
+        return operations;
     }
 
     if (damage.has_steps())
     {
         for (size_t index = 0; index < damage.step_count; ++index)
         {
-            append_damage_step_regions(base_layer, damage.steps[index], regions);
+            append_damage_step_regions(base_layer, damage.steps[index], operations);
         }
     }
     else
@@ -652,38 +656,49 @@ PresentRegionList update_scene_from_layer_damage(LayerKind base_layer, FrameDama
             append_scene_scroll_regions(base_layer,
                                         damage.scroll.rect,
                                         damage.scroll.distance,
-                                        regions);
+                                        operations);
         }
 
         if (damage.has_dirty())
         {
             compose_backed_region_from(base_layer, damage.dirty_rect, false);
-            regions.append(damage.dirty_rect);
+            operations.append_rect(damage.dirty_rect);
         }
     }
 
-    return regions;
+    return operations;
 }
 
-void present_scene_regions(const PresentRegionList & regions)
+void present_scene_operations(const PresentOperationList & operations)
 {
     if (g_presenter == nullptr || !g_presenter->ready())
     {
         return;
     }
 
-    for (size_t index = 0; index < regions.count(); ++index)
+    for (size_t index = 0; index < operations.count(); ++index)
     {
-        if (!g_presenter->present_rect(regions.at(index)))
+        const PresentOperation operation = operations.at(index);
+        if (operation.rect_present())
         {
-            return;
+            if (!g_presenter->present_rect(operation.rect))
+            {
+                return;
+            }
+        }
+        else if (operation.scroll_present())
+        {
+            if (!g_presenter->present_scroll(operation.rect, operation.distance))
+            {
+                return;
+            }
         }
     }
 }
 
 void apply_layer_damage(LayerKind base_layer, FrameDamage damage)
 {
-    present_scene_regions(update_scene_from_layer_damage(base_layer, damage));
+    present_scene_operations(update_scene_from_layer_damage(base_layer, damage));
 }
 
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds)

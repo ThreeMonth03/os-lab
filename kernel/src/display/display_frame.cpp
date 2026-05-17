@@ -3,21 +3,11 @@
 namespace kernel::display
 {
 
-namespace
-{
-
-uint64_t rect_area(Rect rect)
-{
-    return rect.width * rect.height;
-}
-
-} // namespace
-
 void DisplayFrame::reset(Rect bounds)
 {
     depth_ = 0;
     bounds_ = bounds;
-    present_regions_.reset(bounds);
+    present_operations_.reset(bounds);
     stats_ = {};
 }
 
@@ -25,7 +15,7 @@ void DisplayFrame::begin()
 {
     if (depth_ == 0)
     {
-        present_regions_.clear();
+        present_operations_.clear();
     }
     ++depth_;
 }
@@ -43,35 +33,43 @@ DisplayFrameFlush DisplayFrame::end()
         return {};
     }
 
-    const PresentRegionList regions = present_regions_;
-    record_stats(regions, true);
-    present_regions_.clear();
-    return {true, regions};
+    const PresentOperationList operations = present_operations_;
+    record_stats(operations, true);
+    present_operations_.clear();
+    return {true, operations};
 }
 
 DisplayFrameSubmit DisplayFrame::submit(Rect present_rect)
 {
-    PresentRegionList regions(bounds_);
-    regions.append(present_rect);
-    return submit(regions);
+    PresentOperationList operations(bounds_);
+    operations.append_rect(present_rect);
+    return submit(operations);
 }
 
-DisplayFrameSubmit DisplayFrame::submit(const PresentRegionList & present_regions)
+DisplayFrameSubmit DisplayFrame::submit(const PresentOperationList & present_operations)
 {
-    if (present_regions.empty())
+    if (present_operations.empty())
     {
         return {};
     }
 
     if (!in_frame())
     {
-        record_stats(present_regions, false);
-        return {true, present_regions};
+        record_stats(present_operations, false);
+        return {true, present_operations};
     }
 
-    for (size_t index = 0; index < present_regions.count(); ++index)
+    for (size_t index = 0; index < present_operations.count(); ++index)
     {
-        present_regions_.append(present_regions.at(index));
+        const PresentOperation operation = present_operations.at(index);
+        if (operation.rect_present())
+        {
+            present_operations_.append_rect(operation.rect);
+        }
+        else if (operation.scroll_present())
+        {
+            present_operations_.append_scroll(operation.rect, operation.distance);
+        }
     }
     return {};
 }
@@ -81,27 +79,26 @@ void DisplayFrame::reset_stats()
     stats_ = {};
 }
 
-void DisplayFrame::record_stats(const PresentRegionList & present_regions, bool frame_flush)
+void DisplayFrame::record_stats(const PresentOperationList & present_operations, bool frame_flush)
 {
     if (frame_flush)
     {
         ++stats_.frame_flush_count;
     }
 
-    if (present_regions.full_screen_fallback())
+    const PresentOperationStats operation_stats = present_operations.stats();
+    if (present_operations.full_screen_fallback())
     {
         ++stats_.large_present_fallback_count;
     }
 
-    stats_.present_rect_count += present_regions.count();
-    for (size_t index = 0; index < present_regions.count(); ++index)
+    stats_.present_operation_count += operation_stats.operation_count;
+    stats_.present_rect_count += operation_stats.rect_count;
+    stats_.present_scroll_count += operation_stats.scroll_count;
+    stats_.total_presented_pixels += operation_stats.total_presented_pixels;
+    if (operation_stats.largest_present_rect_area > stats_.largest_present_rect_area)
     {
-        const uint64_t area = rect_area(present_regions.at(index));
-        stats_.total_presented_pixels += area;
-        if (area > stats_.largest_present_rect_area)
-        {
-            stats_.largest_present_rect_area = area;
-        }
+        stats_.largest_present_rect_area = operation_stats.largest_present_rect_area;
     }
 }
 

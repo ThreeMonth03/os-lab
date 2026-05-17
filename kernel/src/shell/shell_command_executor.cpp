@@ -248,7 +248,9 @@ void write_display_stats()
     terminal::write_line("display stats:");
     terminal::write_line("  frame:");
     write_stat("flushes", stats.frame.frame_flush_count);
+    write_stat("present operations", stats.frame.present_operation_count);
     write_stat("present rects", stats.frame.present_rect_count);
+    write_stat("present scrolls", stats.frame.present_scroll_count);
     write_stat("presented pixels", stats.frame.total_presented_pixels);
     write_stat("largest present rect area", stats.frame.largest_present_rect_area);
     write_stat("large fallback count", stats.frame.large_present_fallback_count);
@@ -264,9 +266,11 @@ void write_display_stats()
     terminal::write_line("  presenter:");
     write_stat("present calls", stats.presenter.present_call_count);
     write_stat("present rects", stats.presenter.present_rect_count);
+    write_stat("present scrolls", stats.presenter.present_scroll_count);
     write_stat("presented pixels", stats.presenter.total_presented_pixels);
     write_stat("largest present rect area", stats.presenter.largest_present_rect_area);
     write_stat("fast-copy pixels", stats.presenter.fast_path_copy_pixels);
+    write_stat("front-scroll pixels", stats.presenter.front_scroll_copy_pixels);
     write_stat("overlay blend pixels", stats.presenter.overlay_blend_pixels);
 
     display_runtime::reset_stats();
