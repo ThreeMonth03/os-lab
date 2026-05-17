@@ -21,6 +21,7 @@ DOCKER_RUN_ENV := LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g)
 INSTALL_DEPS := ./scripts/dev/install-deps-debian.sh
 FORMAT_SOURCES := ./scripts/dev/format_sources.sh
 RUN_TIDY := ./scripts/dev/run_tidy.sh
+DISPLAY_PROFILE_SUMMARY := ./scripts/dev/summarize_display_profile.sh
 RUN_QEMU := ./scripts/qemu/run_qemu.sh
 BUILD_SMOKE_ISO := ./scripts/smoke/build_iso.sh
 BUILD_SMOKE_SUITE := ./scripts/smoke/build_all.sh
@@ -47,7 +48,7 @@ PAGING_ISO_IMAGE := $(BUILD_DIR)/paging-smoke/os-lab.iso
 HEAP_ISO_IMAGE := $(BUILD_DIR)/heap-smoke/os-lab.iso
 SLAB_ISO_IMAGE := $(BUILD_DIR)/slab-smoke/os-lab.iso
 
-.PHONY: help deps demo gui profile-gui test demo-exception test-exception demo-timer test-timer test-paging test-heap test-slab test-smoke unit format tidy shell clean ci
+.PHONY: help deps demo gui profile-gui profile-summary test demo-exception test-exception demo-timer test-timer test-paging test-heap test-slab test-smoke unit format tidy shell clean ci
 .PHONY: _check-native-tools _check-clang-format _check-clang-tidy _check-docker-compose _iso _run _run-gui _smoke _exception-iso _run-exception _smoke-exception _timer-iso _run-timer _smoke-timer _paging-iso _smoke-paging _heap-iso _smoke-heap _slab-iso _smoke-slab _smoke-isos _smoke-all _unit _format _format-check _tidy _docker-image _docker-iso _docker-exception-iso _docker-timer-iso _docker-paging-iso _docker-heap-iso _docker-slab-iso _docker-smoke-isos
 
 help:
@@ -60,6 +61,8 @@ help:
 		'                 Debug-only boot with the minimal GUI panel visible' \
 		'  make profile-gui' \
 		'                 Boot GUI with profiling, scripted input, and serial log capture' \
+		'  make profile-summary' \
+		'                 Summarize build/logs/display-profile.log' \
 		'  make test      Build in Docker, then run the QEMU smoke test' \
 		'  make demo-exception EXCEPTION_SMOKE=page_fault' \
 		'                 Build a debug exception ISO and show the exception dump' \
@@ -91,6 +94,9 @@ gui: _docker-iso _run-gui
 profile-gui:
 	$(MAKE) _docker-iso DISPLAY_PROFILING=ON DISPLAY_PROFILE_SCRIPT=ON
 	SERIAL_LOG="$(DISPLAY_PROFILE_LOG)" QEMU_HEADLESS=0 $(RUN_QEMU) $(ISO_IMAGE)
+
+profile-summary:
+	$(DISPLAY_PROFILE_SUMMARY) "$(DISPLAY_PROFILE_LOG)"
 
 test: _docker-iso _smoke
 
