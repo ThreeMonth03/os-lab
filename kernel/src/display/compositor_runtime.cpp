@@ -419,23 +419,23 @@ kernel::display::Rect copy_scene_scroll_piece(kernel::display::Rect piece, uint6
     return copied;
 }
 
-kernel::display::Rect apply_scene_scroll(kernel::display::LayerKind layer,
-                                         kernel::display::Rect rect,
-                                         uint64_t distance)
+void append_scene_scroll_regions(kernel::display::LayerKind layer,
+                                 kernel::display::Rect rect,
+                                 uint64_t distance,
+                                 kernel::display::PresentRegionList & regions)
 {
     if (g_scene_buffer == nullptr || !g_scene_buffer->ready() || rect.empty() || distance == 0)
     {
-        return {};
+        return;
     }
 
     ++g_stats.scene_scroll_count;
     rect = kernel::display::intersect_rect(rect, g_scene_buffer->bounds());
     if (rect.empty())
     {
-        return {};
+        return;
     }
 
-    kernel::display::Rect touched_rect;
     kernel::display::Rect repaint_rect;
     const kernel::display::LayerRepaintPlan plan = g_compositor.repaint_plan_from(layer, rect);
     for (size_t index = 0; index < plan.count; ++index)
@@ -486,9 +486,7 @@ kernel::display::Rect apply_scene_scroll(kernel::display::LayerKind layer,
                 continue;
             }
 
-            touched_rect = kernel::display::bounding_rect(
-                touched_rect,
-                copy_scene_scroll_piece(region, distance));
+            regions.append(copy_scene_scroll_piece(region, distance));
         }
     }
 
@@ -496,9 +494,8 @@ kernel::display::Rect apply_scene_scroll(kernel::display::LayerKind layer,
     {
         ++g_stats.repaint_plan_fallback_count;
         compose_backed_region_from(layer, repaint_rect, false);
-        touched_rect = kernel::display::bounding_rect(touched_rect, repaint_rect);
+        regions.append(repaint_rect);
     }
-    return touched_rect;
 }
 
 } // namespace
@@ -615,20 +612,22 @@ void repaint_layers_from(LayerKind base_layer, Rect dirty_rect)
     compose_backed_region_from(base_layer, dirty_rect, true);
 }
 
-Rect apply_damage_step(LayerKind base_layer, FrameDamageStep step)
+void append_damage_step_regions(LayerKind base_layer,
+                                FrameDamageStep step,
+                                PresentRegionList & regions)
 {
     if (step.dirty())
     {
         compose_backed_region_from(base_layer, step.rect, false);
-        return step.rect;
+        regions.append(step.rect);
+        return;
     }
 
     if (step.scroll())
     {
-        return apply_scene_scroll(base_layer, step.rect, step.distance);
+        append_scene_scroll_regions(base_layer, step.rect, step.distance, regions);
+        return;
     }
-
-    return {};
 }
 
 PresentRegionList update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage)
@@ -643,14 +642,17 @@ PresentRegionList update_scene_from_layer_damage(LayerKind base_layer, FrameDama
     {
         for (size_t index = 0; index < damage.step_count; ++index)
         {
-            regions.append(apply_damage_step(base_layer, damage.steps[index]));
+            append_damage_step_regions(base_layer, damage.steps[index], regions);
         }
     }
     else
     {
         if (damage.has_scroll())
         {
-            regions.append(apply_scene_scroll(base_layer, damage.scroll.rect, damage.scroll.distance));
+            append_scene_scroll_regions(base_layer,
+                                        damage.scroll.rect,
+                                        damage.scroll.distance,
+                                        regions);
         }
 
         if (damage.has_dirty())
