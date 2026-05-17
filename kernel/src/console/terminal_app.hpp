@@ -88,6 +88,7 @@ public:
 private:
     uint64_t text_grid_width() const;
     uint64_t text_grid_height() const;
+    display::Rect text_grid_rect() const;
     display::Rect cell_rect(uint64_t column, uint64_t row) const;
     display::Rect row_tail_rect(uint64_t column, uint64_t row) const;
 
@@ -97,6 +98,7 @@ private:
     void render_buffer_cell(uint64_t column, uint64_t row);
     void clear_gutter_region(display::Rect gutter, display::Rect dirty_rect);
     void clear_terminal_gutters(display::Rect dirty_rect);
+    display::Rect scroll_backing_text_grid_up();
     display::Rect render_dirty_text_cells();
     display::Rect render_text_repaint(bool repaint_entire_layer);
     bool allocate_backing_surface();

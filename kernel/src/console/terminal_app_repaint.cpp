@@ -113,6 +113,32 @@ void TerminalApp::clear_terminal_gutters(display::Rect dirty_rect)
     }
 }
 
+display::Rect TerminalApp::scroll_backing_text_grid_up()
+{
+    const display::Rect grid = text_grid_rect();
+    if (grid.empty() || grid.height <= kCellHeight)
+    {
+        return {};
+    }
+
+    const display::Rect source = {
+        grid.x,
+        grid.y + kCellHeight,
+        grid.width,
+        grid.height - kCellHeight,
+    };
+    const display::Rect moved = backing_.copy_rect(source, grid.x, grid.y);
+
+    const display::Rect exposed = {
+        grid.x,
+        grid.y + grid.height - kCellHeight,
+        grid.width,
+        kCellHeight,
+    };
+    renderer_.clear_rect(exposed);
+    return display::bounding_rect(moved, exposed);
+}
+
 display::Rect TerminalApp::render_dirty_text_cells()
 {
     display::Rect dirty_rect;

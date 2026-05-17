@@ -92,6 +92,16 @@ uint64_t TerminalApp::text_grid_height() const
     return text_buffer_.rows() * kCellHeight;
 }
 
+display::Rect TerminalApp::text_grid_rect() const
+{
+    return {
+        app_surface_.bounds.x,
+        app_surface_.bounds.y,
+        text_grid_width(),
+        text_grid_height(),
+    };
+}
+
 display::Rect TerminalApp::cell_rect(uint64_t column, uint64_t row) const
 {
     return {
@@ -120,6 +130,7 @@ display::Rect TerminalApp::row_tail_rect(uint64_t column, uint64_t row) const
 display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
 {
     display::Rect dirty_rect;
+    const bool can_scroll_backing = update.scroll && render_cache_.valid();
     const bool draw_immediately =
         !update.scroll && !repaint_.pending_text_repaint() && render_cache_.valid();
 
@@ -147,8 +158,31 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
 
     if (update.scroll)
     {
-        text_buffer_.scroll_up();
-        apply_repaint_request(repaint_.record_scroll(bounds()));
+        if (can_scroll_backing && update.action == text::TextConsoleAction::DrawGlyph)
+        {
+            render_text_cell(update.cell.column, update.cell.row, update.glyph);
+        }
+        if (can_scroll_backing && update.action == text::TextConsoleAction::ClearCell)
+        {
+            render_text_cell(update.cell.column, update.cell.row, text::kTextBufferBlank);
+        }
+
+        if (!text_buffer_.scroll_up())
+        {
+            apply_repaint_request(repaint_.record_scroll(bounds()));
+            return {};
+        }
+
+        const display::Rect scroll_dirty = can_scroll_backing ? scroll_backing_text_grid_up()
+                                                              : display::Rect{};
+        if (scroll_dirty.empty())
+        {
+            apply_repaint_request(repaint_.record_scroll(bounds()));
+            return {};
+        }
+
+        render_cache_.synchronize_from(text_buffer_);
+        apply_repaint_request(repaint_.record_dirty(scroll_dirty));
         return {};
     }
 
