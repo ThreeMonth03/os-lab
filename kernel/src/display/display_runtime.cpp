@@ -9,7 +9,10 @@
 #include "kernel/display/composited_surface.hpp"
 #include "kernel/display/display_palette.hpp"
 #include "kernel/display/display_target.hpp"
+#include "kernel/display/framebuffer_presenter.hpp"
 #include "kernel/display/gui_surface.hpp"
+#include "kernel/display/scene_buffer.hpp"
+#include "kernel/memory/heap.hpp"
 
 namespace
 {
@@ -22,6 +25,8 @@ namespace gui_panel = kernel::display::gui_panel;
 struct DisplayRuntimeState
 {
     display::Surface surface;
+    display::SceneBuffer scene;
+    display::FramebufferPresenter presenter;
     display::DisplayTargetRegistry targets;
     display::AppSurfaceRegistry app_surfaces;
     display::GuiSurfaceRegistry gui_surfaces;
@@ -29,6 +34,8 @@ struct DisplayRuntimeState
     display::Color terminal_foreground;
     display::Color terminal_background;
     display::HitTestResult pointer_target;
+    uint32_t * scene_memory = nullptr;
+    size_t scene_bytes = 0;
 };
 
 DisplayRuntimeState g_state;
@@ -116,22 +123,49 @@ display::Rect terminal_app_bounds_for(const limine_framebuffer & framebuffer,
     return app_bounds;
 }
 
-void reset_display_runtime_state(const limine_framebuffer & framebuffer)
+bool reset_display_runtime_state(const limine_framebuffer & framebuffer)
 {
+    uint32_t * old_scene_memory = g_state.scene_memory;
     g_state = {};
+    if (old_scene_memory != nullptr)
+    {
+        if (!kernel::memory::heap::free(old_scene_memory))
+        {
+            return false;
+        }
+    }
+
     g_state.surface = display::Surface(framebuffer.address,
                                        framebuffer.width,
                                        framebuffer.height,
                                        framebuffer.pitch);
+    size_t scene_bytes = 0;
+    const display::Rect bounds = framebuffer_bounds(framebuffer);
+    if (!display::backing_surface_required_bytes(bounds, scene_bytes))
+    {
+        return false;
+    }
+
+    void * scene_memory = kernel::memory::heap::allocate(scene_bytes, alignof(uint32_t));
+    if (scene_memory == nullptr)
+    {
+        return false;
+    }
+
+    g_state.scene_memory = static_cast<uint32_t *>(scene_memory);
+    g_state.scene_bytes = scene_bytes;
+    g_state.scene = display::SceneBuffer(g_state.scene_memory, bounds, framebuffer.width);
+    g_state.presenter.reset(g_state.surface, g_state.scene);
     display::compositor::init(framebuffer_bounds(framebuffer));
-    display::compositor::set_framebuffer_surface(g_state.surface);
+    display::compositor::set_scene_buffer(g_state.scene);
+    display::compositor::set_presenter(g_state.presenter);
+    return true;
 }
 
 bool init_desktop_background_layer(const limine_framebuffer & framebuffer,
                                    display::DisplayPalette palette)
 {
-    return desktop_background::init(g_state.surface,
-                                    framebuffer_bounds(framebuffer),
+    return desktop_background::init(framebuffer_bounds(framebuffer),
                                     desktop_background::solid_background(
                                         color_for(framebuffer, palette.desktop_background)));
 }
@@ -166,8 +200,7 @@ display::Rect init_optional_gui_panel_layer(const limine_framebuffer & framebuff
         return {};
     }
 
-    if (!gui_panel::init(g_state.surface,
-                         *registered_panel,
+    if (!gui_panel::init(*registered_panel,
                          color_for(framebuffer, palette.panel_border),
                          color_for(framebuffer, palette.desktop_background),
                          color_for(framebuffer, palette.panel_foreground),
@@ -184,8 +217,7 @@ bool init_terminal_app_layer(const limine_framebuffer & framebuffer,
                              gui_panel::Config panel_config,
                              display::Rect active_panel_bounds,
                              uint64_t terminal_cell_width,
-                             uint64_t terminal_cell_height,
-                             display::compositor::LayerRepaintCallback repaint_callback)
+                             uint64_t terminal_cell_height)
 {
     g_state.terminal_app_surface =
         display::make_app_surface(display::kTerminalAppSurfaceId,
@@ -226,9 +258,7 @@ bool init_terminal_app_layer(const limine_framebuffer & framebuffer,
     g_state.terminal_foreground = color_for(framebuffer, palette.terminal_foreground);
     g_state.terminal_background = color_for(framebuffer, palette.terminal_background);
 
-    return display::compositor::register_surface(registered_app->composited_surface()) &&
-           display::compositor::register_layer_repaint_callback(display::LayerKind::AppSurface,
-                                                                repaint_callback);
+    return display::compositor::register_surface(registered_app->composited_surface());
 }
 
 void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
@@ -258,8 +288,7 @@ void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
         return;
     }
 
-    if (!debug_overlay::init(g_state.surface,
-                             *overlay_target,
+    if (!debug_overlay::init(*overlay_target,
                              color_for(framebuffer, palette.debug_overlay_foreground),
                              color_for(framebuffer, palette.debug_overlay_background)))
     {
@@ -274,20 +303,13 @@ namespace kernel::display::runtime
 
 bool ready()
 {
-    return g_state.surface.ready() && g_state.terminal_app_surface.valid() &&
+    return g_state.surface.ready() && g_state.scene.ready() && g_state.presenter.ready() &&
+           g_state.terminal_app_surface.valid() &&
            g_state.targets.active_target().valid();
 }
 
-bool init(
-    uint64_t terminal_cell_width,
-    uint64_t terminal_cell_height,
-    display::compositor::LayerRepaintCallback terminal_repaint_callback)
+bool init(uint64_t terminal_cell_width, uint64_t terminal_cell_height)
 {
-    if (terminal_repaint_callback == nullptr)
-    {
-        return false;
-    }
-
     const limine_framebuffer * framebuffer =
         select_usable_framebuffer(terminal_cell_width, terminal_cell_height);
     if (framebuffer == nullptr)
@@ -295,7 +317,10 @@ bool init(
         return false;
     }
 
-    reset_display_runtime_state(*framebuffer);
+    if (!reset_display_runtime_state(*framebuffer))
+    {
+        return false;
+    }
 
     const gui_panel::Config panel_config = gui_panel::default_config();
     constexpr display::DisplayPalette palette = display::default_display_palette();
@@ -311,8 +336,7 @@ bool init(
                                  panel_config,
                                  active_panel_bounds,
                                  terminal_cell_width,
-                                 terminal_cell_height,
-                                 terminal_repaint_callback))
+                                 terminal_cell_height))
     {
         return false;
     }
@@ -328,7 +352,6 @@ bool init(
 TerminalAppConfig terminal_app_config()
 {
     return {
-        &g_state.surface,
         g_state.terminal_app_surface,
         g_state.terminal_foreground,
         g_state.terminal_background,
@@ -359,6 +382,11 @@ void refresh_debug_overlay_if_due()
 void compose_terminal_app_region(Rect rect)
 {
     display::compositor::repaint_layers_from(display::LayerKind::AppSurface, rect);
+}
+
+void scroll_terminal_app_region_up(Rect rect, uint64_t distance)
+{
+    display::compositor::scroll_layer_region_up(display::LayerKind::AppSurface, rect, distance);
 }
 
 bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback)

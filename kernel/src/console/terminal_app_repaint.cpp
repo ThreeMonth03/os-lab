@@ -76,43 +76,6 @@ void TerminalApp::render_buffer_cell(uint64_t column, uint64_t row)
     render_text_cell(column, row, text_buffer_.glyph_at(column, row));
 }
 
-void TerminalApp::clear_gutter_region(display::Rect gutter, display::Rect dirty_rect)
-{
-    const display::Rect clipped = display::intersect_rect(gutter, dirty_rect);
-    if (!clipped.empty())
-    {
-        renderer_.clear_rect(clipped);
-    }
-}
-
-void TerminalApp::clear_terminal_gutters(display::Rect dirty_rect)
-{
-    const uint64_t grid_width = text_grid_width();
-    const uint64_t grid_height = text_grid_height();
-    const display::Rect terminal_bounds = bounds();
-
-    if (grid_width < terminal_bounds.width)
-    {
-        clear_gutter_region({
-                                terminal_bounds.x + grid_width,
-                                terminal_bounds.y,
-                                terminal_bounds.width - grid_width,
-                                terminal_bounds.height,
-                            },
-                            dirty_rect);
-    }
-    if (grid_height < terminal_bounds.height)
-    {
-        clear_gutter_region({
-                                terminal_bounds.x,
-                                terminal_bounds.y + grid_height,
-                                terminal_bounds.width,
-                                terminal_bounds.height - grid_height,
-                            },
-                            dirty_rect);
-    }
-}
-
 display::Rect TerminalApp::scroll_backing_text_grid_up()
 {
     const display::Rect grid = text_grid_rect();
@@ -174,32 +137,6 @@ void TerminalApp::compose_terminal_region(display::Rect dirty_rect)
     if (!dirty_rect.empty() && repaint_sink_.repaint_terminal_region != nullptr)
     {
         repaint_sink_.repaint_terminal_region(dirty_rect);
-    }
-}
-
-void TerminalApp::repaint_region(display::Rect dirty_rect)
-{
-    if (!ready() || dirty_rect.empty())
-    {
-        return;
-    }
-
-    clear_terminal_gutters(dirty_rect);
-
-    for (uint64_t row = 0; row < text_buffer_.rows(); ++row)
-    {
-        for (uint64_t column = 0; column < text_buffer_.columns(); ++column)
-        {
-            if (display::rects_overlap(cell_rect(column, row), dirty_rect))
-            {
-                render_buffer_cell(column, row);
-            }
-        }
-    }
-
-    if (cursor_.visible && display::rects_overlap(cell_rect(cursor_.column, cursor_.row), dirty_rect))
-    {
-        renderer_.draw_cursor(cursor_.column, cursor_.row);
     }
 }
 

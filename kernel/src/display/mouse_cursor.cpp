@@ -36,7 +36,6 @@ constexpr char kCursorBitmap[kCursorHeight][kCursorWidth + 1] = {
 
 struct CursorState
 {
-    display::Surface surface;
     display::CursorGeometry geometry;
     kernel::input::PointerState pointer;
     uint32_t outline = 0;
@@ -56,7 +55,7 @@ uint32_t pack_rgb(const limine_framebuffer & framebuffer, uint8_t red, uint8_t g
 
 display::Rect current_bounds()
 {
-    if (!g_state.initialized || !g_state.surface.ready())
+    if (!g_state.initialized)
     {
         return {};
     }
@@ -66,39 +65,12 @@ display::Rect current_bounds()
 
 display::Rect current_damage_bounds()
 {
-    if (!g_state.initialized || !g_state.surface.ready())
+    if (!g_state.initialized)
     {
         return {};
     }
 
     return g_state.geometry.damage_rect(g_state.pointer.x(), g_state.pointer.y());
-}
-
-void draw_bitmap()
-{
-    const display::Rect visible = current_bounds();
-    if (visible.empty())
-    {
-        return;
-    }
-
-    const uint64_t bitmap_row_offset = visible.y - g_state.pointer.y();
-    const uint64_t bitmap_column_offset = visible.x - g_state.pointer.x();
-    for (uint64_t row = 0; row < visible.height; ++row)
-    {
-        for (uint64_t column = 0; column < visible.width; ++column)
-        {
-            const char pixel = kCursorBitmap[row + bitmap_row_offset][column + bitmap_column_offset];
-            if (pixel == '#')
-            {
-                g_state.surface.put_pixel(visible.x + column, visible.y + row, {g_state.outline});
-            }
-            else if (pixel == 'o')
-            {
-                g_state.surface.put_pixel(visible.x + column, visible.y + row, {g_state.fill});
-            }
-        }
-    }
 }
 
 display::PixelSample sample_cursor_pixel(uint64_t x, uint64_t y)
@@ -133,16 +105,6 @@ bool movement_pushed_against_edge(int16_t delta_x, int16_t delta_y)
                                       screen_delta_y);
 }
 
-void repaint_cursor(display::Rect dirty_rect)
-{
-    if (!g_state.initialized || !g_state.visible || !display::rects_overlap(current_bounds(), dirty_rect))
-    {
-        return;
-    }
-
-    draw_bitmap();
-}
-
 } // namespace
 
 namespace kernel::display::mouse_cursor
@@ -166,7 +128,6 @@ bool init()
         return false;
     }
 
-    g_state.surface = display::Surface(framebuffer->address, framebuffer->width, framebuffer->height, framebuffer->pitch);
     g_state.geometry = display::CursorGeometry({0, 0, framebuffer->width, framebuffer->height},
                                                kCursorWidth,
                                                kCursorHeight);
@@ -178,13 +139,13 @@ bool init()
                                          display::CompositedSurfaceRole::Cursor,
                                          {0, 0, framebuffer->width, framebuffer->height});
     const bool layer_registered = display::compositor::register_surface(cursor_surface);
-    const bool repaint_registered =
-        display::compositor::register_layer_repaint_callback(display::LayerKind::MouseCursor,
-                                                             repaint_cursor);
     const bool pixel_source_registered =
         display::compositor::register_layer_pixel_callback(display::LayerKind::MouseCursor,
                                                            sample_cursor_pixel);
-    if (!layer_registered || !repaint_registered || !pixel_source_registered)
+    const bool bounds_registered =
+        display::compositor::register_layer_bounds_callback(display::LayerKind::MouseCursor,
+                                                            current_damage_bounds);
+    if (!layer_registered || !pixel_source_registered || !bounds_registered)
     {
         g_state = {};
         return false;

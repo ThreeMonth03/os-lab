@@ -11,11 +11,6 @@ namespace display = kernel::display;
 
 kernel::console::TerminalApp g_terminal_app;
 
-void repaint_terminal_text_region(kernel::display::Rect dirty_rect)
-{
-    g_terminal_app.repaint_region(dirty_rect);
-}
-
 kernel::display::PixelSample sample_terminal_pixel(uint64_t x, uint64_t y)
 {
     return g_terminal_app.sample_pixel(x, y);
@@ -28,9 +23,7 @@ namespace kernel::console::terminal
 
 bool init()
 {
-    if (!display::runtime::init(TerminalApp::kCellWidth,
-                                TerminalApp::kCellHeight,
-                                repaint_terminal_text_region))
+    if (!display::runtime::init(TerminalApp::kCellWidth, TerminalApp::kCellHeight))
     {
         return false;
     }
@@ -38,6 +31,7 @@ bool init()
     const display::runtime::TerminalAppConfig config = display::runtime::terminal_app_config();
     const TerminalRepaintSink repaint_sink{
         display::runtime::compose_terminal_app_region,
+        display::runtime::scroll_terminal_app_region_up,
     };
     if (!config.valid() ||
         !g_terminal_app.reset(config.app_surface, config.foreground, config.background, repaint_sink))

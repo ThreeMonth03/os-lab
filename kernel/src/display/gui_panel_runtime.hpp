@@ -5,8 +5,7 @@
 namespace kernel::display::gui_panel
 {
 
-[[nodiscard]] bool init(Surface & surface,
-                        const GuiSurface & panel,
+[[nodiscard]] bool init(const GuiSurface & panel,
                         Color border,
                         Color background,
                         Color foreground,

@@ -18,8 +18,9 @@ namespace kernel::console
 struct TerminalRepaintSink
 {
     void (*repaint_terminal_region)(display::Rect rect) = nullptr;
+    void (*scroll_terminal_region_up)(display::Rect rect, uint64_t distance) = nullptr;
 
-    bool ready() const { return repaint_terminal_region != nullptr; }
+    bool ready() const { return repaint_terminal_region != nullptr && scroll_terminal_region_up != nullptr; }
 };
 
 struct TerminalCursorState
@@ -67,7 +68,6 @@ public:
 
     void begin_update();
     void end_update();
-    void repaint_region(display::Rect dirty_rect);
     display::PixelSample sample_pixel(uint64_t x, uint64_t y) const;
 
     void clear();
@@ -96,8 +96,6 @@ private:
     void repaint_text_layer();
     void render_text_cell(uint64_t column, uint64_t row, char glyph);
     void render_buffer_cell(uint64_t column, uint64_t row);
-    void clear_gutter_region(display::Rect gutter, display::Rect dirty_rect);
-    void clear_terminal_gutters(display::Rect dirty_rect);
     display::Rect scroll_backing_text_grid_up();
     display::Rect render_dirty_text_cells();
     display::Rect render_text_repaint(bool repaint_entire_layer);

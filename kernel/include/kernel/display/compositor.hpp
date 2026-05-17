@@ -6,6 +6,8 @@
 #include "kernel/display/display.hpp"
 #include "kernel/display/display_target.hpp"
 #include "kernel/display/backing_surface.hpp"
+#include "kernel/display/framebuffer_presenter.hpp"
+#include "kernel/display/scene_buffer.hpp"
 
 namespace kernel::display
 {
@@ -156,16 +158,17 @@ private:
 namespace compositor
 {
 
-using LayerRepaintCallback = void (*)(Rect dirty_rect);
 using LayerPixelCallback = PixelSample (*)(uint64_t x, uint64_t y);
+using LayerBoundsCallback = Rect (*)();
 
 void init(Rect bounds);
-void set_framebuffer_surface(Surface & surface);
+void set_scene_buffer(SceneBuffer & scene_buffer);
+void set_presenter(FramebufferPresenter & presenter);
 [[nodiscard]] bool register_surface(CompositedSurfaceDescriptor surface);
-[[nodiscard]] bool register_layer_repaint_callback(LayerKind kind, LayerRepaintCallback callback);
 [[nodiscard]] bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback);
-void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect);
+[[nodiscard]] bool register_layer_bounds_callback(LayerKind kind, LayerBoundsCallback callback);
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
+void scroll_layer_region_up(LayerKind layer, Rect rect, uint64_t distance);
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds);
 
 } // namespace compositor

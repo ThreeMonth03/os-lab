@@ -5,6 +5,6 @@
 namespace kernel::display::desktop_background
 {
 
-[[nodiscard]] bool init(Surface & surface, Rect bounds, BackgroundSource source);
+[[nodiscard]] bool init(Rect bounds, BackgroundSource source);
 
 } // namespace kernel::display::desktop_background

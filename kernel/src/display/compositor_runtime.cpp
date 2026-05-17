@@ -7,16 +7,16 @@ namespace
 
 kernel::display::Compositor g_compositor;
 
-struct LayerRepaintCallbackSlot
-{
-    kernel::display::LayerKind kind = kernel::display::LayerKind::None;
-    kernel::display::compositor::LayerRepaintCallback callback = nullptr;
-};
-
 struct LayerPixelCallbackSlot
 {
     kernel::display::LayerKind kind = kernel::display::LayerKind::None;
     kernel::display::compositor::LayerPixelCallback callback = nullptr;
+};
+
+struct LayerBoundsCallbackSlot
+{
+    kernel::display::LayerKind kind = kernel::display::LayerKind::None;
+    kernel::display::compositor::LayerBoundsCallback callback = nullptr;
 };
 
 constexpr kernel::display::LayerKind kTopDownLayerOrder[] = {
@@ -27,22 +27,10 @@ constexpr kernel::display::LayerKind kTopDownLayerOrder[] = {
     kernel::display::LayerKind::DesktopBackground,
 };
 
-LayerRepaintCallbackSlot g_layer_repaint_callbacks[kernel::display::kMaxCompositorLayers] = {};
 LayerPixelCallbackSlot g_layer_pixel_callbacks[kernel::display::kMaxCompositorLayers] = {};
-kernel::display::Surface * g_front_surface = nullptr;
-
-kernel::display::compositor::LayerRepaintCallback layer_repaint_callback_for(
-    kernel::display::LayerKind kind)
-{
-    for (auto & slot : g_layer_repaint_callbacks)
-    {
-        if (slot.kind == kind)
-        {
-            return slot.callback;
-        }
-    }
-    return nullptr;
-}
+LayerBoundsCallbackSlot g_layer_bounds_callbacks[kernel::display::kMaxCompositorLayers] = {};
+kernel::display::SceneBuffer * g_scene_buffer = nullptr;
+kernel::display::FramebufferPresenter * g_presenter = nullptr;
 
 kernel::display::compositor::LayerPixelCallback layer_pixel_callback_for(
     kernel::display::LayerKind kind)
@@ -55,6 +43,30 @@ kernel::display::compositor::LayerPixelCallback layer_pixel_callback_for(
         }
     }
     return nullptr;
+}
+
+kernel::display::compositor::LayerBoundsCallback layer_bounds_callback_for(
+    kernel::display::LayerKind kind)
+{
+    for (auto & slot : g_layer_bounds_callbacks)
+    {
+        if (slot.kind == kind)
+        {
+            return slot.callback;
+        }
+    }
+    return nullptr;
+}
+
+void refresh_presenter_cursor_overlay()
+{
+    if (g_presenter == nullptr)
+    {
+        return;
+    }
+
+    g_presenter->set_cursor_overlay(layer_pixel_callback_for(kernel::display::LayerKind::MouseCursor),
+                                    layer_bounds_callback_for(kernel::display::LayerKind::MouseCursor));
 }
 
 kernel::display::PixelSample layer_pixel_reader(const kernel::display::LayerPixelSource & source,
@@ -112,7 +124,7 @@ bool paint_source_region(const kernel::display::LayerPixelSource & source,
                          kernel::display::Rect dirty_rect)
 {
     kernel::display::Rect rect = kernel::display::intersect_rect(dirty_rect, source.bounds);
-    if (g_front_surface == nullptr || rect.empty())
+    if (g_scene_buffer == nullptr || !g_scene_buffer->ready() || rect.empty())
     {
         return false;
     }
@@ -127,7 +139,7 @@ bool paint_source_region(const kernel::display::LayerPixelSource & source,
             const kernel::display::PixelSample sample = source.read(source, x, y);
             if (sample.opaque())
             {
-                g_front_surface->put_pixel(x, y, sample.color);
+                g_scene_buffer->put_pixel(x, y, sample.color);
                 continue;
             }
 
@@ -189,13 +201,13 @@ bool can_compose_region_from(kernel::display::LayerKind base_layer,
 
 bool compose_backed_region_from(kernel::display::LayerKind base_layer, kernel::display::Rect dirty_rect)
 {
-    if (g_front_surface == nullptr || !g_front_surface->ready() || dirty_rect.empty())
+    if (g_scene_buffer == nullptr || !g_scene_buffer->ready() || g_presenter == nullptr ||
+        !g_presenter->ready() || dirty_rect.empty())
     {
         return false;
     }
 
-    dirty_rect = kernel::display::intersect_rect(dirty_rect,
-                                                 {0, 0, g_front_surface->width(), g_front_surface->height()});
+    dirty_rect = kernel::display::intersect_rect(dirty_rect, g_scene_buffer->bounds());
     if (dirty_rect.empty())
     {
         return true;
@@ -207,7 +219,11 @@ bool compose_backed_region_from(kernel::display::LayerKind base_layer, kernel::d
         g_compositor.repaint_plan_from(base_layer, dirty_rect);
     if (compose_repaint_plan(plan, sources, source_count))
     {
-        return true;
+        return g_presenter->present_rect(dirty_rect);
+    }
+    if (plan.count == 0 && base_layer == kernel::display::LayerKind::MouseCursor)
+    {
+        return g_presenter->present_rect(dirty_rect);
     }
 
     if (!can_compose_region_from(base_layer, dirty_rect, sources, source_count))
@@ -224,24 +240,11 @@ bool compose_backed_region_from(kernel::display::LayerKind base_layer, kernel::d
             kernel::display::Color color;
             if (kernel::display::final_pixel_at(sources, source_count, base_layer, x, y, color))
             {
-                g_front_surface->put_pixel(x, y, color);
+                g_scene_buffer->put_pixel(x, y, color);
             }
         }
     }
-    return true;
-}
-
-void repaint_plan(const kernel::display::LayerRepaintPlan & plan)
-{
-    for (size_t index = 0; index < plan.count; ++index)
-    {
-        const kernel::display::compositor::LayerRepaintCallback callback =
-            layer_repaint_callback_for(plan.at(index));
-        if (callback != nullptr)
-        {
-            callback(plan.rect_at(index));
-        }
-    }
+    return g_presenter->present_rect(dirty_rect);
 }
 
 } // namespace
@@ -252,53 +255,32 @@ namespace kernel::display::compositor
 void init(Rect bounds)
 {
     g_compositor.reset(bounds);
-    g_front_surface = nullptr;
-    for (auto & slot : g_layer_repaint_callbacks)
+    g_scene_buffer = nullptr;
+    g_presenter = nullptr;
+    for (auto & slot : g_layer_pixel_callbacks)
     {
         slot = {};
     }
-    for (auto & slot : g_layer_pixel_callbacks)
+    for (auto & slot : g_layer_bounds_callbacks)
     {
         slot = {};
     }
 }
 
-void set_framebuffer_surface(Surface & surface)
+void set_scene_buffer(SceneBuffer & scene_buffer)
 {
-    g_front_surface = &surface;
+    g_scene_buffer = &scene_buffer;
+}
+
+void set_presenter(FramebufferPresenter & presenter)
+{
+    g_presenter = &presenter;
+    refresh_presenter_cursor_overlay();
 }
 
 bool register_surface(CompositedSurfaceDescriptor surface)
 {
     return g_compositor.register_surface(surface);
-}
-
-bool register_layer_repaint_callback(LayerKind kind, LayerRepaintCallback callback)
-{
-    if (kind == LayerKind::None || callback == nullptr)
-    {
-        return false;
-    }
-
-    for (auto & slot : g_layer_repaint_callbacks)
-    {
-        if (slot.kind == kind)
-        {
-            slot.callback = callback;
-            return true;
-        }
-    }
-
-    for (auto & slot : g_layer_repaint_callbacks)
-    {
-        if (slot.kind == LayerKind::None)
-        {
-            slot = {kind, callback};
-            return true;
-        }
-    }
-
-    return false;
 }
 
 bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback)
@@ -313,6 +295,10 @@ bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback)
         if (slot.kind == kind)
         {
             slot.callback = callback;
+            if (kind == LayerKind::MouseCursor)
+            {
+                refresh_presenter_cursor_overlay();
+            }
             return true;
         }
     }
@@ -322,6 +308,10 @@ bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback)
         if (slot.kind == LayerKind::None)
         {
             slot = {kind, callback};
+            if (kind == LayerKind::MouseCursor)
+            {
+                refresh_presenter_cursor_overlay();
+            }
             return true;
         }
     }
@@ -329,18 +319,117 @@ bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback)
     return false;
 }
 
-void repaint_layers_above(LayerKind updated_layer, Rect dirty_rect)
+bool register_layer_bounds_callback(LayerKind kind, LayerBoundsCallback callback)
 {
-    repaint_plan(g_compositor.repaint_plan_above(updated_layer, dirty_rect));
+    if (kind == LayerKind::None || callback == nullptr)
+    {
+        return false;
+    }
+
+    for (auto & slot : g_layer_bounds_callbacks)
+    {
+        if (slot.kind == kind)
+        {
+            slot.callback = callback;
+            if (kind == LayerKind::MouseCursor)
+            {
+                refresh_presenter_cursor_overlay();
+            }
+            return true;
+        }
+    }
+
+    for (auto & slot : g_layer_bounds_callbacks)
+    {
+        if (slot.kind == LayerKind::None)
+        {
+            slot = {kind, callback};
+            if (kind == LayerKind::MouseCursor)
+            {
+                refresh_presenter_cursor_overlay();
+            }
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect)
 {
-    if (compose_backed_region_from(base_layer, dirty_rect))
+    compose_backed_region_from(base_layer, dirty_rect);
+}
+
+void scroll_layer_region_up(LayerKind layer, Rect rect, uint64_t distance)
+{
+    if (g_scene_buffer == nullptr || !g_scene_buffer->ready() || g_presenter == nullptr ||
+        !g_presenter->ready() || rect.empty() || distance == 0)
+    {
+        repaint_layers_from(layer, rect);
+        return;
+    }
+
+    rect = kernel::display::intersect_rect(rect, g_scene_buffer->bounds());
+    if (rect.empty())
     {
         return;
     }
-    repaint_plan(g_compositor.repaint_plan_from(base_layer, dirty_rect));
+
+    const kernel::display::compositor::LayerBoundsCallback cursor_bounds_callback =
+        layer_bounds_callback_for(LayerKind::MouseCursor);
+    if (cursor_bounds_callback != nullptr)
+    {
+        const Rect cursor = cursor_bounds_callback();
+        if (!cursor.empty() && !g_presenter->present_rect(cursor))
+        {
+            return;
+        }
+    }
+
+    const LayerRepaintPlan plan = g_compositor.repaint_plan_from(layer, rect);
+    for (size_t index = 0; index < plan.count; ++index)
+    {
+        if (plan.at(index) != layer)
+        {
+            continue;
+        }
+
+        const Rect piece = plan.rect_at(index);
+        if (piece.height <= distance)
+        {
+            repaint_layers_from(layer, piece);
+            continue;
+        }
+
+        const Rect source = {
+            piece.x,
+            piece.y + distance,
+            piece.width,
+            piece.height - distance,
+        };
+        if (!g_presenter->copy_scene_rect(source, piece.x, piece.y))
+        {
+            repaint_layers_from(layer, piece);
+            continue;
+        }
+
+        const Rect exposed = {
+            piece.x,
+            piece.y + piece.height - distance,
+            piece.width,
+            distance,
+        };
+        repaint_layers_from(layer, exposed);
+    }
+
+    if (cursor_bounds_callback != nullptr)
+    {
+        const Rect cursor = cursor_bounds_callback();
+        if (!cursor.empty() && !g_presenter->present_rect(cursor))
+        {
+            return;
+        }
+    }
 }
 
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds)

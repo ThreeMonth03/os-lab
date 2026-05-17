@@ -5,8 +5,7 @@
 namespace kernel::display::debug_overlay
 {
 
-[[nodiscard]] bool init(Surface & surface,
-                        const SurfaceDescriptor & target,
+[[nodiscard]] bool init(const SurfaceDescriptor & target,
                         Color foreground,
                         Color background,
                         Config config = {});
