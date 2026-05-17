@@ -99,4 +99,57 @@ TEST(DisplayTest, BackingSurfaceFillRectIsClipped)
     EXPECT_EQ(surface.pixel(11, 21).value, 0u);
 }
 
+TEST(DisplayTest, BackingSurfaceCopyRectScrollsPixelsWithinSurface)
+{
+    uint32_t pixels[12] = {};
+    for (uint32_t index = 0; index < 12; ++index)
+    {
+        pixels[index] = index + 1;
+    }
+    kernel::display::BackingSurface surface(pixels, {10, 20, 4, 3}, 4);
+
+    const kernel::display::Rect copied = surface.copy_rect({10, 21, 4, 2}, 10, 20);
+
+    expect_rect(copied, 10, 20, 4, 2);
+    EXPECT_EQ(surface.pixel(10, 20).value, 5u);
+    EXPECT_EQ(surface.pixel(13, 20).value, 8u);
+    EXPECT_EQ(surface.pixel(10, 21).value, 9u);
+    EXPECT_EQ(surface.pixel(13, 21).value, 12u);
+}
+
+TEST(DisplayTest, BackingSurfaceCopyRectHandlesOverlappingCopyDown)
+{
+    uint32_t pixels[12] = {};
+    for (uint32_t index = 0; index < 12; ++index)
+    {
+        pixels[index] = index + 1;
+    }
+    kernel::display::BackingSurface surface(pixels, {10, 20, 4, 3}, 4);
+
+    const kernel::display::Rect copied = surface.copy_rect({10, 20, 4, 2}, 10, 21);
+
+    expect_rect(copied, 10, 21, 4, 2);
+    EXPECT_EQ(surface.pixel(10, 21).value, 1u);
+    EXPECT_EQ(surface.pixel(13, 21).value, 4u);
+    EXPECT_EQ(surface.pixel(10, 22).value, 5u);
+    EXPECT_EQ(surface.pixel(13, 22).value, 8u);
+}
+
+TEST(DisplayTest, BackingSurfaceCopyRectClipsSourceAndDestination)
+{
+    uint32_t pixels[12] = {};
+    for (uint32_t index = 0; index < 12; ++index)
+    {
+        pixels[index] = index + 1;
+    }
+    kernel::display::BackingSurface surface(pixels, {10, 20, 4, 3}, 4);
+
+    const kernel::display::Rect copied = surface.copy_rect({9, 20, 4, 3}, 12, 21);
+
+    expect_rect(copied, 13, 21, 1, 2);
+    EXPECT_EQ(surface.pixel(13, 21).value, 1u);
+    EXPECT_EQ(surface.pixel(13, 22).value, 5u);
+    EXPECT_EQ(surface.pixel(12, 21).value, 7u);
+}
+
 } // namespace
