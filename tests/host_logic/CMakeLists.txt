@@ -9,11 +9,13 @@ set(OS_LAB_HOST_LOGIC_DISPLAY_SOURCES
     ${PROJECT_SOURCE_DIR}/kernel/src/display/debug_overlay_renderer.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/display.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/display_target.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/display/framebuffer_presenter.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/gui_panel.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/gui_panel_renderer.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/gui_surface.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/hit_test.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/image_view.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/display/scene_buffer.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/terminal_render_cache.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/terminal_repaint_state.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/terminal_renderer.cpp

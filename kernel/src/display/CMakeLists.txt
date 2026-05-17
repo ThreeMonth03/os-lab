@@ -13,6 +13,7 @@ add_library(os_lab_kernel_display OBJECT
     display.cpp
     display_runtime.cpp
     display_target.cpp
+    framebuffer_presenter.cpp
     gui_panel.cpp
     gui_panel_renderer.cpp
     gui_panel_runtime.cpp
@@ -20,6 +21,7 @@ add_library(os_lab_kernel_display OBJECT
     hit_test.cpp
     image_view.cpp
     mouse_cursor.cpp
+    scene_buffer.cpp
     terminal_render_cache.cpp
     terminal_repaint_state.cpp
     terminal_renderer.cpp
