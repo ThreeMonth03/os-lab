@@ -22,6 +22,10 @@
 #define OS_LAB_DISPLAY_PROFILING 0
 #endif
 
+#ifndef OS_LAB_DISPLAY_PROFILE_SCRIPT
+#define OS_LAB_DISPLAY_PROFILE_SCRIPT 0
+#endif
+
 namespace
 {
 
@@ -218,6 +222,81 @@ void handle_key_event(const kernel::input::keyboard::KeyEvent & event, kernel::t
     }
 }
 
+#if OS_LAB_DISPLAY_PROFILE_SCRIPT
+
+kernel::input::keyboard::KeyEvent make_profile_script_character_event(char character, bool caps_lock)
+{
+    kernel::input::keyboard::KeyEvent event;
+    event.key = kernel::input::keyboard::Key::Character;
+    event.character = character;
+    event.pressed = true;
+    event.caps_lock = caps_lock;
+    return event;
+}
+
+kernel::input::keyboard::KeyEvent make_profile_script_enter_event(bool caps_lock)
+{
+    kernel::input::keyboard::KeyEvent event;
+    event.key = kernel::input::keyboard::Key::Enter;
+    event.pressed = true;
+    event.caps_lock = caps_lock;
+    return event;
+}
+
+void dispatch_profile_script_key(const kernel::input::keyboard::KeyEvent & event,
+                                 kernel::text::LineEditor & line,
+                                 kernel::shell::EditorView & view,
+                                 bool & caps_lock,
+                                 kernel::text::History & history)
+{
+    {
+        terminal::ScopedUpdate terminal_update;
+        handle_key_event(event, line, view, caps_lock, history);
+    }
+    finish_display_profile_after_frame();
+}
+
+void type_profile_script_command(kernel::StringView command,
+                                 kernel::text::LineEditor & line,
+                                 kernel::shell::EditorView & view,
+                                 bool & caps_lock,
+                                 kernel::text::History & history)
+{
+    for (size_t index = 0; index < command.size(); ++index)
+    {
+        dispatch_profile_script_key(make_profile_script_character_event(command[index], caps_lock),
+                                    line,
+                                    view,
+                                    caps_lock,
+                                    history);
+    }
+
+    dispatch_profile_script_key(make_profile_script_enter_event(caps_lock), line, view, caps_lock, history);
+}
+
+void run_display_profile_script(kernel::text::LineEditor & line,
+                                kernel::shell::EditorView & view,
+                                bool & caps_lock,
+                                kernel::text::History & history)
+{
+    constexpr kernel::StringView kProfileCommands[] = {
+        "help",
+        "input",
+        "heap",
+        "slab",
+        "a",
+    };
+
+    serial::write_line("os-lab: display profile script running");
+    for (kernel::StringView command : kProfileCommands)
+    {
+        type_profile_script_command(command, line, view, caps_lock, history);
+    }
+    serial::write_line("os-lab: display profile script done");
+}
+
+#endif
+
 void handle_mouse_move_event(const kernel::input::MouseMoveEvent & event)
 {
     if (!event.x_overflow && !event.y_overflow)
@@ -277,6 +356,10 @@ namespace kernel::shell
     }
     finish_display_profile_after_frame();
     serial::write_line("os-lab: interactive terminal ready");
+
+#if OS_LAB_DISPLAY_PROFILE_SCRIPT
+    run_display_profile_script(line, view, caps_lock, history);
+#endif
 
     while (true)
     {
