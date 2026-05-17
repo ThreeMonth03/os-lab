@@ -17,10 +17,9 @@ namespace kernel::console
 
 struct TerminalRepaintSink
 {
-    void (*repaint_terminal_region)(display::Rect rect) = nullptr;
-    void (*scroll_terminal_region_up)(display::Rect rect, uint64_t distance) = nullptr;
+    void (*submit_terminal_damage)(display::FrameDamage damage) = nullptr;
 
-    bool ready() const { return repaint_terminal_region != nullptr && scroll_terminal_region_up != nullptr; }
+    bool ready() const { return submit_terminal_damage != nullptr; }
 };
 
 struct TerminalCursorState
@@ -104,10 +103,7 @@ private:
     bool allocate_backing_surface();
     void compose_terminal_region(display::Rect dirty_rect);
     void flush_pre_scroll_terminal_region(display::Rect current_dirty);
-    void apply_repaint(display::Rect dirty_rect,
-                       bool repaint_text_layer,
-                       bool repaint_entire_text_layer,
-                       bool repaint_higher_layers);
+    void apply_repaint(display::FrameDamage damage);
     void apply_repaint_request(display::TerminalRepaintRequest request);
     void apply_repaint_flush(display::TerminalRepaintFlush flush);
     void record_console_dirty(display::Rect dirty_rect);

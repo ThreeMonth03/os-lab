@@ -44,10 +44,13 @@ TEST(CompositedSurfaceTest, MapsRolesToLayerOrder)
         kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::App)));
     EXPECT_TRUE(kernel::display::layer_above(
         kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::Overlay),
-        kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::TextCaret)));
+        kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::App)));
+    EXPECT_TRUE(kernel::display::layer_above(
+        kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::TextCaret),
+        kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::Overlay)));
     EXPECT_TRUE(kernel::display::layer_above(
         kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::Cursor),
-        kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::Overlay)));
+        kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::TextCaret)));
 }
 
 TEST(CompositedSurfaceTest, MapsRolesToInputPolicy)
@@ -136,7 +139,7 @@ TEST(CompositedSurfaceTest, BuildsTextCaretDescriptorAsTransparentLayer)
     EXPECT_EQ(caret.layer().kind, kernel::display::LayerKind::TerminalCaret);
     EXPECT_FALSE(caret.display_target().valid());
     EXPECT_TRUE(kernel::display::layer_above(caret.layer().kind, kernel::display::LayerKind::AppSurface));
-    EXPECT_FALSE(kernel::display::layer_above(caret.layer().kind, kernel::display::LayerKind::DebugOverlay));
+    EXPECT_TRUE(kernel::display::layer_above(caret.layer().kind, kernel::display::LayerKind::DebugOverlay));
 }
 
 TEST(CompositedSurfaceTest, BuildsCursorDescriptorAsTransparentTopLayer)

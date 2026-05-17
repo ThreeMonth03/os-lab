@@ -123,9 +123,9 @@ display::Rect TerminalApp::render_text_repaint(bool repaint_entire_layer)
 
 void TerminalApp::compose_terminal_region(display::Rect dirty_rect)
 {
-    if (!dirty_rect.empty() && repaint_sink_.repaint_terminal_region != nullptr)
+    if (!dirty_rect.empty() && repaint_sink_.submit_terminal_damage != nullptr)
     {
-        repaint_sink_.repaint_terminal_region(dirty_rect);
+        repaint_sink_.submit_terminal_damage({dirty_rect, {}});
     }
 }
 
@@ -136,37 +136,32 @@ void TerminalApp::flush_pre_scroll_terminal_region(display::Rect current_dirty)
     compose_terminal_region(current_dirty);
 }
 
-void TerminalApp::apply_repaint(display::Rect dirty_rect,
-                                bool repaint_text_layer,
-                                bool repaint_entire_text_layer,
-                                bool repaint_higher_layers)
+void TerminalApp::apply_repaint(display::FrameDamage damage)
 {
-    if (repaint_text_layer)
+    if (damage.empty())
     {
-        dirty_rect =
-            display::bounding_rect(dirty_rect, render_text_repaint(repaint_entire_text_layer));
+        return;
     }
 
-    if (repaint_higher_layers)
+    if (!render_cache_.valid())
     {
-        compose_terminal_region(dirty_rect);
+        damage.dirty_rect = display::bounding_rect(damage.dirty_rect, render_text_repaint(true));
+    }
+
+    if (repaint_sink_.submit_terminal_damage != nullptr)
+    {
+        repaint_sink_.submit_terminal_damage(damage);
     }
 }
 
 void TerminalApp::apply_repaint_request(display::TerminalRepaintRequest request)
 {
-    apply_repaint(request.dirty_rect,
-                  request.repaint_text_layer,
-                  request.repaint_entire_text_layer,
-                  request.repaint_higher_layers);
+    apply_repaint(request.damage);
 }
 
 void TerminalApp::apply_repaint_flush(display::TerminalRepaintFlush flush)
 {
-    apply_repaint(flush.dirty_rect,
-                  flush.repaint_text_layer,
-                  flush.repaint_entire_text_layer,
-                  flush.repaint_higher_layers);
+    apply_repaint(flush.damage);
 }
 
 void TerminalApp::record_console_dirty(display::Rect dirty_rect)

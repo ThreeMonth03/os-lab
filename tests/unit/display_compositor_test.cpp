@@ -132,9 +132,9 @@ TEST(DisplayCompositorTest, OrdersDesktopGuiAppCaretOverlayAndMouseCursorLayers)
                                              kernel::display::LayerKind::GuiSurface));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::TerminalCaret,
                                              kernel::display::LayerKind::AppSurface));
-    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::DebugOverlay,
-                                             kernel::display::LayerKind::TerminalCaret));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::MouseCursor,
+                                             kernel::display::LayerKind::TerminalCaret));
+    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::TerminalCaret,
                                              kernel::display::LayerKind::DebugOverlay));
     EXPECT_FALSE(kernel::display::layer_above(kernel::display::LayerKind::DesktopBackground,
                                               kernel::display::LayerKind::MouseCursor));
@@ -422,7 +422,7 @@ TEST(DisplayCompositorTest, FinalPixelComposesTerminalUnderOverlayAndCursor)
     EXPECT_EQ(color.value, 9u);
 }
 
-TEST(DisplayCompositorTest, TerminalCaretIsTransientAboveAppAndBelowOverlayAndCursor)
+TEST(DisplayCompositorTest, TerminalCaretIsTransientAboveAppAndOverlayButBelowCursor)
 {
     const kernel::display::PixelSample terminal = kernel::display::opaque_pixel({3});
     const kernel::display::PixelSample caret = kernel::display::opaque_pixel({5});
@@ -443,13 +443,13 @@ TEST(DisplayCompositorTest, TerminalCaretIsTransientAboveAppAndBelowOverlayAndCu
          true},
     };
     const kernel::display::LayerPixelSource overlay_sources[] = {
+        caret_sources[0],
         {kernel::display::LayerKind::DebugOverlay,
          {10, 10, 1, 1},
          kernel::display::LayerOcclusion::Opaque,
          &overlay,
          fixed_sample,
          true},
-        caret_sources[0],
         caret_sources[1],
     };
     const kernel::display::LayerPixelSource cursor_sources[] = {
@@ -479,7 +479,7 @@ TEST(DisplayCompositorTest, TerminalCaretIsTransientAboveAppAndBelowOverlayAndCu
                                                 10,
                                                 10,
                                                 color));
-    EXPECT_EQ(color.value, 7u);
+    EXPECT_EQ(color.value, 5u);
 
     ASSERT_TRUE(kernel::display::final_pixel_at(cursor_sources,
                                                 4,

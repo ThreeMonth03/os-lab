@@ -5,6 +5,7 @@
 #include "kernel/display/app_surface.hpp"
 #include "kernel/display/compositor.hpp"
 #include "kernel/display/display.hpp"
+#include "kernel/display/frame_damage.hpp"
 
 namespace kernel::display::runtime
 {
@@ -24,8 +25,7 @@ struct TerminalAppConfig
 [[nodiscard]] TerminalAppConfig terminal_app_config();
 
 void refresh_desktop();
-void compose_terminal_app_region(Rect rect);
-void scroll_terminal_app_region_up(Rect rect, uint64_t distance);
+void submit_terminal_app_damage(FrameDamage damage);
 [[nodiscard]] bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback);
 [[nodiscard]] bool register_terminal_caret(compositor::LayerPixelCallback pixel_callback,
                                            compositor::LayerBoundsCallback bounds_callback);

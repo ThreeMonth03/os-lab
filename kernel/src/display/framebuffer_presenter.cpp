@@ -22,17 +22,41 @@ void FramebufferPresenter::reset(Surface & front_buffer, SceneBuffer & scene_buf
 void FramebufferPresenter::set_cursor_overlay(CursorPixelReader pixel_reader,
                                               CursorBoundsReader bounds_reader)
 {
-    cursor_pixel_ = pixel_reader;
-    cursor_bounds_ = bounds_reader;
+    set_overlay(0, pixel_reader, bounds_reader);
 }
 
-Rect FramebufferPresenter::cursor_bounds() const
+void FramebufferPresenter::set_overlay(size_t index,
+                                       CursorPixelReader pixel_reader,
+                                       CursorBoundsReader bounds_reader)
 {
-    if (cursor_bounds_ == nullptr)
+    if (index >= kMaxPresenterOverlays)
+    {
+        return;
+    }
+
+    overlay_pixels_[index] = pixel_reader;
+    overlay_bounds_[index] = bounds_reader;
+}
+
+Rect FramebufferPresenter::overlay_bounds(size_t index) const
+{
+    if (index >= kMaxPresenterOverlays || overlay_bounds_[index] == nullptr)
     {
         return {};
     }
-    return cursor_bounds_();
+    return overlay_bounds_[index]();
+}
+
+bool FramebufferPresenter::overlays_intersect(Rect rect) const
+{
+    for (size_t index = 0; index < kMaxPresenterOverlays; ++index)
+    {
+        if (!intersect_rect(rect, overlay_bounds(index)).empty())
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 void FramebufferPresenter::put_presented_pixel(uint64_t x, uint64_t y)
@@ -42,12 +66,17 @@ void FramebufferPresenter::put_presented_pixel(uint64_t x, uint64_t y)
         return;
     }
 
-    if (cursor_pixel_ != nullptr)
+    for (size_t index = 0; index < kMaxPresenterOverlays; ++index)
     {
-        const PixelSample cursor = cursor_pixel_(x, y);
-        if (cursor.opaque())
+        if (overlay_pixels_[index] == nullptr)
         {
-            front_buffer_->put_pixel(x, y, cursor.color);
+            continue;
+        }
+
+        const PixelSample overlay = overlay_pixels_[index](x, y);
+        if (overlay.opaque())
+        {
+            front_buffer_->put_pixel(x, y, overlay.color);
             return;
         }
     }
@@ -68,7 +97,7 @@ bool FramebufferPresenter::present_rect(Rect rect)
         return true;
     }
 
-    if (intersect_rect(rect, cursor_bounds()).empty())
+    if (!overlays_intersect(rect))
     {
         return copy_scene_to_front(rect);
     }
@@ -79,6 +108,32 @@ bool FramebufferPresenter::present_rect(Rect rect)
         for (uint64_t column = 0; column < rect.width; ++column)
         {
             put_presented_pixel(rect.x + column, y);
+        }
+    }
+    return true;
+}
+
+bool FramebufferPresenter::restore_overlay_regions()
+{
+    for (size_t index = 0; index < kMaxPresenterOverlays; ++index)
+    {
+        const Rect bounds = overlay_bounds(index);
+        if (!bounds.empty() && !copy_scene_to_front(bounds))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool FramebufferPresenter::present_overlay_regions()
+{
+    for (size_t index = kMaxPresenterOverlays; index > 0; --index)
+    {
+        const Rect bounds = overlay_bounds(index - 1);
+        if (!bounds.empty() && !present_rect(bounds))
+        {
+            return false;
         }
     }
     return true;
@@ -122,8 +177,7 @@ bool FramebufferPresenter::copy_scene_rect(Rect source,
         return false;
     }
 
-    const Rect cursor = cursor_bounds();
-    if (!cursor.empty() && !copy_scene_to_front(cursor))
+    if (!restore_overlay_regions())
     {
         return false;
     }
@@ -137,7 +191,7 @@ bool FramebufferPresenter::copy_scene_rect(Rect source,
     {
         return false;
     }
-    return cursor.empty() || present_rect(cursor);
+    return present_overlay_regions();
 }
 
 } // namespace kernel::display

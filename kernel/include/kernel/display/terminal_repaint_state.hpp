@@ -3,25 +3,20 @@
 #include <stdint.h>
 
 #include "kernel/display/display.hpp"
+#include "kernel/display/frame_damage.hpp"
 
 namespace kernel::display
 {
 
 struct TerminalRepaintRequest
 {
-    bool repaint_text_layer = false;
-    bool repaint_entire_text_layer = false;
-    bool repaint_higher_layers = false;
-    Rect dirty_rect;
+    FrameDamage damage;
 };
 
 struct TerminalRepaintFlush
 {
     bool outermost_batch_ended = false;
-    bool repaint_text_layer = false;
-    bool repaint_entire_text_layer = false;
-    bool repaint_higher_layers = false;
-    Rect dirty_rect;
+    FrameDamage damage;
 };
 
 class TerminalRepaintState
@@ -29,26 +24,20 @@ class TerminalRepaintState
 public:
     TerminalRepaintState() = default;
 
-    void reset();
+    void reset(Rect bounds);
     void begin_batch();
     [[nodiscard]] TerminalRepaintFlush end_batch();
     [[nodiscard]] TerminalRepaintFlush flush_pending();
     [[nodiscard]] TerminalRepaintRequest record_dirty(Rect rect);
-    [[nodiscard]] TerminalRepaintRequest record_scroll(Rect bounds);
+    [[nodiscard]] TerminalRepaintRequest record_scroll(Rect rect, uint64_t distance);
 
     bool in_batch() const { return update_depth_ > 0; }
-    bool pending_text_repaint() const { return pending_text_layer_repaint_; }
+    bool pending_damage() const { return !damage_.empty(); }
     uint32_t update_depth() const { return update_depth_; }
 
 private:
-    void clear_pending();
-    void record_pending_dirty(Rect rect);
-    void record_pending_text_repaint(Rect bounds);
-
     uint32_t update_depth_ = 0;
-    Rect pending_dirty_;
-    bool pending_dirty_valid_ = false;
-    bool pending_text_layer_repaint_ = false;
+    DamageAccumulator damage_;
 };
 
 } // namespace kernel::display

@@ -388,14 +388,20 @@ void refresh_debug_overlay_if_due()
     debug_overlay::refresh_if_due();
 }
 
-void compose_terminal_app_region(Rect rect)
+void submit_terminal_app_damage(FrameDamage damage)
 {
-    display::compositor::repaint_layers_from(display::LayerKind::AppSurface, rect);
-}
+    if (damage.has_scroll())
+    {
+        display::compositor::scroll_layer_region_up(display::LayerKind::AppSurface,
+                                                    damage.scroll.rect,
+                                                    damage.scroll.distance);
+    }
 
-void scroll_terminal_app_region_up(Rect rect, uint64_t distance)
-{
-    display::compositor::scroll_layer_region_up(display::LayerKind::AppSurface, rect, distance);
+    if (damage.has_dirty())
+    {
+        display::compositor::repaint_layers_from(display::LayerKind::AppSurface,
+                                                 damage.dirty_rect);
+    }
 }
 
 bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback)

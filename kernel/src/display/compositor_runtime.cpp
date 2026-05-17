@@ -21,8 +21,8 @@ struct LayerBoundsCallbackSlot
 
 constexpr kernel::display::LayerKind kTopDownLayerOrder[] = {
     kernel::display::LayerKind::MouseCursor,
-    kernel::display::LayerKind::DebugOverlay,
     kernel::display::LayerKind::TerminalCaret,
+    kernel::display::LayerKind::DebugOverlay,
     kernel::display::LayerKind::AppSurface,
     kernel::display::LayerKind::GuiSurface,
     kernel::display::LayerKind::DesktopBackground,
@@ -59,15 +59,25 @@ kernel::display::compositor::LayerBoundsCallback layer_bounds_callback_for(
     return nullptr;
 }
 
-void refresh_presenter_cursor_overlay()
+bool presenter_overlay_layer(kernel::display::LayerKind kind)
+{
+    return kind == kernel::display::LayerKind::MouseCursor ||
+           kind == kernel::display::LayerKind::TerminalCaret;
+}
+
+void refresh_presenter_overlays()
 {
     if (g_presenter == nullptr)
     {
         return;
     }
 
-    g_presenter->set_cursor_overlay(layer_pixel_callback_for(kernel::display::LayerKind::MouseCursor),
-                                    layer_bounds_callback_for(kernel::display::LayerKind::MouseCursor));
+    g_presenter->set_overlay(0,
+                             layer_pixel_callback_for(kernel::display::LayerKind::MouseCursor),
+                             layer_bounds_callback_for(kernel::display::LayerKind::MouseCursor));
+    g_presenter->set_overlay(1,
+                             layer_pixel_callback_for(kernel::display::LayerKind::TerminalCaret),
+                             layer_bounds_callback_for(kernel::display::LayerKind::TerminalCaret));
 }
 
 kernel::display::PixelSample layer_pixel_reader(const kernel::display::LayerPixelSource & source,
@@ -105,7 +115,8 @@ size_t collect_pixel_sources(kernel::display::LayerPixelSource (&sources)[kernel
     {
         const kernel::display::Layer * layer = g_compositor.find_layer(kind);
         const kernel::display::compositor::LayerPixelCallback callback = layer_pixel_callback_for(kind);
-        if (layer == nullptr || callback == nullptr || count >= kernel::display::kMaxCompositorLayers)
+        if (layer == nullptr || callback == nullptr || presenter_overlay_layer(kind) ||
+            count >= kernel::display::kMaxCompositorLayers)
         {
             continue;
         }
@@ -165,6 +176,11 @@ bool compose_repaint_plan(const kernel::display::LayerRepaintPlan & plan,
     bool complete = true;
     for (size_t index = 0; index < plan.count; ++index)
     {
+        if (presenter_overlay_layer(plan.at(index)))
+        {
+            continue;
+        }
+
         const kernel::display::LayerPixelSource * source =
             pixel_source_for(plan.at(index), sources, source_count);
         if (source == nullptr)
@@ -276,7 +292,7 @@ void set_scene_buffer(SceneBuffer & scene_buffer)
 void set_presenter(FramebufferPresenter & presenter)
 {
     g_presenter = &presenter;
-    refresh_presenter_cursor_overlay();
+    refresh_presenter_overlays();
 }
 
 bool register_surface(CompositedSurfaceDescriptor surface)
@@ -296,9 +312,9 @@ bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback)
         if (slot.kind == kind)
         {
             slot.callback = callback;
-            if (kind == LayerKind::MouseCursor)
+            if (presenter_overlay_layer(kind))
             {
-                refresh_presenter_cursor_overlay();
+                refresh_presenter_overlays();
             }
             return true;
         }
@@ -309,9 +325,9 @@ bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback)
         if (slot.kind == LayerKind::None)
         {
             slot = {kind, callback};
-            if (kind == LayerKind::MouseCursor)
+            if (presenter_overlay_layer(kind))
             {
-                refresh_presenter_cursor_overlay();
+                refresh_presenter_overlays();
             }
             return true;
         }
@@ -332,9 +348,9 @@ bool register_layer_bounds_callback(LayerKind kind, LayerBoundsCallback callback
         if (slot.kind == kind)
         {
             slot.callback = callback;
-            if (kind == LayerKind::MouseCursor)
+            if (presenter_overlay_layer(kind))
             {
-                refresh_presenter_cursor_overlay();
+                refresh_presenter_overlays();
             }
             return true;
         }
@@ -345,9 +361,9 @@ bool register_layer_bounds_callback(LayerKind kind, LayerBoundsCallback callback
         if (slot.kind == LayerKind::None)
         {
             slot = {kind, callback};
-            if (kind == LayerKind::MouseCursor)
+            if (presenter_overlay_layer(kind))
             {
-                refresh_presenter_cursor_overlay();
+                refresh_presenter_overlays();
             }
             return true;
         }
@@ -374,17 +390,6 @@ void scroll_layer_region_up(LayerKind layer, Rect rect, uint64_t distance)
     if (rect.empty())
     {
         return;
-    }
-
-    const kernel::display::compositor::LayerBoundsCallback cursor_bounds_callback =
-        layer_bounds_callback_for(LayerKind::MouseCursor);
-    if (cursor_bounds_callback != nullptr)
-    {
-        const Rect cursor = cursor_bounds_callback();
-        if (!cursor.empty() && !g_presenter->present_rect(cursor))
-        {
-            return;
-        }
     }
 
     const LayerRepaintPlan plan = g_compositor.repaint_plan_from(layer, rect);
@@ -421,15 +426,6 @@ void scroll_layer_region_up(LayerKind layer, Rect rect, uint64_t distance)
             distance,
         };
         repaint_layers_from(layer, exposed);
-    }
-
-    if (cursor_bounds_callback != nullptr)
-    {
-        const Rect cursor = cursor_bounds_callback();
-        if (!cursor.empty() && !g_presenter->present_rect(cursor))
-        {
-            return;
-        }
     }
 }
 

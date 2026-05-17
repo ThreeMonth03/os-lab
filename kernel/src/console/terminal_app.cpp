@@ -47,7 +47,7 @@ bool TerminalApp::reset(display::AppSurface app_surface,
     console_.reset(column_count, row_count);
     renderer_.reset(backing_, app_surface_.bounds, foreground, background);
     repaint_sink_ = repaint_sink;
-    repaint_.reset();
+    repaint_.reset(app_surface_.bounds);
     cursor_.reset();
     return renderer_.ready();
 }
@@ -158,7 +158,7 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
     display::Rect dirty_rect;
     const bool can_scroll_backing = update.scroll && render_cache_.valid();
     const bool draw_immediately =
-        !update.scroll && !repaint_.pending_text_repaint() && render_cache_.valid();
+        !update.scroll && !repaint_.pending_damage() && render_cache_.valid();
 
     switch (update.action)
     {
@@ -203,7 +203,8 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
 
         if (!text_buffer_.scroll_up())
         {
-            apply_repaint_request(repaint_.record_scroll(bounds()));
+            render_text_repaint(true);
+            apply_repaint_request(repaint_.record_dirty(bounds()));
             return {};
         }
 
@@ -211,18 +212,13 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
                                                               : display::Rect{};
         if (scroll_dirty.empty())
         {
-            apply_repaint_request(repaint_.record_scroll(bounds()));
+            render_text_repaint(true);
+            apply_repaint_request(repaint_.record_dirty(bounds()));
             return {};
         }
 
         render_cache_.synchronize_from(text_buffer_);
-        if (repaint_.in_batch())
-        {
-            apply_repaint_request(repaint_.record_dirty(scroll_dirty));
-            return {};
-        }
-
-        repaint_sink_.scroll_terminal_region_up(scroll_dirty, kCellHeight);
+        apply_repaint_request(repaint_.record_scroll(scroll_dirty, kCellHeight));
         return {};
     }
 

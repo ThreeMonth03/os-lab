@@ -30,6 +30,20 @@ kernel::display::Rect test_cursor_bounds()
     return {2, 1, 1, 1};
 }
 
+kernel::display::PixelSample test_caret_pixel(uint64_t x, uint64_t y)
+{
+    if (x == 2 && y == 1)
+    {
+        return kernel::display::opaque_pixel({77});
+    }
+    return kernel::display::transparent_pixel();
+}
+
+kernel::display::Rect test_caret_bounds()
+{
+    return {2, 1, 1, 1};
+}
+
 TEST(DisplayTest, ClipsRectToSurfaceBounds)
 {
     expect_rect(kernel::display::clip_rect({1, 2, 3, 4}, 10, 10), 1, 2, 3, 4);
@@ -223,6 +237,27 @@ TEST(DisplayTest, PresenterDrawsCursorOverlayWithoutChangingScene)
     EXPECT_EQ(scene.pixel(2, 1).value, 7u);
 }
 
+TEST(DisplayTest, PresenterDrawsMultipleTransientOverlaysWithCursorTopmost)
+{
+    uint32_t front_pixels[12] = {};
+    uint32_t scene_pixels[12] = {};
+    for (uint32_t index = 0; index < 12; ++index)
+    {
+        scene_pixels[index] = index + 1;
+    }
+    kernel::display::Surface front(front_pixels, 4, 3, 4 * sizeof(uint32_t));
+    kernel::display::SceneBuffer scene(scene_pixels, {0, 0, 4, 3}, 4);
+    kernel::display::FramebufferPresenter presenter;
+    presenter.reset(front, scene);
+    presenter.set_cursor_overlay(test_cursor_pixel, test_cursor_bounds);
+    presenter.set_overlay(1, test_caret_pixel, test_caret_bounds);
+
+    ASSERT_TRUE(presenter.present_rect({2, 1, 1, 1}));
+
+    EXPECT_EQ(front.pixel(2, 1).value, 99u);
+    EXPECT_EQ(scene.pixel(2, 1).value, 7u);
+}
+
 TEST(DisplayTest, PresenterCanCopySceneAndFrontForScroll)
 {
     uint32_t front_pixels[12] = {};
@@ -285,6 +320,29 @@ TEST(DisplayTest, PresenterDoesNotScrollCursorOverlayIntoCopiedScene)
 
     EXPECT_EQ(front.pixel(2, 0).value, 7u);
     EXPECT_EQ(front.pixel(2, 1).value, 99u);
+    EXPECT_EQ(scene.pixel(2, 1).value, 11u);
+}
+
+TEST(DisplayTest, PresenterDoesNotScrollTerminalCaretOverlayIntoCopiedScene)
+{
+    uint32_t front_pixels[12] = {};
+    uint32_t scene_pixels[12] = {};
+    for (uint32_t index = 0; index < 12; ++index)
+    {
+        front_pixels[index] = index + 1;
+        scene_pixels[index] = index + 1;
+    }
+    kernel::display::Surface front(front_pixels, 4, 3, 4 * sizeof(uint32_t));
+    kernel::display::SceneBuffer scene(scene_pixels, {0, 0, 4, 3}, 4);
+    kernel::display::FramebufferPresenter presenter;
+    presenter.reset(front, scene);
+    presenter.set_overlay(1, test_caret_pixel, test_caret_bounds);
+    front.put_pixel(2, 1, {77});
+
+    ASSERT_TRUE(presenter.copy_scene_rect({0, 1, 4, 2}, 0, 0));
+
+    EXPECT_EQ(front.pixel(2, 0).value, 7u);
+    EXPECT_EQ(front.pixel(2, 1).value, 77u);
     EXPECT_EQ(scene.pixel(2, 1).value, 11u);
 }
 

@@ -40,8 +40,7 @@ bool init()
 
     const display::runtime::TerminalAppConfig config = display::runtime::terminal_app_config();
     const TerminalRepaintSink repaint_sink{
-        display::runtime::compose_terminal_app_region,
-        display::runtime::scroll_terminal_app_region_up,
+        display::runtime::submit_terminal_app_damage,
     };
     if (!config.valid() ||
         !g_terminal_app.reset(config.app_surface, config.foreground, config.background, repaint_sink))
