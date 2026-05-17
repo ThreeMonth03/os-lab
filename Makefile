@@ -33,18 +33,20 @@ SMOKE_TIMER := ./scripts/smoke/smoke_timer.sh
 RUN_SMOKE_SUITE := ./scripts/smoke/run_all.sh
 
 TOOLCHAIN_FILE := $(PROJECT_ROOT)/cmake/toolchains/x86_64-none-clang.cmake
-SMOKE_BUILD_ENV = BUILD_DIR=$(BUILD_DIR) CMAKE=$(CMAKE) GENERATOR=$(GENERATOR) TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
+SMOKE_BUILD_ENV = BUILD_DIR=$(BUILD_DIR) CMAKE=$(CMAKE) GENERATOR=$(GENERATOR) TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE) DISPLAY_PROFILING=$(DISPLAY_PROFILING)
 ISO_IMAGE := $(BUILD_DIR)/os-lab.iso
 UNIT_BUILD_DIR := $(BUILD_DIR)/unit
 EXCEPTION_SMOKE ?= invalid_opcode
 GUI_PANEL_VISIBLE ?= OFF
+DISPLAY_PROFILING ?= OFF
+DISPLAY_PROFILE_LOG ?= $(BUILD_DIR)/logs/display-profile.log
 EXCEPTION_ISO_IMAGE := $(BUILD_DIR)/exception-smoke/$(EXCEPTION_SMOKE)/os-lab.iso
 TIMER_ISO_IMAGE := $(BUILD_DIR)/timer-smoke/os-lab.iso
 PAGING_ISO_IMAGE := $(BUILD_DIR)/paging-smoke/os-lab.iso
 HEAP_ISO_IMAGE := $(BUILD_DIR)/heap-smoke/os-lab.iso
 SLAB_ISO_IMAGE := $(BUILD_DIR)/slab-smoke/os-lab.iso
 
-.PHONY: help deps demo gui test demo-exception test-exception demo-timer test-timer test-paging test-heap test-slab test-smoke unit format tidy shell clean ci
+.PHONY: help deps demo gui profile-gui test demo-exception test-exception demo-timer test-timer test-paging test-heap test-slab test-smoke unit format tidy shell clean ci
 .PHONY: _check-native-tools _check-clang-format _check-clang-tidy _check-docker-compose _iso _run _run-gui _smoke _exception-iso _run-exception _smoke-exception _timer-iso _run-timer _smoke-timer _paging-iso _smoke-paging _heap-iso _smoke-heap _slab-iso _smoke-slab _smoke-isos _smoke-all _unit _format _format-check _tidy _docker-image _docker-iso _docker-exception-iso _docker-timer-iso _docker-paging-iso _docker-heap-iso _docker-slab-iso _docker-smoke-isos
 
 help:
@@ -55,6 +57,8 @@ help:
 		'  make gui       Build in Docker, then boot with a QEMU window' \
 		'  make gui GUI_PANEL_VISIBLE=ON' \
 		'                 Debug-only boot with the minimal GUI panel visible' \
+		'  make profile-gui' \
+		'                 Boot GUI with display profiling enabled and serial log capture' \
 		'  make test      Build in Docker, then run the QEMU smoke test' \
 		'  make demo-exception EXCEPTION_SMOKE=page_fault' \
 		'                 Build a debug exception ISO and show the exception dump' \
@@ -82,6 +86,10 @@ deps:
 demo: _docker-iso _run
 
 gui: _docker-iso _run-gui
+
+profile-gui:
+	$(MAKE) _docker-iso DISPLAY_PROFILING=ON
+	SERIAL_LOG="$(DISPLAY_PROFILE_LOG)" QEMU_HEADLESS=0 $(RUN_QEMU) $(ISO_IMAGE)
 
 test: _docker-iso _smoke
 
@@ -248,22 +256,22 @@ _docker-image: _check-docker-compose
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) build builder
 
 _docker-iso: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE) DISPLAY_PROFILING=$(DISPLAY_PROFILING)
 
 _docker-exception-iso: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _exception-iso EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _exception-iso EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE) DISPLAY_PROFILING=$(DISPLAY_PROFILING)
 
 _docker-timer-iso: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _timer-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _timer-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE) DISPLAY_PROFILING=$(DISPLAY_PROFILING)
 
 _docker-paging-iso: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _paging-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _paging-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE) DISPLAY_PROFILING=$(DISPLAY_PROFILING)
 
 _docker-heap-iso: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _heap-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _heap-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE) DISPLAY_PROFILING=$(DISPLAY_PROFILING)
 
 _docker-slab-iso: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _slab-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _slab-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE) DISPLAY_PROFILING=$(DISPLAY_PROFILING)
 
 _docker-smoke-isos: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _smoke-isos EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE)
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _smoke-isos EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE) DISPLAY_PROFILING=$(DISPLAY_PROFILING)

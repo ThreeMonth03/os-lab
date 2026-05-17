@@ -51,12 +51,23 @@ else
     exit 1
 fi
 
+serial_arg=stdio
+if [[ -n "${SERIAL_LOG:-}" ]]; then
+    mkdir -p "$(dirname -- "${SERIAL_LOG}")"
+    serial_path=${SERIAL_LOG}
+    if [[ "${qemu_bin}" == /mnt/* && -n "${WSL_DISTRO_NAME:-}" ]]; then
+        serial_path=$(wslpath -w "${SERIAL_LOG}")
+    fi
+    serial_arg="file:${serial_path}"
+    printf 'QEMU serial log: %s\n' "${SERIAL_LOG}"
+fi
+
 qemu_args=(
     -M q35
     -m "${QEMU_MEMORY:-256M}"
     -boot d
     -cdrom "${image_arg}"
-    -serial stdio
+    -serial "${serial_arg}"
     -no-reboot
     -no-shutdown
 )
