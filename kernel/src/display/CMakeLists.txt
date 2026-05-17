@@ -1,4 +1,5 @@
 add_library(os_lab_kernel_display OBJECT
+    app_layout.cpp
     app_surface.cpp
     backing_surface.cpp
     composited_surface.cpp

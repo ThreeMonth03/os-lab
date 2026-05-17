@@ -6,6 +6,7 @@
 #include "gui_panel_runtime.hpp"
 
 #include "kernel/boot/limine_support.hpp"
+#include "kernel/display/app_layout.hpp"
 #include "kernel/display/composited_surface.hpp"
 #include "kernel/display/display_frame.hpp"
 #include "kernel/display/display_palette.hpp"
@@ -75,11 +76,6 @@ display::Color color_for(const limine_framebuffer & framebuffer, display::RgbCol
     return {pack_framebuffer_rgb(framebuffer, color)};
 }
 
-uint64_t max_u64(uint64_t lhs, uint64_t rhs)
-{
-    return lhs > rhs ? lhs : rhs;
-}
-
 display::Rect framebuffer_bounds(const limine_framebuffer & framebuffer)
 {
     return {0, 0, framebuffer.width, framebuffer.height};
@@ -91,38 +87,15 @@ display::Rect terminal_app_bounds_for(const limine_framebuffer & framebuffer,
                                       uint64_t terminal_cell_width,
                                       uint64_t terminal_cell_height)
 {
-    const display::Rect full_bounds = framebuffer_bounds(framebuffer);
-    if (!panel_config.visible || panel_bounds.empty())
-    {
-        return full_bounds;
-    }
-
-    const uint64_t margin = panel_config.margin;
-    const uint64_t left = margin;
-    const uint64_t top = panel_bounds.y + panel_bounds.height + margin;
-    if (left >= framebuffer.width || top >= framebuffer.height)
-    {
-        return full_bounds;
-    }
-
-    const uint64_t right_margin = max_u64(margin, left);
-    if (framebuffer.width <= left + right_margin || framebuffer.height <= top + margin)
-    {
-        return full_bounds;
-    }
-
-    const display::Rect app_bounds{
-        left,
-        top,
-        framebuffer.width - left - right_margin,
-        framebuffer.height - top - margin,
-    };
-    if (app_bounds.width < terminal_cell_width || app_bounds.height < terminal_cell_height)
-    {
-        return full_bounds;
-    }
-
-    return app_bounds;
+    return display::TerminalAppLayout::bounds_for({
+        framebuffer_bounds(framebuffer),
+        panel_bounds,
+        panel_config.visible,
+        panel_config.margin,
+        terminal_cell_height,
+        terminal_cell_width,
+        terminal_cell_height,
+    });
 }
 
 bool reset_display_runtime_state(const limine_framebuffer & framebuffer)
