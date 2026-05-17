@@ -1,5 +1,9 @@
 #include "kernel/display/display.hpp"
 
+#include <stddef.h>
+
+extern "C" void * memcpy(void * destination, const void * source, size_t size);
+
 namespace kernel::display
 {
 namespace
@@ -58,6 +62,28 @@ void Surface::put_pixel(uint64_t x, uint64_t y, Color color)
     auto * base = static_cast<uint8_t *>(address_);
     auto * pixel = reinterpret_cast<uint32_t *>(base + (y * pitch_) + (x * sizeof(uint32_t)));
     *pixel = color.value;
+}
+
+void Surface::put_pixels(uint64_t x, uint64_t y, const uint32_t * pixels, size_t count)
+{
+    if (!ready() || pixels == nullptr || count == 0 || x >= width_ || y >= height_)
+    {
+        return;
+    }
+
+    const uint64_t available = width_ - x;
+    if (count > available)
+    {
+        count = static_cast<size_t>(available);
+    }
+    if (count == 0)
+    {
+        return;
+    }
+
+    auto * base = static_cast<uint8_t *>(address_);
+    auto * destination = reinterpret_cast<uint32_t *>(base + (y * pitch_) + (x * sizeof(uint32_t)));
+    memcpy(destination, pixels, count * sizeof(uint32_t));
 }
 
 void Surface::fill_rect(Rect rect, Color color)

@@ -149,6 +149,17 @@ PixelSample BackingSurface::sample(uint64_t x, uint64_t y) const
     return opaque_pixel(pixel(x, y));
 }
 
+const uint32_t * BackingSurface::row_pixels(uint64_t y) const
+{
+    if (!ready() || y < bounds_.y || y >= bounds_.y + bounds_.height)
+    {
+        return nullptr;
+    }
+
+    const uint64_t local_y = y - bounds_.y;
+    return pixels_ + (local_y * stride_pixels_);
+}
+
 void BackingSurface::put_pixel(uint64_t x, uint64_t y, Color color)
 {
     if (!contains(x, y))

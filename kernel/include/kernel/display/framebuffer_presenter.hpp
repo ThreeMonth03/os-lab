@@ -26,7 +26,7 @@ public:
 private:
     [[nodiscard]] Rect cursor_bounds() const;
     void put_presented_pixel(uint64_t x, uint64_t y);
-    void copy_front_rect(Rect source, uint64_t destination_x, uint64_t destination_y);
+    [[nodiscard]] bool copy_scene_to_front(Rect rect);
 
     Surface * front_buffer_ = nullptr;
     SceneBuffer * scene_buffer_ = nullptr;

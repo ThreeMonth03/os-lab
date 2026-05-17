@@ -23,6 +23,7 @@ public:
     [[nodiscard]] bool contains(uint64_t x, uint64_t y) const;
     [[nodiscard]] Color pixel(uint64_t x, uint64_t y) const;
     [[nodiscard]] PixelSample sample(uint64_t x, uint64_t y) const;
+    [[nodiscard]] const uint32_t * row_pixels(uint64_t y) const;
     void put_pixel(uint64_t x, uint64_t y, Color color);
     void fill_rect(Rect rect, Color color);
     [[nodiscard]] Rect copy_rect(Rect source, uint64_t destination_x, uint64_t destination_y);

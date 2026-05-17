@@ -68,6 +68,11 @@ bool FramebufferPresenter::present_rect(Rect rect)
         return true;
     }
 
+    if (intersect_rect(rect, cursor_bounds()).empty())
+    {
+        return copy_scene_to_front(rect);
+    }
+
     for (uint64_t row = 0; row < rect.height; ++row)
     {
         const uint64_t y = rect.y + row;
@@ -79,63 +84,33 @@ bool FramebufferPresenter::present_rect(Rect rect)
     return true;
 }
 
-void FramebufferPresenter::copy_front_rect(Rect source,
-                                           uint64_t destination_x,
-                                           uint64_t destination_y)
+bool FramebufferPresenter::copy_scene_to_front(Rect rect)
 {
-    if (front_buffer_ == nullptr)
+    if (!ready())
     {
-        return;
+        return false;
     }
 
-    source = intersect_rect(source, front_bounds(*front_buffer_));
-    source = intersect_rect(source, scene_buffer_->bounds());
-    if (source.empty() || destination_x >= front_buffer_->width() || destination_y >= front_buffer_->height())
+    rect = intersect_rect(rect, front_bounds(*front_buffer_));
+    rect = intersect_rect(rect, scene_buffer_->bounds());
+    if (rect.empty())
     {
-        return;
+        return true;
     }
 
-    if (destination_x + source.width > front_buffer_->width())
+    const Rect scene_bounds = scene_buffer_->bounds();
+    for (uint64_t row = 0; row < rect.height; ++row)
     {
-        source.width = front_buffer_->width() - destination_x;
-    }
-    if (destination_y + source.height > front_buffer_->height())
-    {
-        source.height = front_buffer_->height() - destination_y;
-    }
-    if (source.empty())
-    {
-        return;
-    }
-
-    const bool copy_backwards =
-        destination_y > source.y || (destination_y == source.y && destination_x > source.x);
-    if (copy_backwards)
-    {
-        for (uint64_t row = source.height; row > 0; --row)
+        const uint64_t y = rect.y + row;
+        const uint32_t * pixels = scene_buffer_->row_pixels(y);
+        if (pixels == nullptr)
         {
-            const uint64_t current_row = row - 1;
-            for (uint64_t column = source.width; column > 0; --column)
-            {
-                const uint64_t current_column = column - 1;
-                front_buffer_->put_pixel(destination_x + current_column,
-                                         destination_y + current_row,
-                                         front_buffer_->pixel(source.x + current_column,
-                                                              source.y + current_row));
-            }
+            return false;
         }
-        return;
-    }
 
-    for (uint64_t row = 0; row < source.height; ++row)
-    {
-        for (uint64_t column = 0; column < source.width; ++column)
-        {
-            front_buffer_->put_pixel(destination_x + column,
-                                     destination_y + row,
-                                     front_buffer_->pixel(source.x + column, source.y + row));
-        }
+        front_buffer_->put_pixels(rect.x, y, pixels + (rect.x - scene_bounds.x), rect.width);
     }
+    return true;
 }
 
 bool FramebufferPresenter::copy_scene_rect(Rect source,
@@ -148,7 +123,7 @@ bool FramebufferPresenter::copy_scene_rect(Rect source,
     }
 
     const Rect cursor = cursor_bounds();
-    if (!cursor.empty() && !present_rect(cursor))
+    if (!cursor.empty() && !copy_scene_to_front(cursor))
     {
         return false;
     }
@@ -158,8 +133,11 @@ bool FramebufferPresenter::copy_scene_rect(Rect source,
     {
         return false;
     }
-    copy_front_rect(source, destination_x, destination_y);
-    return present_rect(cursor) && present_rect(copied);
+    if (!copy_scene_to_front(copied))
+    {
+        return false;
+    }
+    return cursor.empty() || present_rect(cursor);
 }
 
 } // namespace kernel::display

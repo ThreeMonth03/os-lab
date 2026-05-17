@@ -23,6 +23,11 @@ PixelSample SceneBuffer::sample(uint64_t x, uint64_t y) const
     return backing_.sample(x, y);
 }
 
+const uint32_t * SceneBuffer::row_pixels(uint64_t y) const
+{
+    return backing_.row_pixels(y);
+}
+
 void SceneBuffer::put_pixel(uint64_t x, uint64_t y, Color color)
 {
     backing_.put_pixel(x, y, color);

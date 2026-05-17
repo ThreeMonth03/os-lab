@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 namespace kernel::display
@@ -33,6 +34,7 @@ public:
 
     [[nodiscard]] Color pixel(uint64_t x, uint64_t y) const;
     void put_pixel(uint64_t x, uint64_t y, Color color);
+    void put_pixels(uint64_t x, uint64_t y, const uint32_t * pixels, size_t count);
     void fill_rect(Rect rect, Color color);
 
 private:
