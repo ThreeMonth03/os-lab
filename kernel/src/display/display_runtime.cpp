@@ -36,7 +36,6 @@ struct DisplayRuntimeState
     display::Color terminal_foreground;
     display::Color terminal_background;
     display::HitTestResult pointer_target;
-    display::FrameDamage pending_terminal_damage;
     uint32_t * scene_memory = nullptr;
     size_t scene_bytes = 0;
 };
@@ -274,50 +273,6 @@ bool init_terminal_app_layer(const limine_framebuffer & framebuffer,
     return display::compositor::register_surface(caret_surface);
 }
 
-void fallback_pending_terminal_damage_to_app_bounds()
-{
-    g_state.pending_terminal_damage = {};
-    if (!g_state.terminal_app_surface.bounds.empty())
-    {
-        if (!g_state.pending_terminal_damage.append_dirty(g_state.terminal_app_surface.bounds))
-        {
-            g_state.pending_terminal_damage = {};
-        }
-    }
-}
-
-void append_pending_terminal_damage(display::FrameDamage damage)
-{
-    if (damage.empty())
-    {
-        return;
-    }
-
-    if (!g_state.pending_terminal_damage.append(damage))
-    {
-        fallback_pending_terminal_damage_to_app_bounds();
-    }
-}
-
-void flush_pending_terminal_damage()
-{
-    if (g_state.pending_terminal_damage.empty())
-    {
-        return;
-    }
-
-    const display::FrameDamage damage = g_state.pending_terminal_damage;
-    g_state.pending_terminal_damage = {};
-
-    const display::PresentRegionList present_regions =
-        display::compositor::update_scene_from_layer_damage(display::LayerKind::AppSurface, damage);
-    const display::DisplayFrameSubmit submit = g_state.frame.submit(present_regions);
-    if (submit.immediate)
-    {
-        display::compositor::present_scene_regions(submit.present_regions);
-    }
-}
-
 void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
                                        display::DisplayPalette palette,
                                        display::Rect overlay_bounds)
@@ -456,10 +411,6 @@ void end_frame()
         return;
     }
 
-    if (g_state.frame.depth() == 1)
-    {
-        flush_pending_terminal_damage();
-    }
     const DisplayFrameFlush flush = g_state.frame.end();
     if (flush.outermost_frame_ended)
     {
@@ -485,12 +436,6 @@ void refresh_debug_overlay_if_due()
 
 void submit_terminal_app_damage(FrameDamage damage)
 {
-    if (g_state.frame.in_frame())
-    {
-        append_pending_terminal_damage(damage);
-        return;
-    }
-
     const display::PresentRegionList present_regions =
         display::compositor::update_scene_from_layer_damage(display::LayerKind::AppSurface, damage);
     const DisplayFrameSubmit submit = g_state.frame.submit(present_regions);

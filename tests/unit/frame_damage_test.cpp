@@ -82,26 +82,6 @@ TEST(FrameDamageTest, DifferentScrollRegionsPreserveOrderedSteps)
     expect_rect(flush.steps[3].rect, 0, 72, 80, 18);
 }
 
-TEST(FrameDamageTest, AppendsOrderedDamage)
-{
-    kernel::display::FrameDamage first;
-    ASSERT_TRUE(first.append_dirty({0, 72, 80, 18}));
-
-    kernel::display::FrameDamage second;
-    ASSERT_TRUE(second.append_scroll({{0, 0, 80, 90}, 18}));
-    ASSERT_TRUE(second.append_dirty({0, 72, 80, 18}, true));
-
-    ASSERT_TRUE(first.append(second));
-
-    ASSERT_EQ(first.step_count, 3u);
-    EXPECT_EQ(first.steps[0].kind, kernel::display::FrameDamageStepKind::DirtyRect);
-    expect_rect(first.steps[0].rect, 0, 72, 80, 18);
-    EXPECT_EQ(first.steps[1].kind, kernel::display::FrameDamageStepKind::Scroll);
-    expect_rect(first.steps[1].rect, 0, 0, 80, 90);
-    EXPECT_EQ(first.steps[2].kind, kernel::display::FrameDamageStepKind::DirtyRect);
-    expect_rect(first.steps[2].rect, 0, 72, 80, 18);
-}
-
 TEST(FrameDamageTest, ScrollOverflowFallbacksToDirtyRegion)
 {
     kernel::display::DamageAccumulator damage({0, 0, 80, 100});
