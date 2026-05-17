@@ -50,6 +50,7 @@ struct FrameDamage
 
     [[nodiscard]] bool append_dirty(Rect rect, bool scroll_exposed_dirty = false);
     [[nodiscard]] bool append_scroll(ScrollDamage scroll_damage);
+    [[nodiscard]] bool append(FrameDamage damage);
 };
 
 class DamageAccumulator

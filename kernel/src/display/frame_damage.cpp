@@ -97,6 +97,37 @@ bool FrameDamage::append_scroll(ScrollDamage scroll_damage)
     return true;
 }
 
+bool FrameDamage::append(FrameDamage damage)
+{
+    if (damage.empty())
+    {
+        return true;
+    }
+
+    if (damage.has_steps())
+    {
+        for (size_t index = 0; index < damage.step_count; ++index)
+        {
+            const FrameDamageStep & step = damage.steps[index];
+            if (step.dirty() && !append_dirty(step.rect, step.scroll_exposed_dirty))
+            {
+                return false;
+            }
+            if (step.scroll() && !append_scroll({step.rect, step.distance}))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    if (damage.has_scroll() && !append_scroll(damage.scroll))
+    {
+        return false;
+    }
+    return !damage.has_dirty() || append_dirty(damage.dirty_rect);
+}
+
 void DamageAccumulator::reset(Rect bounds)
 {
     bounds_ = bounds;
