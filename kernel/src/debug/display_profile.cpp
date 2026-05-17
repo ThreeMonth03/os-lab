@@ -31,13 +31,19 @@ void write_display_profile_delta(StringView command, display::DisplayPipelineSta
     serial::write_string("os-lab display profile: command=");
     serial::write_line(command);
     write_stat("frame flushes", delta.frame.frame_flush_count);
+    write_stat("presenter present calls", delta.presenter.present_call_count);
     write_stat("present rects", delta.frame.present_rect_count);
+    write_stat("presenter present rects", delta.presenter.present_rect_count);
     write_stat("presented pixels", delta.frame.total_presented_pixels);
     write_stat("largest present rect area", delta.frame.largest_present_rect_area);
+    write_stat("presenter largest present rect area", delta.presenter.largest_present_rect_area);
     write_stat("large fallback count", delta.frame.large_present_fallback_count);
     write_stat("scene compose pixels", delta.compositor.scene_compose_pixels);
     write_stat("scene preflight pixels", delta.compositor.scene_preflight_pixels);
     write_stat("scene scroll copy pixels", delta.compositor.scene_scroll_copy_pixels);
+    write_stat("scene scroll count", delta.compositor.scene_scroll_count);
+    write_stat("repaint plan count", delta.compositor.repaint_plan_count);
+    write_stat("repaint plan fallback count", delta.compositor.repaint_plan_fallback_count);
     write_stat("presenter fast-copy pixels", delta.presenter.fast_path_copy_pixels);
     write_stat("overlay blend pixels", delta.presenter.overlay_blend_pixels);
 }

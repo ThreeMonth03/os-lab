@@ -391,6 +391,7 @@ void execute_command(StringView command)
 #if OS_LAB_DISPLAY_PROFILING
     if (parsed.kind != ShellCommandKind::Display && parsed.kind != ShellCommandKind::Halt)
     {
+        display_runtime::reset_stats();
         kernel::debug::begin_display_profile_command(parsed.name, display_runtime::stats());
     }
 #endif

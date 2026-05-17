@@ -258,9 +258,12 @@ TEST(DisplayTest, PresenterCopiesLargeRectThroughFastScenePathWithSmallOverlay)
     EXPECT_EQ(front.pixel(2, 1).value, 99u);
     EXPECT_EQ(scene.pixel(2, 1).value, 7u);
     const kernel::display::FramebufferPresenterStats stats = presenter.stats();
+    EXPECT_EQ(stats.present_call_count, 1u);
+    EXPECT_EQ(stats.present_rect_count, 1u);
     EXPECT_EQ(stats.fast_path_copy_pixels, 12u);
     EXPECT_EQ(stats.overlay_blend_pixels, 1u);
     EXPECT_EQ(stats.total_presented_pixels, 12u);
+    EXPECT_EQ(stats.largest_present_rect_area, 12u);
 }
 
 TEST(DisplayTest, PresenterDrawsMultipleTransientOverlaysWithCursorTopmost)
