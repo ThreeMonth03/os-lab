@@ -32,6 +32,7 @@ public:
     void reset();
     void begin_batch();
     [[nodiscard]] TerminalRepaintFlush end_batch();
+    [[nodiscard]] TerminalRepaintFlush flush_pending();
     [[nodiscard]] TerminalRepaintRequest record_dirty(Rect rect);
     [[nodiscard]] TerminalRepaintRequest record_scroll(Rect bounds);
 

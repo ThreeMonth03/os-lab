@@ -42,6 +42,17 @@ TerminalRepaintFlush TerminalRepaintState::end_batch()
     return flush;
 }
 
+TerminalRepaintFlush TerminalRepaintState::flush_pending()
+{
+    TerminalRepaintFlush flush = {};
+    flush.repaint_text_layer = pending_text_layer_repaint_;
+    flush.repaint_entire_text_layer = pending_text_layer_repaint_;
+    flush.repaint_higher_layers = pending_dirty_valid_;
+    flush.dirty_rect = pending_dirty_;
+    clear_pending();
+    return flush;
+}
+
 TerminalRepaintRequest TerminalRepaintState::record_dirty(Rect rect)
 {
     if (rect.empty())

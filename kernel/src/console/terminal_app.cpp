@@ -182,7 +182,8 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
         }
 
         render_cache_.synchronize_from(text_buffer_);
-        apply_repaint_request(repaint_.record_dirty(scroll_dirty));
+        apply_repaint_flush(repaint_.flush_pending());
+        repaint_sink_.scroll_terminal_region_up(scroll_dirty, kCellHeight);
         return {};
     }
 
