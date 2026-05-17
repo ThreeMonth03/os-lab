@@ -3,7 +3,9 @@
 #include <stdint.h>
 
 #include "kernel/core/halt.hpp"
+#include "kernel/debug/display_profile.hpp"
 #include "kernel/display/display_runtime.hpp"
+#include "kernel/display/display_stats.hpp"
 #include "kernel/display/mouse_cursor.hpp"
 #include "kernel/input/input.hpp"
 #include "kernel/input/input_router.hpp"
@@ -13,6 +15,10 @@
 #include "kernel/drivers/serial.hpp"
 #include "kernel/shell/shell_command.hpp"
 #include "kernel/console/terminal.hpp"
+
+#ifndef OS_LAB_DISPLAY_PROFILING
+#define OS_LAB_DISPLAY_PROFILING 0
+#endif
 
 namespace
 {
@@ -29,7 +35,9 @@ void write_help()
     terminal::write_line("  clear - clear the screen");
     terminal::write_line("  about - show kernel info");
     terminal::write_line("  input - show input stats");
+#if OS_LAB_DISPLAY_PROFILING
     terminal::write_line("  display - show display stats");
+#endif
     terminal::write_line("  mem   - show memory stats");
     terminal::write_line("  heap  - show heap stats");
     terminal::write_line("  slab  - show slab cache stats");
@@ -231,6 +239,8 @@ void write_input_stats()
     write_stat("queue capacity", stats.queue_capacity);
 }
 
+#if OS_LAB_DISPLAY_PROFILING
+
 void write_display_stats()
 {
     const kernel::display::DisplayPipelineStats stats = display_runtime::stats();
@@ -261,6 +271,8 @@ void write_display_stats()
 
     display_runtime::reset_stats();
 }
+
+#endif
 
 void write_memory_stats()
 {
@@ -376,44 +388,66 @@ void execute_command(StringView command)
         return;
     }
 
-    terminal::ScopedUpdate terminal_update;
-    switch (parsed.kind)
+#if OS_LAB_DISPLAY_PROFILING
+    const kernel::display::DisplayStatsSnapshot profile_before =
+        kernel::display::make_display_stats_snapshot(display_runtime::stats());
+#endif
+
     {
-    case ShellCommandKind::Empty:
-        return;
-    case ShellCommandKind::Help:
-        write_help();
-        break;
-    case ShellCommandKind::Clear:
-        terminal::clear();
-        break;
-    case ShellCommandKind::About:
-        write_about();
-        break;
-    case ShellCommandKind::Input:
-        write_input_stats();
-        break;
-    case ShellCommandKind::Display:
-        write_display_stats();
-        break;
-    case ShellCommandKind::Mem:
-        write_memory_stats();
-        break;
-    case ShellCommandKind::Heap:
-        write_heap_stats();
-        break;
-    case ShellCommandKind::Slab:
-        write_slab_stats();
-        break;
-    case ShellCommandKind::Halt:
-        terminal::write_line("halting");
-        serial::write_line("os-lab: halt command requested");
-        halt_forever();
-    case ShellCommandKind::Unknown:
-        terminal::write_string("unknown command: ");
-        terminal::write_line(parsed.text);
-        break;
+        terminal::ScopedUpdate terminal_update;
+        switch (parsed.kind)
+        {
+        case ShellCommandKind::Empty:
+            return;
+        case ShellCommandKind::Help:
+            write_help();
+            break;
+        case ShellCommandKind::Clear:
+            terminal::clear();
+            break;
+        case ShellCommandKind::About:
+            write_about();
+            break;
+        case ShellCommandKind::Input:
+            write_input_stats();
+            break;
+        case ShellCommandKind::Display:
+#if OS_LAB_DISPLAY_PROFILING
+            write_display_stats();
+#else
+            terminal::write_string("unknown command: ");
+            terminal::write_line(parsed.text);
+#endif
+            break;
+        case ShellCommandKind::Mem:
+            write_memory_stats();
+            break;
+        case ShellCommandKind::Heap:
+            write_heap_stats();
+            break;
+        case ShellCommandKind::Slab:
+            write_slab_stats();
+            break;
+        case ShellCommandKind::Halt:
+            terminal::write_line("halting");
+            serial::write_line("os-lab: halt command requested");
+            halt_forever();
+        case ShellCommandKind::Unknown:
+            terminal::write_string("unknown command: ");
+            terminal::write_line(parsed.text);
+            break;
+        }
     }
+
+#if OS_LAB_DISPLAY_PROFILING
+    if (parsed.kind != ShellCommandKind::Display && parsed.kind != ShellCommandKind::Halt)
+    {
+        const kernel::display::DisplayStatsSnapshot profile_after =
+            kernel::display::make_display_stats_snapshot(display_runtime::stats());
+        kernel::debug::write_display_profile_delta(parsed.name,
+                                                   kernel::display::display_stats_delta(profile_before, profile_after));
+    }
+#endif
 }
 
 } // namespace kernel::shell

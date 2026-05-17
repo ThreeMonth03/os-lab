@@ -39,7 +39,16 @@ bool has_trailing_tokens(kernel::StringView input, kernel::StringView name)
     return !trim(remaining).empty();
 }
 
-kernel::shell::ShellCommandKind command_kind(kernel::StringView name)
+#ifndef OS_LAB_DISPLAY_PROFILING
+#define OS_LAB_DISPLAY_PROFILING 0
+#endif
+
+kernel::shell::ShellCommandOptions default_options()
+{
+    return {OS_LAB_DISPLAY_PROFILING != 0};
+}
+
+kernel::shell::ShellCommandKind command_kind(kernel::StringView name, kernel::shell::ShellCommandOptions options)
 {
     if (name == "help")
     {
@@ -57,7 +66,7 @@ kernel::shell::ShellCommandKind command_kind(kernel::StringView name)
     {
         return kernel::shell::ShellCommandKind::Input;
     }
-    if (name == "display")
+    if (options.display_profiling_enabled && name == "display")
     {
         return kernel::shell::ShellCommandKind::Display;
     }
@@ -88,6 +97,11 @@ namespace kernel::shell
 
 ShellCommand parse_shell_command(StringView input)
 {
+    return parse_shell_command(input, default_options());
+}
+
+ShellCommand parse_shell_command(StringView input, ShellCommandOptions options)
+{
     const StringView text = trim(input);
     if (text.empty())
     {
@@ -95,7 +109,7 @@ ShellCommand parse_shell_command(StringView input)
     }
 
     const StringView name = first_token(text);
-    ShellCommandKind kind = command_kind(name);
+    ShellCommandKind kind = command_kind(name, options);
     if (kind != ShellCommandKind::Unknown && has_trailing_tokens(text, name))
     {
         kind = ShellCommandKind::Unknown;

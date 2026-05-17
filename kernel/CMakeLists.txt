@@ -11,6 +11,7 @@ option(OS_LAB_PAGING_SMOKE "Debug-only active paging smoke trigger" OFF)
 option(OS_LAB_HEAP_SMOKE "Debug-only kernel heap smoke trigger" OFF)
 option(OS_LAB_SLAB_SMOKE "Debug-only kernel slab smoke trigger" OFF)
 option(OS_LAB_GUI_PANEL_VISIBLE "Debug-only GUI panel visibility toggle" OFF)
+option(OS_LAB_DISPLAY_PROFILING "Debug-only display pipeline profiling" OFF)
 
 set(OS_LAB_EXCEPTION_SMOKE_VALUE 0)
 if(OS_LAB_EXCEPTION_SMOKE STREQUAL "none")
@@ -51,6 +52,11 @@ if(OS_LAB_GUI_PANEL_VISIBLE)
     set(OS_LAB_GUI_PANEL_VISIBLE_VALUE 1)
 endif()
 
+set(OS_LAB_DISPLAY_PROFILING_VALUE 0)
+if(OS_LAB_DISPLAY_PROFILING)
+    set(OS_LAB_DISPLAY_PROFILING_VALUE 1)
+endif()
+
 add_library(os_lab_kernel_compile_settings INTERFACE)
 target_compile_features(os_lab_kernel_compile_settings INTERFACE cxx_std_23)
 target_include_directories(os_lab_kernel_compile_settings INTERFACE
@@ -88,6 +94,7 @@ target_compile_definitions(os_lab_kernel_compile_settings INTERFACE
     OS_LAB_SLAB_SMOKE=${OS_LAB_SLAB_SMOKE_VALUE}
     OS_LAB_TIMER_SMOKE=${OS_LAB_TIMER_SMOKE_VALUE}
     OS_LAB_GUI_PANEL_VISIBLE=${OS_LAB_GUI_PANEL_VISIBLE_VALUE}
+    OS_LAB_DISPLAY_PROFILING=${OS_LAB_DISPLAY_PROFILING_VALUE}
 )
 target_link_libraries(os_lab_kernel_compile_settings INTERFACE
     os_lab_project_warnings
