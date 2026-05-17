@@ -60,14 +60,14 @@ void FramebufferPresenter::put_presented_pixel(uint64_t x, uint64_t y)
         return;
     }
 
-    for (size_t index = 0; index < kMaxPresenterOverlays; ++index)
+    for (CursorPixelReader overlay_pixel : overlay_pixels_)
     {
-        if (overlay_pixels_[index] == nullptr)
+        if (overlay_pixel == nullptr)
         {
             continue;
         }
 
-        const PixelSample overlay = overlay_pixels_[index](x, y);
+        const PixelSample overlay = overlay_pixel(x, y);
         if (overlay.opaque())
         {
             front_buffer_->put_pixel(x, y, overlay.color);

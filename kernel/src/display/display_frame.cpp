@@ -76,6 +76,11 @@ DisplayFrameSubmit DisplayFrame::submit(const PresentRegionList & present_region
     return {};
 }
 
+void DisplayFrame::reset_stats()
+{
+    stats_ = {};
+}
+
 void DisplayFrame::record_stats(const PresentRegionList & present_regions, bool frame_flush)
 {
     if (frame_flush)

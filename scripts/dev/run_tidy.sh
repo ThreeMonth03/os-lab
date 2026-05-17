@@ -26,18 +26,23 @@ mapfile -d '' sources < <(
         -print0
     printf '%s\0' \
         "${project_root}/kernel/src/arch/x86_64/paging.cpp" \
+        "${project_root}/kernel/src/display/backing_surface.cpp" \
         "${project_root}/kernel/src/display/compositor.cpp" \
         "${project_root}/kernel/src/display/cursor_geometry.cpp" \
         "${project_root}/kernel/src/display/debug_overlay.cpp" \
         "${project_root}/kernel/src/display/debug_overlay_renderer.cpp" \
         "${project_root}/kernel/src/display/display.cpp" \
+        "${project_root}/kernel/src/display/display_frame.cpp" \
         "${project_root}/kernel/src/display/display_target.cpp" \
+        "${project_root}/kernel/src/display/framebuffer_presenter.cpp" \
+        "${project_root}/kernel/src/display/frame_damage.cpp" \
         "${project_root}/kernel/src/display/gui_panel.cpp" \
         "${project_root}/kernel/src/display/gui_panel_renderer.cpp" \
         "${project_root}/kernel/src/display/gui_surface.cpp" \
         "${project_root}/kernel/src/display/hit_test.cpp" \
         "${project_root}/kernel/src/display/image_view.cpp" \
         "${project_root}/kernel/src/display/present_region_list.cpp" \
+        "${project_root}/kernel/src/display/scene_buffer.cpp" \
         "${project_root}/kernel/src/display/terminal_render_cache.cpp" \
         "${project_root}/kernel/src/display/terminal_repaint_state.cpp" \
         "${project_root}/kernel/src/input/input_router.cpp" \

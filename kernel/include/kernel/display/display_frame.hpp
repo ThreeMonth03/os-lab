@@ -40,6 +40,7 @@ public:
     [[nodiscard]] DisplayFrameFlush end();
     [[nodiscard]] DisplayFrameSubmit submit(Rect present_rect);
     [[nodiscard]] DisplayFrameSubmit submit(const PresentRegionList & present_regions);
+    void reset_stats();
 
     bool in_frame() const { return depth_ > 0; }
     uint32_t depth() const { return depth_; }

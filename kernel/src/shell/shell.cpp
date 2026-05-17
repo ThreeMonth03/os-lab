@@ -175,7 +175,6 @@ void handle_key_event(const kernel::input::keyboard::KeyEvent & event, kernel::t
     }
     case kernel::input::keyboard::Key::Enter:
     {
-        terminal::ScopedUpdate terminal_update;
         terminal::hide_cursor();
         view.move_to_line_end(line, caps_lock);
         terminal::write_char('\n');
@@ -219,6 +218,7 @@ void handle_routed_event(const kernel::input::RoutedEvent & routed, kernel::text
     case kernel::input::EventTarget::Shell:
         if (routed.event.kind == kernel::input::EventKind::Key)
         {
+            terminal::ScopedUpdate terminal_update;
             handle_key_event(routed.event.key, line, view, caps_lock, history);
         }
         break;
@@ -247,10 +247,13 @@ namespace kernel::shell
     EditorView view;
     bool caps_lock = false;
 
-    terminal::write_line("");
-    terminal::write_line("interactive input ready");
-    execute_command("help");
-    view.write_new_prompt_and_line(line, caps_lock);
+    {
+        terminal::ScopedUpdate startup_update;
+        terminal::write_line("");
+        terminal::write_line("interactive input ready");
+        execute_command("help");
+        view.write_new_prompt_and_line(line, caps_lock);
+    }
     serial::write_line("os-lab: interactive terminal ready");
 
     while (true)

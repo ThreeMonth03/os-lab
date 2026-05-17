@@ -97,6 +97,16 @@ struct LayerPixelSource
     [[nodiscard]] bool valid() const;
 };
 
+struct CompositorRuntimeStats
+{
+    uint64_t scene_compose_pixels = 0;
+    uint64_t scene_preflight_pixels = 0;
+    uint64_t scene_scroll_copy_pixels = 0;
+    uint64_t scene_scroll_count = 0;
+    uint64_t repaint_plan_count = 0;
+    uint64_t repaint_plan_fallback_count = 0;
+};
+
 [[nodiscard]] uint8_t layer_order(LayerKind kind);
 [[nodiscard]] bool layer_above(LayerKind candidate, LayerKind reference);
 [[nodiscard]] bool rects_overlap(Rect lhs, Rect rhs);
@@ -176,6 +186,8 @@ void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
 void present_scene_regions(const PresentRegionList & regions);
 void apply_layer_damage(LayerKind base_layer, FrameDamage damage);
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds);
+[[nodiscard]] CompositorRuntimeStats stats();
+void reset_stats();
 
 } // namespace compositor
 

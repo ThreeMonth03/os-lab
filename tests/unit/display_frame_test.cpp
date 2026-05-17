@@ -102,3 +102,20 @@ TEST(DisplayFrameTest, TracksFramePresentStats)
     EXPECT_EQ(stats.total_presented_pixels, 20u);
     EXPECT_EQ(stats.largest_present_rect_area, 16u);
 }
+
+TEST(DisplayFrameTest, ResetStatsDoesNotClearPendingFrame)
+{
+    kernel::display::DisplayFrame frame({0, 0, 80, 100});
+    frame.begin();
+
+    EXPECT_FALSE(frame.submit({1, 1, 2, 2}).immediate);
+    frame.reset_stats();
+
+    const kernel::display::DisplayFrameFlush flush = frame.end();
+    ASSERT_TRUE(flush.outermost_frame_ended);
+    ASSERT_EQ(flush.present_regions.count(), 1u);
+
+    const kernel::display::DisplayFrameStats stats = frame.stats();
+    EXPECT_EQ(stats.frame_flush_count, 1u);
+    EXPECT_EQ(stats.present_rect_count, 1u);
+}

@@ -32,6 +32,7 @@ LayerPixelCallbackSlot g_layer_pixel_callbacks[kernel::display::kMaxCompositorLa
 LayerBoundsCallbackSlot g_layer_bounds_callbacks[kernel::display::kMaxCompositorLayers] = {};
 kernel::display::SceneBuffer * g_scene_buffer = nullptr;
 kernel::display::FramebufferPresenter * g_presenter = nullptr;
+kernel::display::CompositorRuntimeStats g_stats;
 
 uint64_t saturating_end(uint64_t origin, uint64_t size)
 {
@@ -274,6 +275,7 @@ bool paint_source_region(const kernel::display::LayerPixelSource & source,
         for (uint64_t column = 0; column < rect.width; ++column)
         {
             const uint64_t x = rect.x + column;
+            ++g_stats.scene_compose_pixels;
             const kernel::display::PixelSample sample = source.read(source, x, y);
             if (sample.opaque())
             {
@@ -333,6 +335,7 @@ bool can_compose_region_from(kernel::display::LayerKind base_layer,
         {
             const uint64_t x = dirty_rect.x + column;
             kernel::display::Color color;
+            ++g_stats.scene_preflight_pixels;
             if (!kernel::display::final_pixel_at(sources, source_count, base_layer, x, y, color))
             {
                 return false;
@@ -366,6 +369,7 @@ bool compose_backed_region_from(kernel::display::LayerKind base_layer,
     const size_t source_count = collect_pixel_sources(sources);
     const kernel::display::LayerRepaintPlan plan =
         g_compositor.repaint_plan_from(base_layer, dirty_rect);
+    ++g_stats.repaint_plan_count;
     if (compose_repaint_plan(plan, sources, source_count))
     {
         return !present || g_presenter->present_rect(dirty_rect);
@@ -387,6 +391,7 @@ bool compose_backed_region_from(kernel::display::LayerKind base_layer,
         {
             const uint64_t x = dirty_rect.x + column;
             kernel::display::Color color;
+            ++g_stats.scene_compose_pixels;
             if (kernel::display::final_pixel_at(sources, source_count, base_layer, x, y, color))
             {
                 g_scene_buffer->put_pixel(x, y, color);
@@ -409,7 +414,9 @@ kernel::display::Rect copy_scene_scroll_piece(kernel::display::Rect piece, uint6
         piece.width,
         piece.height - distance,
     };
-    return g_scene_buffer->copy_rect(source, piece.x, piece.y);
+    const kernel::display::Rect copied = g_scene_buffer->copy_rect(source, piece.x, piece.y);
+    g_stats.scene_scroll_copy_pixels += copied.width * copied.height;
+    return copied;
 }
 
 kernel::display::Rect apply_scene_scroll(kernel::display::LayerKind layer,
@@ -421,6 +428,7 @@ kernel::display::Rect apply_scene_scroll(kernel::display::LayerKind layer,
         return {};
     }
 
+    ++g_stats.scene_scroll_count;
     rect = kernel::display::intersect_rect(rect, g_scene_buffer->bounds());
     if (rect.empty())
     {
@@ -486,6 +494,7 @@ kernel::display::Rect apply_scene_scroll(kernel::display::LayerKind layer,
 
     if (!repaint_rect.empty())
     {
+        ++g_stats.repaint_plan_fallback_count;
         compose_backed_region_from(layer, repaint_rect, false);
         touched_rect = kernel::display::bounding_rect(touched_rect, repaint_rect);
     }
@@ -502,6 +511,7 @@ void init(Rect bounds)
     g_compositor.reset(bounds);
     g_scene_buffer = nullptr;
     g_presenter = nullptr;
+    reset_stats();
     for (auto & slot : g_layer_pixel_callbacks)
     {
         slot = {};
@@ -684,6 +694,16 @@ void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds)
     {
         repaint_layers_from(LayerKind::DesktopBackground, dirty_rect);
     }
+}
+
+CompositorRuntimeStats stats()
+{
+    return g_stats;
+}
+
+void reset_stats()
+{
+    g_stats = {};
 }
 
 } // namespace kernel::display::compositor

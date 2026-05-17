@@ -147,31 +147,37 @@ void write_char(char value)
 
 void write_string(StringView value)
 {
+    ScopedUpdate update;
     g_terminal_app.write_string(value);
 }
 
 void write_string(const char * value)
 {
+    ScopedUpdate update;
     g_terminal_app.write_string(value);
 }
 
 void write_line(StringView value)
 {
+    ScopedUpdate update;
     g_terminal_app.write_line(value);
 }
 
 void write_line(const char * value)
 {
+    ScopedUpdate update;
     g_terminal_app.write_line(value);
 }
 
 void write_hex(uint64_t value)
 {
+    ScopedUpdate update;
     g_terminal_app.write_hex(value);
 }
 
 void write_decimal(uint64_t value)
 {
+    ScopedUpdate update;
     g_terminal_app.write_decimal(value);
 }
 

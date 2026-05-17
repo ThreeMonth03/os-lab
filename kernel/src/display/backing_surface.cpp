@@ -1,5 +1,7 @@
 #include "kernel/display/backing_surface.hpp"
 
+extern "C" void * memmove(void * destination, const void * source, size_t size);
+
 namespace kernel::display
 {
 
@@ -216,26 +218,23 @@ Rect BackingSurface::copy_rect(Rect source, uint64_t destination_x, uint64_t des
         for (uint64_t row = source.height; row > 0; --row)
         {
             const uint64_t current_row = row - 1;
-            for (uint64_t column = source.width; column > 0; --column)
-            {
-                const uint64_t current_column = column - 1;
-                pixels_[((destination_local_y + current_row) * stride_pixels_) + destination_local_x +
-                        current_column] =
-                    pixels_[((source_local_y + current_row) * stride_pixels_) + source_local_x +
-                            current_column];
-            }
+            uint32_t * destination =
+                pixels_ + ((destination_local_y + current_row) * stride_pixels_) +
+                destination_local_x;
+            const uint32_t * source_row =
+                pixels_ + ((source_local_y + current_row) * stride_pixels_) + source_local_x;
+            memmove(destination, source_row, source.width * sizeof(uint32_t));
         }
     }
     else
     {
         for (uint64_t row = 0; row < source.height; ++row)
         {
-            for (uint64_t column = 0; column < source.width; ++column)
-            {
-                pixels_[((destination_local_y + row) * stride_pixels_) + destination_local_x +
-                        column] =
-                    pixels_[((source_local_y + row) * stride_pixels_) + source_local_x + column];
-            }
+            uint32_t * destination =
+                pixels_ + ((destination_local_y + row) * stride_pixels_) + destination_local_x;
+            const uint32_t * source_row =
+                pixels_ + ((source_local_y + row) * stride_pixels_) + source_local_x;
+            memmove(destination, source_row, source.width * sizeof(uint32_t));
         }
     }
 

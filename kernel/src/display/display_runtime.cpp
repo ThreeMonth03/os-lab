@@ -375,6 +375,22 @@ HitTestResult pointer_target()
     return g_state.pointer_target;
 }
 
+DisplayPipelineStats stats()
+{
+    return {
+        g_state.frame.stats(),
+        g_state.presenter.stats(),
+        display::compositor::stats(),
+    };
+}
+
+void reset_stats()
+{
+    g_state.frame.reset_stats();
+    g_state.presenter.reset_stats();
+    display::compositor::reset_stats();
+}
+
 void begin_frame()
 {
     if (ready())
