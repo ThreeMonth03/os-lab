@@ -128,6 +128,55 @@ TEST(DisplayFrameTest, PreservesScrollOperationInsideFrame)
     EXPECT_EQ(stats.present_scroll_count, 1u);
 }
 
+TEST(DisplayFrameTest, CoalescesRepeatedScrollOperationsInsideFrame)
+{
+    kernel::display::DisplayFrame frame({0, 0, 80, 100});
+    frame.begin();
+
+    kernel::display::PresentOperationList first(frame.bounds());
+    first.append_scroll({0, 10, 80, 40}, 8);
+    first.append_scroll_exposed_rect({0, 42, 80, 8});
+    EXPECT_FALSE(frame.submit(first).immediate);
+
+    kernel::display::PresentOperationList second(frame.bounds());
+    second.append_scroll({0, 10, 80, 40}, 8);
+    second.append_scroll_exposed_rect({0, 42, 80, 8});
+    EXPECT_FALSE(frame.submit(second).immediate);
+
+    const kernel::display::DisplayFrameFlush flush = frame.end();
+
+    ASSERT_TRUE(flush.outermost_frame_ended);
+    ASSERT_EQ(flush.present_operations.count(), 2u);
+    EXPECT_EQ(flush.present_operations.at(0).kind, kernel::display::PresentOperationKind::Scroll);
+    EXPECT_EQ(flush.present_operations.at(0).distance, 16u);
+    EXPECT_TRUE(flush.present_operations.at(1).scroll_exposed_rect_present());
+}
+
+TEST(DisplayFrameTest, CompactsComplexRepeatedScrollFrameToSingleRect)
+{
+    kernel::display::DisplayFrame frame({0, 0, 80, 100});
+    frame.begin();
+
+    kernel::display::PresentOperationList first(frame.bounds());
+    first.append_scroll({0, 10, 80, 40}, 8);
+    EXPECT_FALSE(frame.submit(first).immediate);
+    EXPECT_FALSE(frame.submit({0, 42, 8, 8}).immediate);
+
+    kernel::display::PresentOperationList second(frame.bounds());
+    second.append_scroll({0, 10, 80, 40}, 8);
+    EXPECT_FALSE(frame.submit(second).immediate);
+
+    const kernel::display::DisplayFrameFlush flush = frame.end();
+
+    ASSERT_TRUE(flush.outermost_frame_ended);
+    ASSERT_EQ(flush.present_operations.count(), 1u);
+    EXPECT_TRUE(flush.present_operations.at(0).normal_rect_present());
+    EXPECT_EQ(flush.present_operations.at(0).rect.x, 0u);
+    EXPECT_EQ(flush.present_operations.at(0).rect.y, 10u);
+    EXPECT_EQ(flush.present_operations.at(0).rect.width, 80u);
+    EXPECT_EQ(flush.present_operations.at(0).rect.height, 40u);
+}
+
 TEST(DisplayFrameTest, ResetStatsDoesNotClearPendingFrame)
 {
     kernel::display::DisplayFrame frame({0, 0, 80, 100});

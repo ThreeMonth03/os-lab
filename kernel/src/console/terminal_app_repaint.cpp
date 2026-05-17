@@ -100,7 +100,8 @@ display::Rect TerminalApp::render_text_repaint(bool repaint_entire_layer)
 void TerminalApp::apply_repaint(display::FrameDamage damage)
 {
     const display::Rect backing_dirty = render_text_repaint(false);
-    if (!backing_dirty.empty() && !damage.append_dirty(backing_dirty))
+    const bool scroll_related_backing_dirty = damage.has_scroll();
+    if (!backing_dirty.empty() && !damage.append_dirty(backing_dirty, scroll_related_backing_dirty))
     {
         damage = {display::bounding_rect(damage.dirty_rect, backing_dirty), {}};
     }

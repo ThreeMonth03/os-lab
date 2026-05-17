@@ -332,7 +332,7 @@ TEST(DisplayTest, PresenterScrollsFrontBufferWhenTransientOverlaysAreOutsideScro
     EXPECT_EQ(stats.fast_path_copy_pixels, 0u);
 }
 
-TEST(DisplayTest, PresenterScrollFallsBackToSceneCopyWhenOverlayWouldMove)
+TEST(DisplayTest, PresenterRepairsTransientOverlayAfterFrontScroll)
 {
     uint32_t front_pixels[12] = {};
     uint32_t scene_pixels[12] = {};
@@ -341,6 +341,7 @@ TEST(DisplayTest, PresenterScrollFallsBackToSceneCopyWhenOverlayWouldMove)
         front_pixels[index] = index + 1;
         scene_pixels[index] = 100 + index + 1;
     }
+    front_pixels[6] = 99;
     kernel::display::Surface front(front_pixels, 4, 3, 4 * sizeof(uint32_t));
     kernel::display::SceneBuffer scene(scene_pixels, {0, 0, 4, 3}, 4);
     kernel::display::FramebufferPresenter presenter;
@@ -349,14 +350,16 @@ TEST(DisplayTest, PresenterScrollFallsBackToSceneCopyWhenOverlayWouldMove)
 
     ASSERT_TRUE(presenter.present_scroll({0, 0, 4, 3}, 1));
 
-    EXPECT_EQ(front.pixel(0, 0).value, 101u);
-    EXPECT_EQ(front.pixel(3, 1).value, 108u);
+    EXPECT_EQ(front.pixel(0, 0).value, 5u);
+    EXPECT_EQ(front.pixel(1, 0).value, 6u);
+    EXPECT_EQ(front.pixel(2, 0).value, 103u);
+    EXPECT_EQ(front.pixel(3, 1).value, 12u);
     EXPECT_EQ(front.pixel(2, 1).value, 99u);
     const kernel::display::FramebufferPresenterStats stats = presenter.stats();
     EXPECT_EQ(stats.present_scroll_count, 1u);
-    EXPECT_EQ(stats.front_scroll_copy_pixels, 0u);
-    EXPECT_EQ(stats.fast_path_copy_pixels, 8u);
-    EXPECT_EQ(stats.overlay_blend_pixels, 1u);
+    EXPECT_EQ(stats.front_scroll_copy_pixels, 8u);
+    EXPECT_EQ(stats.fast_path_copy_pixels, 2u);
+    EXPECT_EQ(stats.overlay_blend_pixels, 2u);
 }
 
 } // namespace

@@ -41,6 +41,17 @@ bool adjacent_or_overlapping(Rect lhs, Rect rhs)
     return false;
 }
 
+bool same_rect(Rect lhs, Rect rhs)
+{
+    return lhs.x == rhs.x && lhs.y == rhs.y && lhs.width == rhs.width &&
+           lhs.height == rhs.height;
+}
+
+bool scroll_aftermath_rect(PresentOperation operation)
+{
+    return operation.scroll_repair_rect_present() || operation.scroll_exposed_rect_present();
+}
+
 } // namespace
 
 void PresentOperationList::reset(Rect bounds)
@@ -62,6 +73,22 @@ void PresentOperationList::clear()
 
 PresentOperationAppendResult PresentOperationList::append_rect(Rect rect)
 {
+    return append_rect(rect, PresentRectKind::Normal);
+}
+
+PresentOperationAppendResult PresentOperationList::append_scroll_repair_rect(Rect rect)
+{
+    return append_rect(rect, PresentRectKind::ScrollRepair);
+}
+
+PresentOperationAppendResult PresentOperationList::append_scroll_exposed_rect(Rect rect)
+{
+    return append_rect(rect, PresentRectKind::ScrollExposed);
+}
+
+PresentOperationAppendResult PresentOperationList::append_rect(Rect rect,
+                                                               PresentRectKind rect_kind)
+{
     rect = intersect_rect(bounds_, rect);
     if (rect.empty())
     {
@@ -73,7 +100,12 @@ PresentOperationAppendResult PresentOperationList::append_rect(Rect rect)
         return PresentOperationAppendResult::FullscreenFallback;
     }
 
-    if (can_merge_last_rect(rect))
+    if (rect_kind != PresentRectKind::Normal && try_merge_scroll_aftermath_rect(rect, rect_kind))
+    {
+        return PresentOperationAppendResult::Merged;
+    }
+
+    if (can_merge_last_rect(rect, rect_kind))
     {
         operations_[count_ - 1].rect = bounding_rect(operations_[count_ - 1].rect, rect);
         rebuild_stats();
@@ -85,7 +117,7 @@ PresentOperationAppendResult PresentOperationList::append_rect(Rect rect)
         return fallback_to_fullscreen();
     }
 
-    operations_[count_] = {PresentOperationKind::Rect, rect, 0};
+    operations_[count_] = {PresentOperationKind::Rect, rect_kind, rect, 0};
     ++count_;
     rebuild_stats();
     return PresentOperationAppendResult::Queued;
@@ -109,12 +141,17 @@ PresentOperationAppendResult PresentOperationList::append_scroll(Rect rect, uint
         return PresentOperationAppendResult::FullscreenFallback;
     }
 
+    if (try_merge_scroll(rect, distance))
+    {
+        return PresentOperationAppendResult::Merged;
+    }
+
     if (count_ >= kMaxPresentOperations)
     {
         return fallback_to_fullscreen();
     }
 
-    operations_[count_] = {PresentOperationKind::Scroll, rect, distance};
+    operations_[count_] = {PresentOperationKind::Scroll, PresentRectKind::Normal, rect, distance};
     ++count_;
     rebuild_stats();
     return PresentOperationAppendResult::Queued;
@@ -129,24 +166,56 @@ PresentOperation PresentOperationList::at(size_t index) const
     return operations_[index];
 }
 
-PresentOperationAppendResult PresentOperationList::fallback_to_fullscreen()
+bool PresentOperationList::compact_complex_scrolls_to_rect()
+{
+    if (stats_.scroll_count <= 1 || full_screen_fallback_)
+    {
+        return false;
+    }
+
+    Rect compact_rect;
+    for (size_t index = 0; index < count_; ++index)
+    {
+        const PresentOperation operation = operations_[index];
+        if (operation.rect_present() || operation.scroll_present())
+        {
+            compact_rect = bounding_rect(compact_rect, operation.rect);
+        }
+    }
+
+    if (compact_rect.empty())
+    {
+        return false;
+    }
+
+    replace_with_rect(compact_rect);
+    return true;
+}
+
+void PresentOperationList::replace_with_rect(Rect rect)
 {
     for (auto & operation : operations_)
     {
         operation = {};
     }
 
-    count_ = bounds_.empty() ? 0 : 1;
+    rect = intersect_rect(bounds_, rect);
+    count_ = rect.empty() ? 0 : 1;
     if (count_ == 1)
     {
-        operations_[0] = {PresentOperationKind::Rect, bounds_, 0};
+        operations_[0] = {PresentOperationKind::Rect, PresentRectKind::Normal, rect, 0};
     }
-    full_screen_fallback_ = true;
     rebuild_stats();
+}
+
+PresentOperationAppendResult PresentOperationList::fallback_to_fullscreen()
+{
+    full_screen_fallback_ = true;
+    replace_with_rect(bounds_);
     return PresentOperationAppendResult::FullscreenFallback;
 }
 
-bool PresentOperationList::can_merge_last_rect(Rect rect) const
+bool PresentOperationList::can_merge_last_rect(Rect rect, PresentRectKind rect_kind) const
 {
     if (count_ == 0)
     {
@@ -154,7 +223,75 @@ bool PresentOperationList::can_merge_last_rect(Rect rect) const
     }
 
     const PresentOperation & last = operations_[count_ - 1];
-    return last.rect_present() && adjacent_or_overlapping(last.rect, rect);
+    return last.rect_present() && last.rect_kind == rect_kind &&
+           adjacent_or_overlapping(last.rect, rect);
+}
+
+bool PresentOperationList::try_merge_scroll_aftermath_rect(Rect rect, PresentRectKind rect_kind)
+{
+    if (count_ == 0)
+    {
+        return false;
+    }
+
+    size_t candidate = count_;
+    while (candidate > 0 && scroll_aftermath_rect(operations_[candidate - 1]))
+    {
+        PresentOperation & operation = operations_[candidate - 1];
+        if (operation.rect_kind == rect_kind && adjacent_or_overlapping(operation.rect, rect))
+        {
+            operation.rect = bounding_rect(operation.rect, rect);
+            rebuild_stats();
+            return true;
+        }
+        --candidate;
+    }
+
+    return false;
+}
+
+bool PresentOperationList::try_merge_scroll(Rect rect, uint64_t distance)
+{
+    if (count_ == 0)
+    {
+        return false;
+    }
+
+    size_t candidate = count_;
+    while (candidate > 0)
+    {
+        PresentOperation & operation = operations_[candidate - 1];
+        if (scroll_aftermath_rect(operation))
+        {
+            --candidate;
+            continue;
+        }
+
+        if (!operation.scroll_present())
+        {
+            return false;
+        }
+
+        if (!same_rect(operation.rect, rect))
+        {
+            --candidate;
+            continue;
+        }
+
+        const uint64_t merged_distance = operation.distance + distance;
+        if (merged_distance >= rect.height)
+        {
+            operation = {PresentOperationKind::Rect, PresentRectKind::Normal, rect, 0};
+        }
+        else
+        {
+            operation.distance = merged_distance;
+        }
+        rebuild_stats();
+        return true;
+    }
+
+    return false;
 }
 
 void PresentOperationList::rebuild_stats()

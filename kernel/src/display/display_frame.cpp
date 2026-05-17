@@ -33,7 +33,8 @@ DisplayFrameFlush DisplayFrame::end()
         return {};
     }
 
-    const PresentOperationList operations = present_operations_;
+    PresentOperationList operations = present_operations_;
+    operations.compact_complex_scrolls_to_rect();
     record_stats(operations, true);
     present_operations_.clear();
     return {true, operations};
@@ -64,7 +65,18 @@ DisplayFrameSubmit DisplayFrame::submit(const PresentOperationList & present_ope
         const PresentOperation operation = present_operations.at(index);
         if (operation.rect_present())
         {
-            present_operations_.append_rect(operation.rect);
+            if (operation.scroll_repair_rect_present())
+            {
+                present_operations_.append_scroll_repair_rect(operation.rect);
+            }
+            else if (operation.scroll_exposed_rect_present())
+            {
+                present_operations_.append_scroll_exposed_rect(operation.rect);
+            }
+            else
+            {
+                present_operations_.append_rect(operation.rect);
+            }
         }
         else if (operation.scroll_present())
         {

@@ -43,8 +43,14 @@ public:
 
 private:
     [[nodiscard]] Rect overlay_bounds(size_t index) const;
-    [[nodiscard]] bool overlay_intersects(Rect rect) const;
+    [[nodiscard]] Rect overlay_repair_rect_after_scroll(size_t index,
+                                                        Rect scroll_rect,
+                                                        Rect copied_rect,
+                                                        uint64_t distance) const;
     [[nodiscard]] bool present_overlay_rect(Rect rect);
+    [[nodiscard]] bool repair_scroll_overlays(Rect scroll_rect,
+                                              Rect copied_rect,
+                                              uint64_t distance);
     void put_presented_pixel(uint64_t x, uint64_t y);
     [[nodiscard]] bool copy_scene_to_front(Rect rect);
     [[nodiscard]] bool copy_front_scroll(Rect rect, uint64_t distance);

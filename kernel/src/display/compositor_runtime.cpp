@@ -498,7 +498,7 @@ void append_scene_scroll_regions(kernel::display::LayerKind layer,
     {
         ++g_stats.repaint_plan_fallback_count;
         compose_backed_region_from(layer, repaint_rect, false);
-        operations.append_rect(repaint_rect);
+        operations.append_scroll_repair_rect(repaint_rect);
     }
 }
 
@@ -623,7 +623,14 @@ void append_damage_step_regions(LayerKind base_layer,
     if (step.dirty())
     {
         compose_backed_region_from(base_layer, step.rect, false);
-        operations.append_rect(step.rect);
+        if (step.scroll_exposed_dirty)
+        {
+            operations.append_scroll_exposed_rect(step.rect);
+        }
+        else
+        {
+            operations.append_rect(step.rect);
+        }
         return;
     }
 

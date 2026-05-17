@@ -39,6 +39,97 @@ TEST(PresentOperationListTest, MergesOnlyAdjacentRectOperations)
     EXPECT_EQ(operations.at(2).rect.x, 8u);
 }
 
+TEST(PresentOperationListTest, CoalescesRepeatedScrollWithScrollAftermathRects)
+{
+    kernel::display::PresentOperationList operations({0, 0, 1000, 1000});
+
+    EXPECT_EQ(operations.append_scroll({0, 10, 100, 80}, 8),
+              kernel::display::PresentOperationAppendResult::Queued);
+    EXPECT_EQ(operations.append_scroll_repair_rect({90, 10, 10, 16}),
+              kernel::display::PresentOperationAppendResult::Queued);
+    EXPECT_EQ(operations.append_scroll_exposed_rect({0, 82, 100, 8}),
+              kernel::display::PresentOperationAppendResult::Queued);
+    EXPECT_EQ(operations.append_scroll({0, 10, 100, 80}, 8),
+              kernel::display::PresentOperationAppendResult::Merged);
+    EXPECT_EQ(operations.append_scroll_repair_rect({90, 10, 10, 16}),
+              kernel::display::PresentOperationAppendResult::Merged);
+    EXPECT_EQ(operations.append_scroll_exposed_rect({0, 82, 100, 8}),
+              kernel::display::PresentOperationAppendResult::Merged);
+
+    ASSERT_EQ(operations.count(), 3u);
+    EXPECT_EQ(operations.at(0).kind, kernel::display::PresentOperationKind::Scroll);
+    EXPECT_EQ(operations.at(0).distance, 16u);
+    EXPECT_TRUE(operations.at(1).scroll_repair_rect_present());
+    EXPECT_TRUE(operations.at(2).scroll_exposed_rect_present());
+
+    const kernel::display::PresentOperationStats stats = operations.stats();
+    EXPECT_EQ(stats.scroll_count, 1u);
+    EXPECT_EQ(stats.rect_count, 2u);
+}
+
+TEST(PresentOperationListTest, DoesNotCoalesceScrollAcrossNormalDirtyRect)
+{
+    kernel::display::PresentOperationList operations({0, 0, 1000, 1000});
+
+    EXPECT_EQ(operations.append_scroll({0, 10, 100, 80}, 8),
+              kernel::display::PresentOperationAppendResult::Queued);
+    EXPECT_EQ(operations.append_rect({4, 4, 4, 4}),
+              kernel::display::PresentOperationAppendResult::Queued);
+    EXPECT_EQ(operations.append_scroll({0, 10, 100, 80}, 8),
+              kernel::display::PresentOperationAppendResult::Queued);
+
+    ASSERT_EQ(operations.count(), 3u);
+    EXPECT_EQ(operations.at(0).kind, kernel::display::PresentOperationKind::Scroll);
+    EXPECT_EQ(operations.at(2).kind, kernel::display::PresentOperationKind::Scroll);
+}
+
+TEST(PresentOperationListTest, CoalescesRepeatedSplitScrollPieces)
+{
+    kernel::display::PresentOperationList operations({0, 0, 1000, 1000});
+
+    EXPECT_EQ(operations.append_scroll({0, 10, 40, 80}, 8),
+              kernel::display::PresentOperationAppendResult::Queued);
+    EXPECT_EQ(operations.append_scroll({60, 10, 40, 80}, 8),
+              kernel::display::PresentOperationAppendResult::Queued);
+    EXPECT_EQ(operations.append_scroll_repair_rect({40, 10, 20, 16}),
+              kernel::display::PresentOperationAppendResult::Queued);
+    EXPECT_EQ(operations.append_scroll_exposed_rect({0, 82, 100, 8}),
+              kernel::display::PresentOperationAppendResult::Queued);
+
+    EXPECT_EQ(operations.append_scroll({0, 10, 40, 80}, 8),
+              kernel::display::PresentOperationAppendResult::Merged);
+    EXPECT_EQ(operations.append_scroll({60, 10, 40, 80}, 8),
+              kernel::display::PresentOperationAppendResult::Merged);
+    EXPECT_EQ(operations.append_scroll_repair_rect({40, 10, 20, 16}),
+              kernel::display::PresentOperationAppendResult::Merged);
+    EXPECT_EQ(operations.append_scroll_exposed_rect({0, 82, 100, 8}),
+              kernel::display::PresentOperationAppendResult::Merged);
+
+    ASSERT_EQ(operations.count(), 4u);
+    EXPECT_EQ(operations.at(0).distance, 16u);
+    EXPECT_EQ(operations.at(1).distance, 16u);
+    EXPECT_TRUE(operations.at(2).scroll_repair_rect_present());
+    EXPECT_TRUE(operations.at(3).scroll_exposed_rect_present());
+}
+
+TEST(PresentOperationListTest, CompactsComplexRepeatedScrollsToBoundingRect)
+{
+    kernel::display::PresentOperationList operations({0, 0, 1000, 1000});
+
+    operations.append_scroll({0, 10, 100, 80}, 8);
+    operations.append_rect({0, 70, 10, 8});
+    operations.append_scroll({0, 10, 100, 80}, 8);
+
+    EXPECT_TRUE(operations.compact_complex_scrolls_to_rect());
+
+    ASSERT_EQ(operations.count(), 1u);
+    EXPECT_TRUE(operations.at(0).normal_rect_present());
+    EXPECT_EQ(operations.at(0).rect.x, 0u);
+    EXPECT_EQ(operations.at(0).rect.y, 10u);
+    EXPECT_EQ(operations.at(0).rect.width, 100u);
+    EXPECT_EQ(operations.at(0).rect.height, 80u);
+}
+
 TEST(PresentOperationListTest, ClipsOperationsToBounds)
 {
     kernel::display::PresentOperationList operations({10, 10, 20, 20});

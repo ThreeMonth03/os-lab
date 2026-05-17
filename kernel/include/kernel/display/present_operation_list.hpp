@@ -17,6 +17,13 @@ enum class PresentOperationKind
     Scroll,
 };
 
+enum class PresentRectKind
+{
+    Normal,
+    ScrollRepair,
+    ScrollExposed,
+};
+
 enum class PresentOperationAppendResult
 {
     Ignored,
@@ -28,10 +35,23 @@ enum class PresentOperationAppendResult
 struct PresentOperation
 {
     PresentOperationKind kind = PresentOperationKind::None;
+    PresentRectKind rect_kind = PresentRectKind::Normal;
     Rect rect;
     uint64_t distance = 0;
 
     bool rect_present() const { return kind == PresentOperationKind::Rect && !rect.empty(); }
+    bool normal_rect_present() const
+    {
+        return rect_present() && rect_kind == PresentRectKind::Normal;
+    }
+    bool scroll_repair_rect_present() const
+    {
+        return rect_present() && rect_kind == PresentRectKind::ScrollRepair;
+    }
+    bool scroll_exposed_rect_present() const
+    {
+        return rect_present() && rect_kind == PresentRectKind::ScrollExposed;
+    }
     bool scroll_present() const
     {
         return kind == PresentOperationKind::Scroll && !rect.empty() && distance > 0;
@@ -57,7 +77,10 @@ public:
     void reset(Rect bounds);
     void clear();
     PresentOperationAppendResult append_rect(Rect rect);
+    PresentOperationAppendResult append_scroll_repair_rect(Rect rect);
+    PresentOperationAppendResult append_scroll_exposed_rect(Rect rect);
     PresentOperationAppendResult append_scroll(Rect rect, uint64_t distance);
+    bool compact_complex_scrolls_to_rect();
 
     bool empty() const { return count_ == 0; }
     size_t count() const { return count_; }
@@ -69,8 +92,12 @@ public:
     PresentOperation at(size_t index) const;
 
 private:
+    PresentOperationAppendResult append_rect(Rect rect, PresentRectKind rect_kind);
+    void replace_with_rect(Rect rect);
     PresentOperationAppendResult fallback_to_fullscreen();
-    bool can_merge_last_rect(Rect rect) const;
+    bool can_merge_last_rect(Rect rect, PresentRectKind rect_kind) const;
+    bool try_merge_scroll_aftermath_rect(Rect rect, PresentRectKind rect_kind);
+    bool try_merge_scroll(Rect rect, uint64_t distance);
     void rebuild_stats();
 
     Rect bounds_;
