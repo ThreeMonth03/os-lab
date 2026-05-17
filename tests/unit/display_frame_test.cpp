@@ -10,27 +10,33 @@ TEST(DisplayFrameTest, SubmitsImmediatelyOutsideFrame)
         frame.submit({2, 3, 4, 5});
 
     ASSERT_TRUE(submit.immediate);
-    EXPECT_EQ(submit.present_rect.x, 2u);
-    EXPECT_EQ(submit.present_rect.y, 3u);
-    EXPECT_EQ(submit.present_rect.width, 4u);
-    EXPECT_EQ(submit.present_rect.height, 5u);
+    ASSERT_EQ(submit.present_regions.count(), 1u);
+    EXPECT_EQ(submit.present_regions.at(0).x, 2u);
+    EXPECT_EQ(submit.present_regions.at(0).y, 3u);
+    EXPECT_EQ(submit.present_regions.at(0).width, 4u);
+    EXPECT_EQ(submit.present_regions.at(0).height, 5u);
 }
 
-TEST(DisplayFrameTest, AccumulatesPresentRectsInsideFrame)
+TEST(DisplayFrameTest, KeepsDisjointPresentRectsSmallInsideFrame)
 {
     kernel::display::DisplayFrame frame({0, 0, 80, 100});
     frame.begin();
 
     EXPECT_FALSE(frame.submit({1, 1, 2, 2}).immediate);
-    EXPECT_FALSE(frame.submit({0, 20, 80, 18}).immediate);
+    EXPECT_FALSE(frame.submit({70, 90, 4, 4}).immediate);
 
     const kernel::display::DisplayFrameFlush flush = frame.end();
 
     ASSERT_TRUE(flush.outermost_frame_ended);
-    EXPECT_EQ(flush.present_rect.x, 0u);
-    EXPECT_EQ(flush.present_rect.y, 1u);
-    EXPECT_EQ(flush.present_rect.width, 80u);
-    EXPECT_EQ(flush.present_rect.height, 37u);
+    ASSERT_EQ(flush.present_regions.count(), 2u);
+    EXPECT_EQ(flush.present_regions.at(0).x, 1u);
+    EXPECT_EQ(flush.present_regions.at(0).y, 1u);
+    EXPECT_EQ(flush.present_regions.at(0).width, 2u);
+    EXPECT_EQ(flush.present_regions.at(0).height, 2u);
+    EXPECT_EQ(flush.present_regions.at(1).x, 70u);
+    EXPECT_EQ(flush.present_regions.at(1).y, 90u);
+    EXPECT_EQ(flush.present_regions.at(1).width, 4u);
+    EXPECT_EQ(flush.present_regions.at(1).height, 4u);
 }
 
 TEST(DisplayFrameTest, ClipsPresentRectsToFrameBounds)
@@ -43,10 +49,11 @@ TEST(DisplayFrameTest, ClipsPresentRectsToFrameBounds)
     const kernel::display::DisplayFrameFlush flush = frame.end();
 
     ASSERT_TRUE(flush.outermost_frame_ended);
-    EXPECT_EQ(flush.present_rect.x, 70u);
-    EXPECT_EQ(flush.present_rect.y, 90u);
-    EXPECT_EQ(flush.present_rect.width, 10u);
-    EXPECT_EQ(flush.present_rect.height, 10u);
+    ASSERT_EQ(flush.present_regions.count(), 1u);
+    EXPECT_EQ(flush.present_regions.at(0).x, 70u);
+    EXPECT_EQ(flush.present_regions.at(0).y, 90u);
+    EXPECT_EQ(flush.present_regions.at(0).width, 10u);
+    EXPECT_EQ(flush.present_regions.at(0).height, 10u);
 }
 
 TEST(DisplayFrameTest, IgnoresEmptyPresentRects)
@@ -54,12 +61,12 @@ TEST(DisplayFrameTest, IgnoresEmptyPresentRects)
     kernel::display::DisplayFrame frame({0, 0, 80, 100});
     frame.begin();
 
-    EXPECT_FALSE(frame.submit({}).immediate);
+    EXPECT_FALSE(frame.submit(kernel::display::Rect{}).immediate);
 
     const kernel::display::DisplayFrameFlush flush = frame.end();
 
     ASSERT_TRUE(flush.outermost_frame_ended);
-    EXPECT_TRUE(flush.present_rect.empty());
+    EXPECT_TRUE(flush.present_regions.empty());
 }
 
 TEST(DisplayFrameTest, NestedFrameFlushesOnlyAtOutermostEnd)
@@ -74,7 +81,24 @@ TEST(DisplayFrameTest, NestedFrameFlushesOnlyAtOutermostEnd)
     const kernel::display::DisplayFrameFlush flush = frame.end();
 
     ASSERT_TRUE(flush.outermost_frame_ended);
-    EXPECT_FALSE(flush.present_rect.empty());
+    EXPECT_FALSE(flush.present_regions.empty());
     EXPECT_EQ(frame.depth(), 0u);
     EXPECT_TRUE(frame.pending().empty());
+}
+
+TEST(DisplayFrameTest, TracksFramePresentStats)
+{
+    kernel::display::DisplayFrame frame({0, 0, 80, 100});
+    frame.begin();
+
+    EXPECT_FALSE(frame.submit({1, 1, 2, 2}).immediate);
+    EXPECT_FALSE(frame.submit({70, 90, 4, 4}).immediate);
+    const kernel::display::DisplayFrameFlush flush = frame.end();
+
+    ASSERT_TRUE(flush.outermost_frame_ended);
+    const kernel::display::DisplayFrameStats stats = frame.stats();
+    EXPECT_EQ(stats.frame_flush_count, 1u);
+    EXPECT_EQ(stats.present_rect_count, 2u);
+    EXPECT_EQ(stats.total_presented_pixels, 20u);
+    EXPECT_EQ(stats.largest_present_rect_area, 16u);
 }

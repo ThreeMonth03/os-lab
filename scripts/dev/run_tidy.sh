@@ -37,6 +37,7 @@ mapfile -d '' sources < <(
         "${project_root}/kernel/src/display/gui_surface.cpp" \
         "${project_root}/kernel/src/display/hit_test.cpp" \
         "${project_root}/kernel/src/display/image_view.cpp" \
+        "${project_root}/kernel/src/display/present_region_list.cpp" \
         "${project_root}/kernel/src/display/terminal_render_cache.cpp" \
         "${project_root}/kernel/src/display/terminal_repaint_state.cpp" \
         "${project_root}/kernel/src/input/input_router.cpp" \

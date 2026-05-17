@@ -14,6 +14,16 @@ using CursorBoundsReader = Rect (*)();
 
 inline constexpr size_t kMaxPresenterOverlays = 2;
 
+struct FramebufferPresenterStats
+{
+    uint64_t present_call_count = 0;
+    uint64_t present_rect_count = 0;
+    uint64_t total_presented_pixels = 0;
+    uint64_t largest_present_rect_area = 0;
+    uint64_t fast_path_copy_pixels = 0;
+    uint64_t overlay_blend_pixels = 0;
+};
+
 class FramebufferPresenter
 {
 public:
@@ -25,6 +35,8 @@ public:
 
     bool ready() const { return front_buffer_ != nullptr && front_buffer_->ready() && scene_buffer_ != nullptr && scene_buffer_->ready(); }
     [[nodiscard]] bool present_rect(Rect rect);
+    FramebufferPresenterStats stats() const { return stats_; }
+    void reset_stats();
 
 private:
     [[nodiscard]] Rect overlay_bounds(size_t index) const;
@@ -36,6 +48,7 @@ private:
     SceneBuffer * scene_buffer_ = nullptr;
     CursorPixelReader overlay_pixels_[kMaxPresenterOverlays] = {};
     CursorBoundsReader overlay_bounds_[kMaxPresenterOverlays] = {};
+    FramebufferPresenterStats stats_;
 }; // end class FramebufferPresenter
 
 } // namespace kernel::display

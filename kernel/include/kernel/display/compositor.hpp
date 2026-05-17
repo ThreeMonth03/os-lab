@@ -9,6 +9,7 @@
 #include "kernel/display/framebuffer_presenter.hpp"
 #include "kernel/display/frame_damage.hpp"
 #include "kernel/display/scene_buffer.hpp"
+#include "kernel/display/present_region_list.hpp"
 
 namespace kernel::display
 {
@@ -171,8 +172,8 @@ void set_presenter(FramebufferPresenter & presenter);
 [[nodiscard]] bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback);
 [[nodiscard]] bool register_layer_bounds_callback(LayerKind kind, LayerBoundsCallback callback);
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
-[[nodiscard]] Rect update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage);
-void present_scene_rect(Rect rect);
+[[nodiscard]] PresentRegionList update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage);
+void present_scene_regions(const PresentRegionList & regions);
 void apply_layer_damage(LayerKind base_layer, FrameDamage damage);
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds);
 

@@ -621,57 +621,57 @@ Rect apply_damage_step(LayerKind base_layer, FrameDamageStep step)
     return {};
 }
 
-Rect update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage)
+PresentRegionList update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage)
 {
+    PresentRegionList regions(g_compositor.bounds());
     if (damage.empty())
     {
-        return {};
+        return regions;
     }
 
-    Rect present_rect;
     if (damage.has_steps())
     {
         for (size_t index = 0; index < damage.step_count; ++index)
         {
-            present_rect =
-                bounding_rect(present_rect, apply_damage_step(base_layer, damage.steps[index]));
+            regions.append(apply_damage_step(base_layer, damage.steps[index]));
         }
     }
     else
     {
         if (damage.has_scroll())
         {
-            present_rect = bounding_rect(
-                present_rect,
-                apply_scene_scroll(base_layer, damage.scroll.rect, damage.scroll.distance));
+            regions.append(apply_scene_scroll(base_layer, damage.scroll.rect, damage.scroll.distance));
         }
 
         if (damage.has_dirty())
         {
             compose_backed_region_from(base_layer, damage.dirty_rect, false);
-            present_rect = bounding_rect(present_rect, damage.dirty_rect);
+            regions.append(damage.dirty_rect);
         }
     }
 
-    return present_rect;
+    return regions;
 }
 
-void present_scene_rect(Rect rect)
+void present_scene_regions(const PresentRegionList & regions)
 {
-    if (g_presenter == nullptr || !g_presenter->ready() || rect.empty())
+    if (g_presenter == nullptr || !g_presenter->ready())
     {
         return;
     }
 
-    if (!g_presenter->present_rect(rect))
+    for (size_t index = 0; index < regions.count(); ++index)
     {
-        return;
+        if (!g_presenter->present_rect(regions.at(index)))
+        {
+            return;
+        }
     }
 }
 
 void apply_layer_damage(LayerKind base_layer, FrameDamage damage)
 {
-    present_scene_rect(update_scene_from_layer_damage(base_layer, damage));
+    present_scene_regions(update_scene_from_layer_damage(base_layer, damage));
 }
 
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds)

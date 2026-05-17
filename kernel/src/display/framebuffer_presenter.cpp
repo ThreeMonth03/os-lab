@@ -6,6 +6,11 @@ namespace kernel::display
 namespace
 {
 
+uint64_t rect_area(Rect rect)
+{
+    return rect.width * rect.height;
+}
+
 Rect front_bounds(const Surface & surface)
 {
     return {0, 0, surface.width(), surface.height()};
@@ -17,6 +22,7 @@ void FramebufferPresenter::reset(Surface & front_buffer, SceneBuffer & scene_buf
 {
     front_buffer_ = &front_buffer;
     scene_buffer_ = &scene_buffer;
+    reset_stats();
 }
 
 void FramebufferPresenter::set_cursor_overlay(CursorPixelReader pixel_reader,
@@ -85,6 +91,15 @@ bool FramebufferPresenter::present_rect(Rect rect)
         return true;
     }
 
+    ++stats_.present_call_count;
+    ++stats_.present_rect_count;
+    const uint64_t area = rect_area(rect);
+    stats_.total_presented_pixels += area;
+    if (area > stats_.largest_present_rect_area)
+    {
+        stats_.largest_present_rect_area = area;
+    }
+
     if (!copy_scene_to_front(rect))
     {
         return false;
@@ -122,6 +137,7 @@ bool FramebufferPresenter::present_overlay_rect(Rect rect)
         for (uint64_t column = 0; column < rect.width; ++column)
         {
             put_presented_pixel(rect.x + column, y);
+            ++stats_.overlay_blend_pixels;
         }
     }
     return true;
@@ -152,8 +168,14 @@ bool FramebufferPresenter::copy_scene_to_front(Rect rect)
         }
 
         front_buffer_->put_pixels(rect.x, y, pixels + (rect.x - scene_bounds.x), rect.width);
+        stats_.fast_path_copy_pixels += rect.width;
     }
     return true;
+}
+
+void FramebufferPresenter::reset_stats()
+{
+    stats_ = {};
 }
 
 } // namespace kernel::display

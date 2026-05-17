@@ -383,9 +383,9 @@ void begin_frame()
     }
 }
 
-void present_scene_rect(display::Rect rect)
+void present_scene_regions(const display::PresentRegionList & regions)
 {
-    display::compositor::present_scene_rect(rect);
+    display::compositor::present_scene_regions(regions);
 }
 
 void end_frame()
@@ -398,7 +398,7 @@ void end_frame()
     const DisplayFrameFlush flush = g_state.frame.end();
     if (flush.outermost_frame_ended)
     {
-        present_scene_rect(flush.present_rect);
+        present_scene_regions(flush.present_regions);
     }
 }
 
@@ -420,12 +420,12 @@ void refresh_debug_overlay_if_due()
 
 void submit_terminal_app_damage(FrameDamage damage)
 {
-    const display::Rect present_rect =
+    const display::PresentRegionList present_regions =
         display::compositor::update_scene_from_layer_damage(display::LayerKind::AppSurface, damage);
-    const DisplayFrameSubmit submit = g_state.frame.submit(present_rect);
+    const DisplayFrameSubmit submit = g_state.frame.submit(present_regions);
     if (submit.immediate)
     {
-        present_scene_rect(submit.present_rect);
+        present_scene_regions(submit.present_regions);
     }
 }
 
