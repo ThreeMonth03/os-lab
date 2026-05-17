@@ -140,6 +140,13 @@ void TerminalApp::compose_terminal_region(display::Rect dirty_rect)
     }
 }
 
+void TerminalApp::flush_pre_scroll_terminal_region(display::Rect current_dirty)
+{
+    const display::TerminalRepaintFlush pending = repaint_.flush_pending();
+    apply_repaint_flush(pending);
+    compose_terminal_region(current_dirty);
+}
+
 void TerminalApp::apply_repaint(display::Rect dirty_rect,
                                 bool repaint_text_layer,
                                 bool repaint_entire_text_layer,

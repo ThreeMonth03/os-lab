@@ -158,14 +158,19 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
 
     if (update.scroll)
     {
+        display::Rect pre_scroll_dirty;
         if (can_scroll_backing && update.action == text::TextConsoleAction::DrawGlyph)
         {
             render_text_cell(update.cell.column, update.cell.row, update.glyph);
+            pre_scroll_dirty = cell_rect(update.cell.column, update.cell.row);
         }
         if (can_scroll_backing && update.action == text::TextConsoleAction::ClearCell)
         {
             render_text_cell(update.cell.column, update.cell.row, text::kTextBufferBlank);
+            pre_scroll_dirty = cell_rect(update.cell.column, update.cell.row);
         }
+
+        flush_pre_scroll_terminal_region(pre_scroll_dirty);
 
         if (!text_buffer_.scroll_up())
         {
@@ -182,7 +187,6 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
         }
 
         render_cache_.synchronize_from(text_buffer_);
-        apply_repaint_flush(repaint_.flush_pending());
         repaint_sink_.scroll_terminal_region_up(scroll_dirty, kCellHeight);
         return {};
     }
