@@ -28,7 +28,7 @@ public:
 
 private:
     [[nodiscard]] Rect overlay_bounds(size_t index) const;
-    [[nodiscard]] bool overlays_intersect(Rect rect) const;
+    [[nodiscard]] bool present_overlay_rect(Rect rect);
     void put_presented_pixel(uint64_t x, uint64_t y);
     [[nodiscard]] bool copy_scene_to_front(Rect rect);
 

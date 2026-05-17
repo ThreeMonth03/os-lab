@@ -237,6 +237,28 @@ TEST(DisplayTest, PresenterDrawsCursorOverlayWithoutChangingScene)
     EXPECT_EQ(scene.pixel(2, 1).value, 7u);
 }
 
+TEST(DisplayTest, PresenterCopiesLargeRectThroughFastScenePathWithSmallOverlay)
+{
+    uint32_t front_pixels[12] = {};
+    uint32_t scene_pixels[12] = {};
+    for (uint32_t index = 0; index < 12; ++index)
+    {
+        scene_pixels[index] = index + 1;
+    }
+    kernel::display::Surface front(front_pixels, 4, 3, 4 * sizeof(uint32_t));
+    kernel::display::SceneBuffer scene(scene_pixels, {0, 0, 4, 3}, 4);
+    kernel::display::FramebufferPresenter presenter;
+    presenter.reset(front, scene);
+    presenter.set_cursor_overlay(test_cursor_pixel, test_cursor_bounds);
+
+    ASSERT_TRUE(presenter.present_rect({0, 0, 4, 3}));
+
+    EXPECT_EQ(front.pixel(0, 0).value, 1u);
+    EXPECT_EQ(front.pixel(3, 2).value, 12u);
+    EXPECT_EQ(front.pixel(2, 1).value, 99u);
+    EXPECT_EQ(scene.pixel(2, 1).value, 7u);
+}
+
 TEST(DisplayTest, PresenterDrawsMultipleTransientOverlaysWithCursorTopmost)
 {
     uint32_t front_pixels[12] = {};

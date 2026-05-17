@@ -47,18 +47,6 @@ Rect FramebufferPresenter::overlay_bounds(size_t index) const
     return overlay_bounds_[index]();
 }
 
-bool FramebufferPresenter::overlays_intersect(Rect rect) const
-{
-    for (size_t index = 0; index < kMaxPresenterOverlays; ++index)
-    {
-        if (!intersect_rect(rect, overlay_bounds(index)).empty())
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
 void FramebufferPresenter::put_presented_pixel(uint64_t x, uint64_t y)
 {
     if (front_buffer_ == nullptr || scene_buffer_ == nullptr)
@@ -97,9 +85,35 @@ bool FramebufferPresenter::present_rect(Rect rect)
         return true;
     }
 
-    if (!overlays_intersect(rect))
+    if (!copy_scene_to_front(rect))
     {
-        return copy_scene_to_front(rect);
+        return false;
+    }
+
+    for (size_t index = 0; index < kMaxPresenterOverlays; ++index)
+    {
+        const Rect overlay = intersect_rect(rect, overlay_bounds(index));
+        if (!present_overlay_rect(overlay))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool FramebufferPresenter::present_overlay_rect(Rect rect)
+{
+    if (!ready())
+    {
+        return false;
+    }
+
+    rect = intersect_rect(rect, front_bounds(*front_buffer_));
+    rect = intersect_rect(rect, scene_buffer_->bounds());
+    if (rect.empty())
+    {
+        return true;
     }
 
     for (uint64_t row = 0; row < rect.height; ++row)
