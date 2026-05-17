@@ -38,6 +38,18 @@ void TerminalApp::hide_text_cursor()
     cursor_.hide();
 }
 
+display::Rect TerminalApp::erase_text_cursor_for_scroll()
+{
+    if (!cursor_.visible)
+    {
+        return {};
+    }
+
+    const display::Rect dirty_rect = cell_rect(cursor_.column, cursor_.row);
+    hide_text_cursor();
+    return dirty_rect;
+}
+
 void TerminalApp::repaint_text_layer()
 {
     renderer_.clear_screen();

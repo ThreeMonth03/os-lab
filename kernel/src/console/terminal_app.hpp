@@ -93,6 +93,7 @@ private:
     display::Rect row_tail_rect(uint64_t column, uint64_t row) const;
 
     void hide_text_cursor();
+    display::Rect erase_text_cursor_for_scroll();
     void repaint_text_layer();
     void render_text_cell(uint64_t column, uint64_t row, char glyph);
     void render_buffer_cell(uint64_t column, uint64_t row);

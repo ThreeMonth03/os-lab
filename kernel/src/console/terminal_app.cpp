@@ -170,7 +170,11 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
             pre_scroll_dirty = cell_rect(update.cell.column, update.cell.row);
         }
 
-        flush_pre_scroll_terminal_region(pre_scroll_dirty);
+        pre_scroll_dirty = display::bounding_rect(pre_scroll_dirty, erase_text_cursor_for_scroll());
+        if (!repaint_.in_batch())
+        {
+            flush_pre_scroll_terminal_region(pre_scroll_dirty);
+        }
 
         if (!text_buffer_.scroll_up())
         {
@@ -187,6 +191,12 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
         }
 
         render_cache_.synchronize_from(text_buffer_);
+        if (repaint_.in_batch())
+        {
+            apply_repaint_request(repaint_.record_dirty(scroll_dirty));
+            return {};
+        }
+
         repaint_sink_.scroll_terminal_region_up(scroll_dirty, kCellHeight);
         return {};
     }
