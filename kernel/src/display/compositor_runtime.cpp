@@ -70,6 +70,21 @@ kernel::display::PixelSample layer_pixel_reader(const kernel::display::LayerPixe
     return callback(x, y);
 }
 
+const kernel::display::LayerPixelSource * pixel_source_for(
+    kernel::display::LayerKind kind,
+    const kernel::display::LayerPixelSource * sources,
+    size_t source_count)
+{
+    for (size_t index = 0; index < source_count; ++index)
+    {
+        if (sources[index].kind == kind && sources[index].valid() && sources[index].visible)
+        {
+            return &sources[index];
+        }
+    }
+    return nullptr;
+}
+
 size_t collect_pixel_sources(kernel::display::LayerPixelSource (&sources)[kernel::display::kMaxCompositorLayers])
 {
     size_t count = 0;
@@ -91,6 +106,64 @@ size_t collect_pixel_sources(kernel::display::LayerPixelSource (&sources)[kernel
         };
     }
     return count;
+}
+
+bool paint_source_region(const kernel::display::LayerPixelSource & source,
+                         kernel::display::Rect dirty_rect)
+{
+    kernel::display::Rect rect = kernel::display::intersect_rect(dirty_rect, source.bounds);
+    if (g_front_surface == nullptr || rect.empty())
+    {
+        return false;
+    }
+
+    bool complete = true;
+    for (uint64_t row = 0; row < rect.height; ++row)
+    {
+        const uint64_t y = rect.y + row;
+        for (uint64_t column = 0; column < rect.width; ++column)
+        {
+            const uint64_t x = rect.x + column;
+            const kernel::display::PixelSample sample = source.read(source, x, y);
+            if (sample.opaque())
+            {
+                g_front_surface->put_pixel(x, y, sample.color);
+                continue;
+            }
+
+            if (source.occlusion == kernel::display::LayerOcclusion::Opaque)
+            {
+                complete = false;
+            }
+        }
+    }
+    return complete;
+}
+
+bool compose_repaint_plan(const kernel::display::LayerRepaintPlan & plan,
+                          const kernel::display::LayerPixelSource * sources,
+                          size_t source_count)
+{
+    if (plan.count == 0)
+    {
+        return false;
+    }
+
+    bool complete = true;
+    for (size_t index = 0; index < plan.count; ++index)
+    {
+        const kernel::display::LayerPixelSource * source =
+            pixel_source_for(plan.at(index), sources, source_count);
+        if (source == nullptr)
+        {
+            return false;
+        }
+        if (!paint_source_region(*source, plan.rect_at(index)))
+        {
+            complete = false;
+        }
+    }
+    return complete;
 }
 
 bool can_compose_region_from(kernel::display::LayerKind base_layer,
@@ -130,6 +203,13 @@ bool compose_backed_region_from(kernel::display::LayerKind base_layer, kernel::d
 
     kernel::display::LayerPixelSource sources[kernel::display::kMaxCompositorLayers] = {};
     const size_t source_count = collect_pixel_sources(sources);
+    const kernel::display::LayerRepaintPlan plan =
+        g_compositor.repaint_plan_from(base_layer, dirty_rect);
+    if (compose_repaint_plan(plan, sources, source_count))
+    {
+        return true;
+    }
+
     if (!can_compose_region_from(base_layer, dirty_rect, sources, source_count))
     {
         return false;
