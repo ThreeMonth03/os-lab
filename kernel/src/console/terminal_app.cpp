@@ -157,14 +157,13 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
 {
     display::Rect dirty_rect;
     const bool can_scroll_backing = update.scroll && render_cache_.valid();
-    const bool draw_immediately =
-        !update.scroll && !repaint_.pending_damage() && render_cache_.valid();
+    const bool can_render_backing_cell = !update.scroll && render_cache_.valid();
 
     switch (update.action)
     {
     case text::TextConsoleAction::DrawGlyph:
         text_buffer_.put(update.cell.column, update.cell.row, update.glyph);
-        if (draw_immediately)
+        if (can_render_backing_cell)
         {
             render_text_cell(update.cell.column, update.cell.row, update.glyph);
             dirty_rect = cell_rect(update.cell.column, update.cell.row);
@@ -172,7 +171,7 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
         break;
     case text::TextConsoleAction::ClearCell:
         text_buffer_.clear_cell(update.cell.column, update.cell.row);
-        if (draw_immediately)
+        if (can_render_backing_cell)
         {
             render_text_cell(update.cell.column, update.cell.row, text::kTextBufferBlank);
             dirty_rect = cell_rect(update.cell.column, update.cell.row);
