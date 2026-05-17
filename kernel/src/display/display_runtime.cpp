@@ -383,9 +383,9 @@ void begin_frame()
     }
 }
 
-void flush_terminal_app_damage(FrameDamage damage)
+void present_scene_rect(display::Rect rect)
 {
-    display::compositor::apply_layer_damage(display::LayerKind::AppSurface, damage);
+    display::compositor::present_scene_rect(rect);
 }
 
 void end_frame()
@@ -398,7 +398,7 @@ void end_frame()
     const DisplayFrameFlush flush = g_state.frame.end();
     if (flush.outermost_frame_ended)
     {
-        flush_terminal_app_damage(flush.damage);
+        present_scene_rect(flush.present_rect);
     }
 }
 
@@ -420,10 +420,12 @@ void refresh_debug_overlay_if_due()
 
 void submit_terminal_app_damage(FrameDamage damage)
 {
-    const DisplayFrameSubmit submit = g_state.frame.submit(damage);
+    const display::Rect present_rect =
+        display::compositor::update_scene_from_layer_damage(display::LayerKind::AppSurface, damage);
+    const DisplayFrameSubmit submit = g_state.frame.submit(present_rect);
     if (submit.immediate)
     {
-        flush_terminal_app_damage(submit.damage);
+        present_scene_rect(submit.present_rect);
     }
 }
 

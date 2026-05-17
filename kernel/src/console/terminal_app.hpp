@@ -65,8 +65,6 @@ public:
     uint64_t cursor_column() const { return console_.cursor_column(); }
     uint64_t cursor_row() const { return console_.cursor_row(); }
 
-    void begin_update();
-    void end_update();
     display::PixelSample sample_pixel(uint64_t x, uint64_t y) const;
     display::PixelSample sample_caret_pixel(uint64_t x, uint64_t y) const;
     display::Rect caret_bounds() const;
@@ -103,7 +101,6 @@ private:
     bool allocate_backing_surface();
     void apply_repaint(display::FrameDamage damage);
     void apply_repaint_request(display::TerminalRepaintRequest request);
-    void apply_repaint_flush(display::TerminalRepaintFlush flush);
     void record_console_dirty(display::Rect dirty_rect);
     display::Rect apply_console_update(text::TextConsoleUpdate update);
     display::Rect apply_write_character(char value);

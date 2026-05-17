@@ -3,30 +3,6 @@
 namespace kernel::console
 {
 
-void TerminalApp::begin_update()
-{
-    if (!ready())
-    {
-        return;
-    }
-
-    repaint_.begin_batch();
-}
-
-void TerminalApp::end_update()
-{
-    if (!ready())
-    {
-        return;
-    }
-
-    const display::TerminalRepaintFlush flush = repaint_.end_batch();
-    if (flush.outermost_batch_ended)
-    {
-        apply_repaint_flush(flush);
-    }
-}
-
 void TerminalApp::repaint_text_layer()
 {
     renderer_.clear_screen();
@@ -143,11 +119,6 @@ void TerminalApp::apply_repaint(display::FrameDamage damage)
 void TerminalApp::apply_repaint_request(display::TerminalRepaintRequest request)
 {
     apply_repaint(request.damage);
-}
-
-void TerminalApp::apply_repaint_flush(display::TerminalRepaintFlush flush)
-{
-    apply_repaint(flush.damage);
 }
 
 void TerminalApp::record_console_dirty(display::Rect dirty_rect)

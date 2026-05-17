@@ -346,8 +346,12 @@ bool compose_backed_region_from(kernel::display::LayerKind base_layer,
                                 kernel::display::Rect dirty_rect,
                                 bool present)
 {
-    if (g_scene_buffer == nullptr || !g_scene_buffer->ready() || g_presenter == nullptr ||
-        !g_presenter->ready() || dirty_rect.empty())
+    if (g_scene_buffer == nullptr || !g_scene_buffer->ready() || dirty_rect.empty())
+    {
+        return false;
+    }
+
+    if (present && (g_presenter == nullptr || !g_presenter->ready()))
     {
         return false;
     }
@@ -617,11 +621,11 @@ Rect apply_damage_step(LayerKind base_layer, FrameDamageStep step)
     return {};
 }
 
-void apply_layer_damage(LayerKind base_layer, FrameDamage damage)
+Rect update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage)
 {
-    if (g_presenter == nullptr || !g_presenter->ready() || damage.empty())
+    if (damage.empty())
     {
-        return;
+        return {};
     }
 
     Rect present_rect;
@@ -649,13 +653,25 @@ void apply_layer_damage(LayerKind base_layer, FrameDamage damage)
         }
     }
 
-    if (!present_rect.empty())
+    return present_rect;
+}
+
+void present_scene_rect(Rect rect)
+{
+    if (g_presenter == nullptr || !g_presenter->ready() || rect.empty())
     {
-        if (!g_presenter->present_rect(present_rect))
-        {
-            return;
-        }
+        return;
     }
+
+    if (!g_presenter->present_rect(rect))
+    {
+        return;
+    }
+}
+
+void apply_layer_damage(LayerKind base_layer, FrameDamage damage)
+{
+    present_scene_rect(update_scene_from_layer_damage(base_layer, damage));
 }
 
 void mark_cursor_move_dirty(Rect old_bounds, Rect new_bounds)

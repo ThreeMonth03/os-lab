@@ -5,79 +5,45 @@ namespace kernel::display
 
 void TerminalRepaintState::reset(Rect bounds)
 {
-    update_depth_ = 0;
-    damage_.reset(bounds);
-}
-
-void TerminalRepaintState::begin_batch()
-{
-    if (update_depth_ == 0)
-    {
-        damage_.clear();
-    }
-    ++update_depth_;
-}
-
-TerminalRepaintFlush TerminalRepaintState::end_batch()
-{
-    if (update_depth_ == 0)
-    {
-        return {};
-    }
-
-    --update_depth_;
-    if (update_depth_ > 0)
-    {
-        return {};
-    }
-
-    return {
-        true,
-        damage_.flush(),
-    };
-}
-
-TerminalRepaintFlush TerminalRepaintState::flush_pending()
-{
-    return {
-        false,
-        damage_.flush(),
-    };
+    bounds_ = bounds;
 }
 
 TerminalRepaintRequest TerminalRepaintState::record_dirty(Rect rect)
 {
+    rect = intersect_rect(bounds_, rect);
     if (rect.empty())
     {
         return {};
     }
 
-    if (!in_batch())
+    FrameDamage damage;
+    if (!damage.append_dirty(rect))
     {
         return {{rect, {}}};
     }
-
-    damage_.mark_dirty(rect);
-    return {};
+    return {damage};
 }
 
 TerminalRepaintRequest TerminalRepaintState::record_scroll(Rect rect, uint64_t distance)
 {
+    rect = intersect_rect(bounds_, rect);
     if (rect.empty() || distance == 0)
     {
         return {};
     }
 
-    if (!in_batch())
+    FrameDamage damage;
+    const ScrollDamage scroll{rect, distance};
+    if (!damage.append_scroll(scroll))
     {
-        return {{
-            exposed_scroll_region({rect, distance}),
-            {rect, distance},
-        }};
+        return {{rect, {}}};
     }
 
-    damage_.record_scroll(rect, distance);
-    return {};
+    if (!damage.append_dirty(exposed_scroll_region(scroll), true))
+    {
+        return {{rect, {}}};
+    }
+    return {damage};
 }
 
 } // namespace kernel::display

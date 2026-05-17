@@ -13,14 +13,22 @@ void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t 
     EXPECT_EQ(actual.height, height);
 }
 
-void expect_no_immediate_repaint(kernel::display::TerminalRepaintRequest request)
-{
-    EXPECT_TRUE(request.damage.empty());
-}
-
 } // namespace
 
-TEST(TerminalRepaintStateTest, NonBatchScrollRequestsScrollDamage)
+TEST(TerminalRepaintStateTest, DirtyRequestsImmediateDamage)
+{
+    kernel::display::TerminalRepaintState state;
+    state.reset({0, 0, 640, 480});
+
+    const kernel::display::TerminalRepaintRequest request = state.record_dirty({10, 20, 8, 8});
+
+    ASSERT_TRUE(request.damage.has_dirty());
+    expect_rect(request.damage.dirty_rect, 10, 20, 8, 8);
+    ASSERT_EQ(request.damage.step_count, 1u);
+    EXPECT_EQ(request.damage.steps[0].kind, kernel::display::FrameDamageStepKind::DirtyRect);
+}
+
+TEST(TerminalRepaintStateTest, ScrollRequestsOrderedImmediateDamage)
 {
     kernel::display::TerminalRepaintState state;
     state.reset({0, 0, 640, 480});
@@ -33,74 +41,18 @@ TEST(TerminalRepaintStateTest, NonBatchScrollRequestsScrollDamage)
     EXPECT_EQ(request.damage.scroll.distance, 18u);
     ASSERT_TRUE(request.damage.has_dirty());
     expect_rect(request.damage.dirty_rect, 0, 462, 640, 18);
-    EXPECT_FALSE(state.pending_damage());
+    ASSERT_EQ(request.damage.step_count, 2u);
+    EXPECT_EQ(request.damage.steps[0].kind, kernel::display::FrameDamageStepKind::Scroll);
+    EXPECT_EQ(request.damage.steps[1].kind, kernel::display::FrameDamageStepKind::DirtyRect);
 }
 
-TEST(TerminalRepaintStateTest, BatchScrollDefersScrollDamage)
+TEST(TerminalRepaintStateTest, ClipsDamageToTerminalBounds)
 {
     kernel::display::TerminalRepaintState state;
     state.reset({0, 0, 640, 480});
-    state.begin_batch();
-    EXPECT_TRUE(state.in_batch());
 
-    expect_no_immediate_repaint(state.record_scroll({0, 0, 640, 480}, 18));
-    EXPECT_TRUE(state.pending_damage());
+    const kernel::display::TerminalRepaintRequest request = state.record_dirty({630, 470, 20, 20});
 
-    const kernel::display::TerminalRepaintFlush flush = state.end_batch();
-    EXPECT_TRUE(flush.outermost_batch_ended);
-    ASSERT_TRUE(flush.damage.has_scroll());
-    expect_rect(flush.damage.scroll.rect, 0, 0, 640, 480);
-    EXPECT_EQ(flush.damage.scroll.distance, 18u);
-    ASSERT_TRUE(flush.damage.has_dirty());
-    expect_rect(flush.damage.dirty_rect, 0, 462, 640, 18);
-}
-
-TEST(TerminalRepaintStateTest, MultipleBatchScrollsCollapseToOneScrollDamage)
-{
-    kernel::display::TerminalRepaintState state;
-    state.reset({0, 0, 640, 480});
-    state.begin_batch();
-
-    expect_no_immediate_repaint(state.record_scroll({0, 0, 640, 480}, 18));
-    expect_no_immediate_repaint(state.record_scroll({0, 0, 640, 480}, 18));
-    expect_no_immediate_repaint(state.record_scroll({0, 0, 640, 480}, 18));
-
-    const kernel::display::TerminalRepaintFlush flush = state.end_batch();
-    ASSERT_TRUE(flush.damage.has_scroll());
-    expect_rect(flush.damage.scroll.rect, 0, 0, 640, 480);
-    EXPECT_EQ(flush.damage.scroll.distance, 54u);
-    ASSERT_TRUE(flush.damage.has_dirty());
-    expect_rect(flush.damage.dirty_rect, 0, 426, 640, 54);
-}
-
-TEST(TerminalRepaintStateTest, DirtyAndScrollDamageCanShareOneFlush)
-{
-    kernel::display::TerminalRepaintState state;
-    state.reset({0, 0, 640, 480});
-    state.begin_batch();
-
-    expect_no_immediate_repaint(state.record_dirty({10, 10, 8, 8}));
-    expect_no_immediate_repaint(state.record_scroll({0, 0, 640, 480}, 18));
-
-    const kernel::display::TerminalRepaintFlush flush = state.end_batch();
-    ASSERT_TRUE(flush.damage.has_scroll());
-    ASSERT_TRUE(flush.damage.has_dirty());
-    expect_rect(flush.damage.dirty_rect, 0, 10, 640, 470);
-}
-
-TEST(TerminalRepaintStateTest, BatchEndClearsPendingState)
-{
-    kernel::display::TerminalRepaintState state;
-    state.reset({0, 0, 640, 480});
-    state.begin_batch();
-    expect_no_immediate_repaint(state.record_scroll({0, 0, 640, 480}, 18));
-
-    const kernel::display::TerminalRepaintFlush first_flush = state.end_batch();
-    EXPECT_TRUE(first_flush.outermost_batch_ended);
-    EXPECT_FALSE(state.pending_damage());
-
-    state.begin_batch();
-    const kernel::display::TerminalRepaintFlush second_flush = state.end_batch();
-    EXPECT_TRUE(second_flush.outermost_batch_ended);
-    EXPECT_TRUE(second_flush.damage.empty());
+    ASSERT_TRUE(request.damage.has_dirty());
+    expect_rect(request.damage.dirty_rect, 630, 470, 10, 10);
 }

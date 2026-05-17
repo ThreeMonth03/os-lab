@@ -7,64 +7,59 @@ TEST(DisplayFrameTest, SubmitsImmediatelyOutsideFrame)
     kernel::display::DisplayFrame frame({0, 0, 80, 100});
 
     const kernel::display::DisplayFrameSubmit submit =
-        frame.submit({{2, 3, 4, 5}, {}});
+        frame.submit({2, 3, 4, 5});
 
     ASSERT_TRUE(submit.immediate);
-    EXPECT_EQ(submit.damage.dirty_rect.x, 2u);
-    EXPECT_EQ(submit.damage.dirty_rect.y, 3u);
-    EXPECT_EQ(submit.damage.dirty_rect.width, 4u);
-    EXPECT_EQ(submit.damage.dirty_rect.height, 5u);
-    EXPECT_FALSE(submit.damage.has_scroll());
+    EXPECT_EQ(submit.present_rect.x, 2u);
+    EXPECT_EQ(submit.present_rect.y, 3u);
+    EXPECT_EQ(submit.present_rect.width, 4u);
+    EXPECT_EQ(submit.present_rect.height, 5u);
 }
 
-TEST(DisplayFrameTest, AccumulatesDirtyAndScrollInsideFrame)
+TEST(DisplayFrameTest, AccumulatesPresentRectsInsideFrame)
 {
     kernel::display::DisplayFrame frame({0, 0, 80, 100});
     frame.begin();
 
-    EXPECT_FALSE(frame.submit({{1, 1, 2, 2}, {}}).immediate);
-    EXPECT_FALSE(frame.submit({{}, {{0, 0, 80, 90}, 18}}).immediate);
+    EXPECT_FALSE(frame.submit({1, 1, 2, 2}).immediate);
+    EXPECT_FALSE(frame.submit({0, 20, 80, 18}).immediate);
 
     const kernel::display::DisplayFrameFlush flush = frame.end();
 
     ASSERT_TRUE(flush.outermost_frame_ended);
-    EXPECT_TRUE(flush.damage.has_dirty());
-    EXPECT_TRUE(flush.damage.has_scroll());
-    EXPECT_EQ(flush.damage.scroll.distance, 18u);
-    EXPECT_EQ(flush.damage.scroll.rect.height, 90u);
+    EXPECT_EQ(flush.present_rect.x, 0u);
+    EXPECT_EQ(flush.present_rect.y, 1u);
+    EXPECT_EQ(flush.present_rect.width, 80u);
+    EXPECT_EQ(flush.present_rect.height, 37u);
 }
 
-TEST(DisplayFrameTest, KeepsDirtyBeforeScrollOrdering)
+TEST(DisplayFrameTest, ClipsPresentRectsToFrameBounds)
 {
     kernel::display::DisplayFrame frame({0, 0, 80, 100});
     frame.begin();
 
-    EXPECT_FALSE(frame.submit({{0, 72, 80, 18}, {}}).immediate);
-    EXPECT_FALSE(frame.submit({{}, {{0, 0, 80, 90}, 18}}).immediate);
+    EXPECT_FALSE(frame.submit({70, 90, 20, 20}).immediate);
 
     const kernel::display::DisplayFrameFlush flush = frame.end();
 
     ASSERT_TRUE(flush.outermost_frame_ended);
-    ASSERT_EQ(flush.damage.step_count, 3u);
-    EXPECT_EQ(flush.damage.steps[0].kind, kernel::display::FrameDamageStepKind::DirtyRect);
-    EXPECT_EQ(flush.damage.steps[1].kind, kernel::display::FrameDamageStepKind::Scroll);
-    EXPECT_EQ(flush.damage.steps[2].kind, kernel::display::FrameDamageStepKind::DirtyRect);
+    EXPECT_EQ(flush.present_rect.x, 70u);
+    EXPECT_EQ(flush.present_rect.y, 90u);
+    EXPECT_EQ(flush.present_rect.width, 10u);
+    EXPECT_EQ(flush.present_rect.height, 10u);
 }
 
-TEST(DisplayFrameTest, CollapsesMultipleScrolls)
+TEST(DisplayFrameTest, IgnoresEmptyPresentRects)
 {
     kernel::display::DisplayFrame frame({0, 0, 80, 100});
     frame.begin();
 
-    EXPECT_FALSE(frame.submit({{}, {{0, 0, 80, 90}, 18}}).immediate);
-    EXPECT_FALSE(frame.submit({{}, {{0, 0, 80, 90}, 18}}).immediate);
-    EXPECT_FALSE(frame.submit({{}, {{0, 0, 80, 90}, 18}}).immediate);
+    EXPECT_FALSE(frame.submit({}).immediate);
 
     const kernel::display::DisplayFrameFlush flush = frame.end();
 
     ASSERT_TRUE(flush.outermost_frame_ended);
-    ASSERT_TRUE(flush.damage.has_scroll());
-    EXPECT_EQ(flush.damage.scroll.distance, 54u);
+    EXPECT_TRUE(flush.present_rect.empty());
 }
 
 TEST(DisplayFrameTest, NestedFrameFlushesOnlyAtOutermostEnd)
@@ -73,13 +68,13 @@ TEST(DisplayFrameTest, NestedFrameFlushesOnlyAtOutermostEnd)
     frame.begin();
     frame.begin();
 
-    EXPECT_FALSE(frame.submit({{4, 4, 8, 8}, {}}).immediate);
+    EXPECT_FALSE(frame.submit({4, 4, 8, 8}).immediate);
 
     EXPECT_FALSE(frame.end().outermost_frame_ended);
     const kernel::display::DisplayFrameFlush flush = frame.end();
 
     ASSERT_TRUE(flush.outermost_frame_ended);
-    EXPECT_TRUE(flush.damage.has_dirty());
+    EXPECT_FALSE(flush.present_rect.empty());
     EXPECT_EQ(frame.depth(), 0u);
     EXPECT_TRUE(frame.pending().empty());
 }
