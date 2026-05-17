@@ -22,6 +22,7 @@ struct LayerBoundsCallbackSlot
 constexpr kernel::display::LayerKind kTopDownLayerOrder[] = {
     kernel::display::LayerKind::MouseCursor,
     kernel::display::LayerKind::DebugOverlay,
+    kernel::display::LayerKind::TerminalCaret,
     kernel::display::LayerKind::AppSurface,
     kernel::display::LayerKind::GuiSurface,
     kernel::display::LayerKind::DesktopBackground,

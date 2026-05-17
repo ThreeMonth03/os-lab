@@ -17,6 +17,7 @@ enum class CompositedSurfaceRole
     Background,
     SystemUi,
     App,
+    TextCaret,
     Overlay,
     Cursor,
 };

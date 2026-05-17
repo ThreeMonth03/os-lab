@@ -21,8 +21,10 @@ void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t 
 kernel::display::Layer layer(kernel::display::LayerKind kind, kernel::display::SurfaceId id)
 {
     const kernel::display::LayerOcclusion occlusion =
-        kind == kernel::display::LayerKind::MouseCursor ? kernel::display::LayerOcclusion::Transparent
-                                                        : kernel::display::LayerOcclusion::Opaque;
+        kind == kernel::display::LayerKind::MouseCursor ||
+                kind == kernel::display::LayerKind::TerminalCaret
+            ? kernel::display::LayerOcclusion::Transparent
+            : kernel::display::LayerOcclusion::Opaque;
     return {kind, id, {0, 0, 320, 200}, true, occlusion};
 }
 

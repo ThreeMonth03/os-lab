@@ -19,8 +19,10 @@ void expect_rect(kernel::display::Rect actual, uint64_t x, uint64_t y, uint64_t 
 kernel::display::Layer layer(kernel::display::LayerKind kind, kernel::display::SurfaceId id)
 {
     const kernel::display::LayerOcclusion occlusion =
-        kind == kernel::display::LayerKind::MouseCursor ? kernel::display::LayerOcclusion::Transparent
-                                                        : kernel::display::LayerOcclusion::Opaque;
+        kind == kernel::display::LayerKind::MouseCursor ||
+                kind == kernel::display::LayerKind::TerminalCaret
+            ? kernel::display::LayerOcclusion::Transparent
+            : kernel::display::LayerOcclusion::Opaque;
     return {kind, id, {0, 0, 640, 480}, true, occlusion};
 }
 
@@ -122,14 +124,16 @@ TEST(DisplayCompositorTest, CursorMoveMarksOldAndNewRectsDirty)
     EXPECT_FALSE(queue.pop(dirty));
 }
 
-TEST(DisplayCompositorTest, OrdersDesktopGuiAppOverlayAndMouseCursorLayers)
+TEST(DisplayCompositorTest, OrdersDesktopGuiAppCaretOverlayAndMouseCursorLayers)
 {
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::GuiSurface,
                                              kernel::display::LayerKind::DesktopBackground));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::AppSurface,
                                              kernel::display::LayerKind::GuiSurface));
-    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::DebugOverlay,
+    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::TerminalCaret,
                                              kernel::display::LayerKind::AppSurface));
+    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::DebugOverlay,
+                                             kernel::display::LayerKind::TerminalCaret));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::MouseCursor,
                                              kernel::display::LayerKind::DebugOverlay));
     EXPECT_FALSE(kernel::display::layer_above(kernel::display::LayerKind::DesktopBackground,
@@ -178,6 +182,10 @@ TEST(DisplayCompositorTest, RegistersCompositedSurfaceDescriptors)
         true,
         true)));
     ASSERT_TRUE(compositor.register_surface(kernel::display::make_composited_surface(
+        kernel::display::kTerminalCaretLayerSurfaceId,
+        kernel::display::CompositedSurfaceRole::TextCaret,
+        {0, 0, 800, 600})));
+    ASSERT_TRUE(compositor.register_surface(kernel::display::make_composited_surface(
         kernel::display::debug_overlay::kSurfaceId,
         kernel::display::CompositedSurfaceRole::Overlay,
         {700, 0, 80, 20})));
@@ -186,11 +194,15 @@ TEST(DisplayCompositorTest, RegistersCompositedSurfaceDescriptors)
         kernel::display::CompositedSurfaceRole::Cursor,
         {0, 0, 800, 600})));
 
-    EXPECT_EQ(compositor.layer_count(), 5u);
+    EXPECT_EQ(compositor.layer_count(), 6u);
     const kernel::display::Layer * cursor =
         compositor.find_layer(kernel::display::LayerKind::MouseCursor);
     ASSERT_NE(cursor, nullptr);
     EXPECT_FALSE(cursor->occludes_lower_repaint());
+    const kernel::display::Layer * caret =
+        compositor.find_layer(kernel::display::LayerKind::TerminalCaret);
+    ASSERT_NE(caret, nullptr);
+    EXPECT_FALSE(caret->occludes_lower_repaint());
 
     const kernel::display::Layer * top = compositor.top_visible_layer();
     ASSERT_NE(top, nullptr);

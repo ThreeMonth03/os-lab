@@ -14,6 +14,7 @@ add_library(os_lab_kernel_display OBJECT
     display_runtime.cpp
     display_target.cpp
     framebuffer_presenter.cpp
+    frame_damage.cpp
     gui_panel.cpp
     gui_panel_renderer.cpp
     gui_panel_runtime.cpp

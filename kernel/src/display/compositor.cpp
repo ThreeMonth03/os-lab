@@ -190,6 +190,8 @@ uint8_t layer_order(LayerKind kind)
         return 8;
     case LayerKind::AppSurface:
         return 10;
+    case LayerKind::TerminalCaret:
+        return 15;
     case LayerKind::DebugOverlay:
         return 20;
     case LayerKind::MouseCursor:

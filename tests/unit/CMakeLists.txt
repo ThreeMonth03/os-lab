@@ -11,6 +11,7 @@ add_executable(os_lab_unit_tests
     display_target_test.cpp
     editor_test.cpp
     font5x7_test.cpp
+    frame_damage_test.cpp
     gui_panel_test.cpp
     gui_surface_test.cpp
     hit_test_test.cpp

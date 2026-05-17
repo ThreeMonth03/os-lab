@@ -18,6 +18,7 @@ inline constexpr size_t kMaxDirtyRects = 16;
 inline constexpr size_t kMaxCompositorLayers = 8;
 inline constexpr size_t kMaxLayerRepaintEntries = 32;
 inline constexpr SurfaceId kMouseCursorLayerSurfaceId = 3;
+inline constexpr SurfaceId kTerminalCaretLayerSurfaceId = 4;
 
 class DirtyRectQueue;
 
@@ -35,6 +36,7 @@ enum class LayerKind
     DesktopBackground,
     GuiSurface,
     AppSurface,
+    TerminalCaret,
     DebugOverlay,
     MouseCursor,
 };
