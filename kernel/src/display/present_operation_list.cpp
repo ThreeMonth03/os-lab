@@ -41,6 +41,13 @@ bool adjacent_or_overlapping(Rect lhs, Rect rhs)
     return false;
 }
 
+bool horizontally_adjacent_or_overlapping(Rect lhs, Rect rhs)
+{
+    return !intersect_rect(lhs, rhs).empty() ||
+           (same_vertical_span(lhs, rhs) &&
+            (lhs.x + lhs.width == rhs.x || rhs.x + rhs.width == lhs.x));
+}
+
 bool same_rect(Rect lhs, Rect rhs)
 {
     return lhs.x == rhs.x && lhs.y == rhs.y && lhs.width == rhs.width &&
@@ -223,8 +230,17 @@ bool PresentOperationList::can_merge_last_rect(Rect rect, PresentRectKind rect_k
     }
 
     const PresentOperation & last = operations_[count_ - 1];
-    return last.rect_present() && last.rect_kind == rect_kind &&
-           adjacent_or_overlapping(last.rect, rect);
+    if (!last.rect_present() || last.rect_kind != rect_kind)
+    {
+        return false;
+    }
+
+    if (rect_kind == PresentRectKind::Normal)
+    {
+        return horizontally_adjacent_or_overlapping(last.rect, rect);
+    }
+
+    return adjacent_or_overlapping(last.rect, rect);
 }
 
 bool PresentOperationList::try_merge_scroll_aftermath_rect(Rect rect, PresentRectKind rect_kind)

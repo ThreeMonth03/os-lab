@@ -225,6 +225,12 @@ kernel::display::LayerScrollComposition layer_scroll_composition_for(kernel::dis
     return kernel::display::LayerScrollComposition::SceneCopy;
 }
 
+bool layer_recomposes_scroll(kernel::display::LayerKind kind)
+{
+    return layer_scroll_composition_for(kind) ==
+           kernel::display::LayerScrollComposition::RecomposeFromSource;
+}
+
 bool presenter_overlay_layer(kernel::display::LayerKind kind)
 {
     return kind == kernel::display::LayerKind::MouseCursor ||
@@ -787,11 +793,49 @@ void append_damage_step_regions(LayerKind base_layer,
     }
 }
 
+Rect final_dirty_region_for_recomposed_scroll(FrameDamage damage)
+{
+    Rect dirty;
+    if (damage.has_steps())
+    {
+        for (size_t index = 0; index < damage.step_count; ++index)
+        {
+            const FrameDamageStep & step = damage.steps[index];
+            if (step.dirty() || step.scroll())
+            {
+                dirty = bounding_rect(dirty, step.rect);
+            }
+        }
+    }
+    else
+    {
+        if (damage.has_scroll())
+        {
+            dirty = bounding_rect(dirty, damage.scroll.rect);
+        }
+        if (damage.has_dirty())
+        {
+            dirty = bounding_rect(dirty, damage.dirty_rect);
+        }
+    }
+    return dirty;
+}
+
 PresentOperationList update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage)
 {
     PresentOperationList operations(g_compositor.bounds());
     if (damage.empty())
     {
+        return operations;
+    }
+
+    if (damage.has_scroll() && layer_recomposes_scroll(base_layer))
+    {
+        const Rect dirty = final_dirty_region_for_recomposed_scroll(damage);
+        if (compose_backed_region_from(base_layer, dirty, false))
+        {
+            operations.append_rect(dirty);
+        }
         return operations;
     }
 

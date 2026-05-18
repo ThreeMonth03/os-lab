@@ -39,6 +39,20 @@ TEST(PresentOperationListTest, MergesOnlyAdjacentRectOperations)
     EXPECT_EQ(operations.at(2).rect.x, 8u);
 }
 
+TEST(PresentOperationListTest, KeepsVerticallyAdjacentNormalRowsSeparate)
+{
+    kernel::display::PresentOperationList operations({0, 0, 1000, 1000});
+
+    EXPECT_EQ(operations.append_rect({0, 0, 80, 8}),
+              kernel::display::PresentOperationAppendResult::Queued);
+    EXPECT_EQ(operations.append_rect({0, 8, 80, 8}),
+              kernel::display::PresentOperationAppendResult::Queued);
+
+    ASSERT_EQ(operations.count(), 2u);
+    EXPECT_EQ(operations.at(0).rect.y, 0u);
+    EXPECT_EQ(operations.at(1).rect.y, 8u);
+}
+
 TEST(PresentOperationListTest, DoesNotMergeRectsSeparatedOnOneAxis)
 {
     kernel::display::PresentOperationList operations({0, 0, 1000, 1000});
