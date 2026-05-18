@@ -24,6 +24,7 @@ public:
     [[nodiscard]] bool ready() const;
     [[nodiscard]] bool resize_surface(AppSurfaceId id, Rect bounds, AppSurfaceMutation & mutation);
     [[nodiscard]] bool set_visible(AppSurfaceId id, bool visible, AppSurfaceMutation & mutation);
+    [[nodiscard]] bool clear_focus(AppSurfaceId id, AppSurfaceMutation & mutation);
     [[nodiscard]] bool focus_surface(AppSurfaceId id, AppSurfaceMutation & mutation);
     [[nodiscard]] bool close_surface(AppSurfaceId id, AppSurfaceMutation & mutation);
     [[nodiscard]] bool restore_surface(AppSurface surface);

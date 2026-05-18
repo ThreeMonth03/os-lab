@@ -30,6 +30,7 @@ SMOKE_EXCEPTION := ./scripts/smoke/smoke_exception.sh
 SMOKE_HEAP := ./scripts/smoke/smoke_heap.sh
 SMOKE_PAGING := ./scripts/smoke/smoke_paging.sh
 SMOKE_SLAB := ./scripts/smoke/smoke_slab.sh
+SMOKE_TERMINAL_APP := ./scripts/smoke/smoke_terminal_app.sh
 SMOKE_TIMER := ./scripts/smoke/smoke_timer.sh
 RUN_SMOKE_SUITE := ./scripts/smoke/run_all.sh
 
@@ -47,9 +48,10 @@ TIMER_ISO_IMAGE := $(BUILD_DIR)/timer-smoke/os-lab.iso
 PAGING_ISO_IMAGE := $(BUILD_DIR)/paging-smoke/os-lab.iso
 HEAP_ISO_IMAGE := $(BUILD_DIR)/heap-smoke/os-lab.iso
 SLAB_ISO_IMAGE := $(BUILD_DIR)/slab-smoke/os-lab.iso
+TERMINAL_APP_ISO_IMAGE := $(BUILD_DIR)/terminal-app-smoke/os-lab.iso
 
-.PHONY: help deps demo gui profile-gui profile-summary test demo-exception test-exception demo-timer test-timer test-paging test-heap test-slab test-smoke unit format tidy shell clean ci
-.PHONY: _check-native-tools _check-clang-format _check-clang-tidy _check-docker-compose _iso _run _run-gui _smoke _exception-iso _run-exception _smoke-exception _timer-iso _run-timer _smoke-timer _paging-iso _smoke-paging _heap-iso _smoke-heap _slab-iso _smoke-slab _smoke-isos _smoke-all _unit _format _format-check _tidy _docker-image _docker-iso _docker-exception-iso _docker-timer-iso _docker-paging-iso _docker-heap-iso _docker-slab-iso _docker-smoke-isos
+.PHONY: help deps demo gui profile-gui profile-summary test demo-exception test-exception demo-timer test-timer test-paging test-heap test-slab test-terminal-app test-smoke unit format tidy shell clean ci
+.PHONY: _check-native-tools _check-clang-format _check-clang-tidy _check-docker-compose _iso _run _run-gui _smoke _exception-iso _run-exception _smoke-exception _timer-iso _run-timer _smoke-timer _paging-iso _smoke-paging _heap-iso _smoke-heap _slab-iso _smoke-slab _terminal-app-iso _smoke-terminal-app _smoke-isos _smoke-all _unit _format _format-check _tidy _docker-image _docker-iso _docker-exception-iso _docker-timer-iso _docker-paging-iso _docker-heap-iso _docker-slab-iso _docker-terminal-app-iso _docker-smoke-isos
 
 help:
 	@printf '%s\n' \
@@ -76,6 +78,8 @@ help:
 		'                 Build and verify the debug kernel heap smoke path' \
 		'  make test-slab' \
 		'                 Build and verify the debug kernel slab smoke path' \
+		'  make test-terminal-app' \
+		'                 Build and verify the debug terminal app lifecycle smoke path' \
 		'  make test-smoke' \
 		'                 Build and verify every debug smoke path' \
 		'  make unit      Run host-side unit tests' \
@@ -113,6 +117,8 @@ test-paging: _docker-paging-iso _smoke-paging
 test-heap: _docker-heap-iso _smoke-heap
 
 test-slab: _docker-slab-iso _smoke-slab
+
+test-terminal-app: _docker-terminal-app-iso _smoke-terminal-app
 
 test-smoke: _docker-smoke-isos
 	$(MAKE) _smoke-all EXCEPTION_SMOKE=$(EXCEPTION_SMOKE)
@@ -189,6 +195,9 @@ _heap-iso: _check-native-tools
 _slab-iso: _check-native-tools
 	$(SMOKE_BUILD_ENV) $(BUILD_SMOKE_ISO) slab
 
+_terminal-app-iso: _check-native-tools
+	$(SMOKE_BUILD_ENV) $(BUILD_SMOKE_ISO) terminal-app
+
 _smoke-isos: _check-native-tools
 	$(SMOKE_BUILD_ENV) EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) $(BUILD_SMOKE_SUITE)
 
@@ -238,6 +247,10 @@ _smoke-slab:
 	@if [[ ! -f "$(SLAB_ISO_IMAGE)" ]]; then $(MAKE) _slab-iso; fi
 	$(SMOKE_SLAB) $(SLAB_ISO_IMAGE)
 
+_smoke-terminal-app:
+	@if [[ ! -f "$(TERMINAL_APP_ISO_IMAGE)" ]]; then $(MAKE) _terminal-app-iso; fi
+	$(SMOKE_TERMINAL_APP) $(TERMINAL_APP_ISO_IMAGE)
+
 _smoke-all:
 	EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) BUILD_DIR=$(BUILD_DIR) $(RUN_SMOKE_SUITE)
 
@@ -279,6 +292,9 @@ _docker-heap-iso: _docker-image
 
 _docker-slab-iso: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _slab-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE) DISPLAY_PROFILING=$(DISPLAY_PROFILING) DISPLAY_PROFILE_SCRIPT=$(DISPLAY_PROFILE_SCRIPT)
+
+_docker-terminal-app-iso: _docker-image
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _terminal-app-iso GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE) DISPLAY_PROFILING=$(DISPLAY_PROFILING) DISPLAY_PROFILE_SCRIPT=$(DISPLAY_PROFILE_SCRIPT)
 
 _docker-smoke-isos: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _smoke-isos EXCEPTION_SMOKE=$(EXCEPTION_SMOKE) GUI_PANEL_VISIBLE=$(GUI_PANEL_VISIBLE) DISPLAY_PROFILING=$(DISPLAY_PROFILING) DISPLAY_PROFILE_SCRIPT=$(DISPLAY_PROFILE_SCRIPT)

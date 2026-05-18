@@ -27,6 +27,7 @@ using AppSurfaceResizeCallback = bool (*)(AppSurface surface);
 [[nodiscard]] AppSurfaceHostConfig primary_app_config();
 [[nodiscard]] bool resize_app_surface(AppSurfaceId id, Rect bounds);
 [[nodiscard]] bool set_app_surface_visible(AppSurfaceId id, bool visible);
+[[nodiscard]] bool clear_app_surface_focus(AppSurfaceId id);
 [[nodiscard]] bool focus_app_surface(AppSurfaceId id);
 [[nodiscard]] bool close_app_surface(AppSurfaceId id);
 

@@ -126,6 +126,32 @@ bool AppSurfaceHost::set_visible(AppSurfaceId id, bool visible, AppSurfaceMutati
     return true;
 }
 
+bool AppSurfaceHost::clear_focus(AppSurfaceId id, AppSurfaceMutation & mutation)
+{
+    mutation = {};
+    const AppSurface * current = find(id);
+    if (current == nullptr || current->closed())
+    {
+        return false;
+    }
+
+    const AppSurface previous = *current;
+    app_surfaces_->clear_focus();
+
+    const AppSurface * updated = find(id);
+    if (updated == nullptr || !sync_target(*updated))
+    {
+        if (!restore_surface(previous))
+        {
+            return false;
+        }
+        return false;
+    }
+
+    mutation = {previous, *updated, {}};
+    return true;
+}
+
 bool AppSurfaceHost::focus_surface(AppSurfaceId id, AppSurfaceMutation & mutation)
 {
     mutation = {};

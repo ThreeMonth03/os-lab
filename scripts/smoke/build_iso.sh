@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
-    printf 'usage: %s <demo|exception|timer|paging|heap|slab>\n' "$0" >&2
+    printf 'usage: %s <demo|exception|timer|paging|heap|slab|terminal-app>\n' "$0" >&2
     exit 1
 fi
 
@@ -54,9 +54,13 @@ case "${kind}" in
         build_dir="${build_root}/slab-smoke"
         cmake_options+=(-DOS_LAB_SLAB_SMOKE=ON)
         ;;
+    terminal-app)
+        build_dir="${build_root}/terminal-app-smoke"
+        cmake_options+=(-DOS_LAB_TERMINAL_APP_LIFECYCLE_SMOKE=ON)
+        ;;
     *)
         printf 'unknown smoke kind: %s\n' "${kind}" >&2
-        printf 'use one of: demo, exception, timer, paging, heap, slab\n' >&2
+        printf 'use one of: demo, exception, timer, paging, heap, slab, terminal-app\n' >&2
         exit 1
         ;;
 esac

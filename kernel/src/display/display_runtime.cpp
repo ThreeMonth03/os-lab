@@ -459,6 +459,22 @@ bool set_app_surface_visible(AppSurfaceId id, bool visible)
     return commit_primary_app_mutation(mutation, false);
 }
 
+bool clear_app_surface_focus(AppSurfaceId id)
+{
+    if (!ready() || id != display::kTerminalAppSurfaceId)
+    {
+        return false;
+    }
+
+    display::AppSurfaceMutation mutation;
+    if (!g_state.app_host.clear_focus(id, mutation))
+    {
+        return false;
+    }
+
+    return commit_primary_app_mutation(mutation, false);
+}
+
 bool focus_app_surface(AppSurfaceId id)
 {
     if (!ready() || id != display::kTerminalAppSurfaceId)

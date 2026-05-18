@@ -9,6 +9,7 @@
 #include "kernel/debug/heap_smoke.hpp"
 #include "kernel/debug/paging_smoke.hpp"
 #include "kernel/debug/slab_smoke.hpp"
+#include "kernel/debug/terminal_app_smoke.hpp"
 #include "kernel/drivers/mouse.hpp"
 #include "kernel/drivers/keyboard.hpp"
 #include "kernel/display/display_runtime.hpp"
@@ -246,6 +247,7 @@ extern "C" [[noreturn]] void kernel_main()
     write_firmware_info();
     write_loaded_base_revision();
     write_terminal_status(terminal_ready);
+    kernel::debug::run_terminal_app_lifecycle_smoke();
     init_mouse_cursor();
     init_timer_interrupts();
     kernel::debug::run_timer_smoke();

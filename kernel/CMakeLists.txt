@@ -10,6 +10,8 @@ option(OS_LAB_TIMER_SMOKE "Debug-only PIT timer smoke trigger" OFF)
 option(OS_LAB_PAGING_SMOKE "Debug-only active paging smoke trigger" OFF)
 option(OS_LAB_HEAP_SMOKE "Debug-only kernel heap smoke trigger" OFF)
 option(OS_LAB_SLAB_SMOKE "Debug-only kernel slab smoke trigger" OFF)
+option(OS_LAB_TERMINAL_APP_LIFECYCLE_SMOKE
+    "Debug-only terminal app lifecycle smoke trigger" OFF)
 option(OS_LAB_GUI_PANEL_VISIBLE "Debug-only GUI panel visibility toggle" OFF)
 option(OS_LAB_DISPLAY_PROFILING "Debug-only display pipeline profiling" OFF)
 option(OS_LAB_DISPLAY_PROFILE_SCRIPT "Debug-only scripted shell input for display profiling" OFF)
@@ -46,6 +48,11 @@ endif()
 set(OS_LAB_SLAB_SMOKE_VALUE 0)
 if(OS_LAB_SLAB_SMOKE)
     set(OS_LAB_SLAB_SMOKE_VALUE 1)
+endif()
+
+set(OS_LAB_TERMINAL_APP_LIFECYCLE_SMOKE_VALUE 0)
+if(OS_LAB_TERMINAL_APP_LIFECYCLE_SMOKE)
+    set(OS_LAB_TERMINAL_APP_LIFECYCLE_SMOKE_VALUE 1)
 endif()
 
 set(OS_LAB_GUI_PANEL_VISIBLE_VALUE 0)
@@ -98,6 +105,7 @@ target_compile_definitions(os_lab_kernel_compile_settings INTERFACE
     OS_LAB_HEAP_SMOKE=${OS_LAB_HEAP_SMOKE_VALUE}
     OS_LAB_PAGING_SMOKE=${OS_LAB_PAGING_SMOKE_VALUE}
     OS_LAB_SLAB_SMOKE=${OS_LAB_SLAB_SMOKE_VALUE}
+    OS_LAB_TERMINAL_APP_LIFECYCLE_SMOKE=${OS_LAB_TERMINAL_APP_LIFECYCLE_SMOKE_VALUE}
     OS_LAB_TIMER_SMOKE=${OS_LAB_TIMER_SMOKE_VALUE}
     OS_LAB_GUI_PANEL_VISIBLE=${OS_LAB_GUI_PANEL_VISIBLE_VALUE}
     OS_LAB_DISPLAY_PROFILING=${OS_LAB_DISPLAY_PROFILING_VALUE}

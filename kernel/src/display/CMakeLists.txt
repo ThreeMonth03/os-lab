@@ -30,6 +30,7 @@ add_library(os_lab_kernel_display OBJECT
     present_operation_list.cpp
     scene_buffer.cpp
     scroll_mapped_surface.cpp
+    terminal_app_lifecycle_smoke.cpp
     terminal_render_cache.cpp
     terminal_repaint_state.cpp
     terminal_renderer.cpp
