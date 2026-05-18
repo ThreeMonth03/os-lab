@@ -2,7 +2,7 @@
 
 #include "terminal_app.hpp"
 
-#include "../display/display_runtime_terminal.hpp"
+#include "../display/display_runtime_app.hpp"
 
 namespace
 {
@@ -43,19 +43,19 @@ bool init()
         return false;
     }
 
-    const display::runtime::TerminalAppConfig config = display::runtime::terminal_app_config();
-    const TerminalRepaintSink repaint_sink{display::runtime::submit_terminal_app_damage};
+    const display::runtime::AppSurfaceHostConfig config = display::runtime::primary_app_config();
+    const TerminalRepaintSink repaint_sink{display::runtime::submit_app_surface_damage};
     if (!config.valid() ||
-        !g_terminal_app.reset(config.app_surface, config.foreground, config.background, repaint_sink))
+        !g_terminal_app.reset(config.surface, config.foreground, config.background, repaint_sink))
     {
         return false;
     }
 
-    if (!display::runtime::register_terminal_app_pixel_source(sample_terminal_pixel) ||
-        !display::runtime::register_terminal_app_row_source(terminal_row_pixels) ||
-        !display::runtime::register_terminal_app_scroll_composition(
+    if (!display::runtime::register_app_surface_pixel_source(sample_terminal_pixel) ||
+        !display::runtime::register_app_surface_row_source(terminal_row_pixels) ||
+        !display::runtime::register_app_surface_scroll_composition(
             display::LayerScrollComposition::RecomposeFromSource) ||
-        !display::runtime::register_terminal_caret(sample_terminal_caret_pixel, terminal_caret_bounds))
+        !display::runtime::register_text_caret(sample_terminal_caret_pixel, terminal_caret_bounds))
     {
         return false;
     }

@@ -24,6 +24,8 @@ TEST(AppSurfaceTest, BuildsTerminalAppSurfaceDescriptorAndLayer)
                                           true);
 
     ASSERT_TRUE(surface.valid());
+    EXPECT_TRUE(surface.open());
+    EXPECT_TRUE(surface.visible());
     EXPECT_EQ(surface.display_surface_id,
               kernel::display::app_surface_display_id_for(kernel::display::kTerminalAppSurfaceId));
 
@@ -71,6 +73,68 @@ TEST(AppSurfaceTest, RegistryRegistersFindsAndFocusesSurface)
     const kernel::display::AppSurface * focused = registry.focused_surface();
     ASSERT_NE(focused, nullptr);
     EXPECT_EQ(focused->id, kernel::display::kTerminalAppSurfaceId);
+}
+
+TEST(AppSurfaceTest, RegistryUpdatesBoundsAndVisibility)
+{
+    kernel::display::AppSurfaceRegistry registry;
+
+    ASSERT_TRUE(registry.register_surface(
+        kernel::display::make_app_surface(kernel::display::kTerminalAppSurfaceId,
+                                          {0, 0, 640, 480},
+                                          true,
+                                          true)));
+
+    EXPECT_TRUE(registry.set_bounds(kernel::display::kTerminalAppSurfaceId, {16, 24, 320, 200}));
+    const kernel::display::AppSurface * resized =
+        registry.find(kernel::display::kTerminalAppSurfaceId);
+    ASSERT_NE(resized, nullptr);
+    expect_rect(resized->bounds, 16, 24, 320, 200);
+    expect_rect(resized->composited_surface().bounds, 16, 24, 320, 200);
+
+    EXPECT_TRUE(registry.set_visible(kernel::display::kTerminalAppSurfaceId, false));
+    const kernel::display::AppSurface * hidden =
+        registry.find(kernel::display::kTerminalAppSurfaceId);
+    ASSERT_NE(hidden, nullptr);
+    EXPECT_TRUE(hidden->hidden());
+    EXPECT_FALSE(hidden->visible());
+    EXPECT_FALSE(hidden->focused);
+    EXPECT_FALSE(hidden->composited_surface().layer().visible);
+    EXPECT_EQ(registry.focused_surface(), nullptr);
+
+    EXPECT_TRUE(registry.set_visible(kernel::display::kTerminalAppSurfaceId, true));
+    EXPECT_TRUE(registry.set_focused(kernel::display::kTerminalAppSurfaceId));
+    const kernel::display::AppSurface * visible =
+        registry.find(kernel::display::kTerminalAppSurfaceId);
+    ASSERT_NE(visible, nullptr);
+    EXPECT_TRUE(visible->open());
+    EXPECT_TRUE(visible->focused);
+}
+
+TEST(AppSurfaceTest, RegistryRejectsFocusOnHiddenOrClosedSurface)
+{
+    kernel::display::AppSurfaceRegistry registry;
+
+    ASSERT_TRUE(registry.register_surface(
+        kernel::display::make_app_surface(kernel::display::kTerminalAppSurfaceId,
+                                          {0, 0, 640, 480},
+                                          false)));
+
+    EXPECT_FALSE(registry.set_focused(kernel::display::kTerminalAppSurfaceId));
+    EXPECT_TRUE(registry.set_visible(kernel::display::kTerminalAppSurfaceId, true));
+    EXPECT_TRUE(registry.set_focused(kernel::display::kTerminalAppSurfaceId));
+    EXPECT_TRUE(registry.close_surface(kernel::display::kTerminalAppSurfaceId));
+
+    const kernel::display::AppSurface * closed =
+        registry.find(kernel::display::kTerminalAppSurfaceId);
+    ASSERT_NE(closed, nullptr);
+    EXPECT_TRUE(closed->closed());
+    EXPECT_FALSE(closed->focused);
+    EXPECT_FALSE(closed->composited_surface().valid());
+    EXPECT_FALSE(closed->display_target().valid());
+    EXPECT_FALSE(registry.set_focused(kernel::display::kTerminalAppSurfaceId));
+    EXPECT_FALSE(registry.set_visible(kernel::display::kTerminalAppSurfaceId, true));
+    EXPECT_FALSE(registry.set_bounds(kernel::display::kTerminalAppSurfaceId, {0, 0, 10, 10}));
 }
 
 TEST(AppSurfaceTest, RegistryRejectsDuplicateAndFullRegistrations)

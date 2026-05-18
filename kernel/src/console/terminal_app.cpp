@@ -7,6 +7,21 @@
 namespace kernel::console
 {
 
+namespace
+{
+
+display::Rect text_grid_rect_for(display::Rect bounds, display::AppCellCapacity capacity)
+{
+    return {
+        bounds.x,
+        bounds.y,
+        capacity.columns * TerminalApp::kCellWidth,
+        capacity.rows * TerminalApp::kCellHeight,
+    };
+}
+
+} // namespace
+
 bool TerminalApp::reset(display::AppSurface app_surface,
                         display::Color foreground,
                         display::Color background,
@@ -24,63 +39,118 @@ bool TerminalApp::reset(display::AppSurface app_surface,
         backing_ = {};
     }
 
-    app_surface_ = app_surface;
-    if (!app_surface_.valid() || !repaint_sink.ready())
+    if (!app_surface.valid() || !repaint_sink.ready())
     {
         return false;
     }
 
-    const uint64_t column_count = app_surface_.bounds.width / kCellWidth;
-    const uint64_t row_count = app_surface_.bounds.height / kCellHeight;
-    if (column_count == 0 || row_count == 0 || !text_buffer_.reset(column_count, row_count) ||
-        !render_cache_.reset(column_count, row_count))
-    {
-        app_surface_ = {};
-        return false;
-    }
-
-    if (!allocate_backing_surface())
-    {
-        app_surface_ = {};
-        return false;
-    }
-
-    console_.reset(column_count, row_count);
-    renderer_.reset(backing_, app_surface_.bounds, foreground, background);
     repaint_sink_ = repaint_sink;
+    foreground_ = foreground;
+    background_ = background;
+    return replace_surface(app_surface);
+}
+
+bool TerminalApp::ready() const
+{
+    return renderer_.ready() && backing_.ready() && app_surface_.valid() && !app_surface_.closed();
+}
+
+bool TerminalApp::allocate_backing_surface_for(display::AppSurface app_surface,
+                                               uint32_t *& memory,
+                                               size_t & bytes,
+                                               display::BackingSurface & backing_storage,
+                                               display::ScrollMappedSurface & backing) const
+{
+    const display::AppCellCapacity capacity =
+        display::DesktopAppLayout::cell_capacity_for(app_surface.bounds, kCellWidth, kCellHeight);
+    if (!capacity.valid())
+    {
+        return false;
+    }
+
+    size_t required_bytes = 0;
+    if (!display::backing_surface_required_bytes(app_surface.bounds, required_bytes))
+    {
+        return false;
+    }
+
+    void * allocated_memory = kernel::memory::heap::allocate(required_bytes, alignof(uint32_t));
+    if (allocated_memory == nullptr)
+    {
+        return false;
+    }
+
+    memory = static_cast<uint32_t *>(allocated_memory);
+    bytes = required_bytes;
+    backing_storage = display::BackingSurface(memory, app_surface.bounds, app_surface.bounds.width);
+    backing.reset(backing_storage, text_grid_rect_for(app_surface.bounds, capacity));
+    return backing.ready();
+}
+
+bool TerminalApp::replace_surface(display::AppSurface app_surface)
+{
+    const display::AppCellCapacity capacity =
+        display::DesktopAppLayout::cell_capacity_for(app_surface.bounds, kCellWidth, kCellHeight);
+    if (!app_surface.valid() || app_surface.closed() || !capacity.valid() ||
+        capacity.columns > text_buffer_.max_columns() || capacity.rows > text_buffer_.max_rows())
+    {
+        return false;
+    }
+
+    uint32_t * new_memory = nullptr;
+    size_t new_bytes = 0;
+    display::BackingSurface new_storage;
+    display::ScrollMappedSurface new_backing;
+    if (!allocate_backing_surface_for(app_surface, new_memory, new_bytes, new_storage, new_backing))
+    {
+        return false;
+    }
+
+    if (backing_memory_ != nullptr && !kernel::memory::heap::free(backing_memory_))
+    {
+        if (!kernel::memory::heap::free(new_memory))
+        {
+            return false;
+        }
+        return false;
+    }
+
+    app_surface_ = app_surface;
+    backing_memory_ = new_memory;
+    backing_bytes_ = new_bytes;
+    backing_storage_ = new_storage;
+    backing_.reset(backing_storage_, text_grid_rect_for(app_surface_.bounds, capacity));
+    if (!text_buffer_.reset(capacity.columns, capacity.rows) ||
+        !render_cache_.reset(capacity.columns, capacity.rows))
+    {
+        return false;
+    }
+    console_.reset(capacity.columns, capacity.rows);
+    renderer_.reset(backing_, app_surface_.bounds, foreground_, background_);
     repaint_.reset(app_surface_.bounds);
     cursor_.reset();
     update_depth_ = 0;
     pending_scroll_rows_ = 0;
     pending_dirty_after_scroll_ = {};
+    renderer_.clear_screen();
+    render_cache_.clear_rendered();
     return renderer_.ready();
 }
 
-bool TerminalApp::ready() const
+bool TerminalApp::resize(display::AppSurface app_surface, TerminalResizePolicy policy)
 {
-    return renderer_.ready() && backing_.ready() && app_surface_.valid();
-}
-
-bool TerminalApp::allocate_backing_surface()
-{
-    size_t bytes = 0;
-    if (!display::backing_surface_required_bytes(app_surface_.bounds, bytes))
+    if (!ready() || policy != TerminalResizePolicy::Clear || !repaint_sink_.ready())
     {
         return false;
     }
 
-    void * memory = kernel::memory::heap::allocate(bytes, alignof(uint32_t));
-    if (memory == nullptr)
+    if (!replace_surface(app_surface))
     {
         return false;
     }
 
-    backing_memory_ = static_cast<uint32_t *>(memory);
-    backing_bytes_ = bytes;
-    backing_storage_ =
-        display::BackingSurface(backing_memory_, app_surface_.bounds, app_surface_.bounds.width);
-    backing_.reset(backing_storage_, text_grid_rect());
-    return backing_.ready();
+    apply_repaint_request(repaint_.record_dirty(bounds()));
+    return true;
 }
 
 display::PixelSample TerminalApp::sample_pixel(uint64_t x, uint64_t y) const
@@ -252,9 +322,9 @@ void TerminalApp::flush_pending_backing_scroll()
         return;
     }
 
-    if (repaint_sink_.submit_terminal_damage != nullptr)
+    if (repaint_sink_.submit_app_surface_damage != nullptr)
     {
-        repaint_sink_.submit_terminal_damage(damage);
+        repaint_sink_.submit_app_surface_damage(damage);
     }
 }
 

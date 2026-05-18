@@ -55,7 +55,7 @@ HitTestResult HitTester::hit_app_surfaces(uint64_t x, uint64_t y) const
     {
         const size_t index = app_surfaces_.size() - offset - 1;
         const AppSurface * surface = app_surfaces_.at(index);
-        if (surface == nullptr || !surface->visible || !surface->valid() ||
+        if (surface == nullptr || !surface->visible() || !surface->valid() ||
             !rect_contains(surface->bounds, x, y))
         {
             continue;

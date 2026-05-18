@@ -17,6 +17,13 @@ inline constexpr AppSurfaceId kTerminalAppSurfaceId = 1;
 inline constexpr size_t kMaxAppSurfaces = 4;
 inline constexpr SurfaceId kFirstAppSurfaceDisplayId = 200;
 
+enum class AppSurfaceState
+{
+    Closed,
+    Hidden,
+    Open,
+};
+
 constexpr SurfaceId app_surface_display_id_for(AppSurfaceId id)
 {
     return id == kInvalidAppSurfaceId ? kInvalidSurfaceId
@@ -28,10 +35,14 @@ struct AppSurface
     AppSurfaceId id = kInvalidAppSurfaceId;
     SurfaceId display_surface_id = kInvalidSurfaceId;
     Rect bounds;
-    bool visible = false;
+    AppSurfaceState state = AppSurfaceState::Closed;
     bool focused = false;
 
     bool valid() const;
+    bool open() const { return state == AppSurfaceState::Open; }
+    bool hidden() const { return state == AppSurfaceState::Hidden; }
+    bool closed() const { return state == AppSurfaceState::Closed; }
+    bool visible() const { return open(); }
     CompositedSurfaceDescriptor composited_surface() const;
     SurfaceDescriptor display_target() const;
 };
@@ -48,7 +59,10 @@ public:
 
     void clear();
     bool register_surface(AppSurface surface);
+    bool set_bounds(AppSurfaceId id, Rect bounds);
+    bool set_visible(AppSurfaceId id, bool visible);
     bool set_focused(AppSurfaceId id);
+    bool close_surface(AppSurfaceId id);
     void clear_focus();
 
     const AppSurface * find(AppSurfaceId id) const;

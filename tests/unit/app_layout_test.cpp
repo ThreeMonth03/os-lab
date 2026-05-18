@@ -22,7 +22,7 @@ void expect_rect(kernel::display::Rect actual,
 TEST(AppLayoutTest, HiddenPanelKeepsTerminalAwayFromFramebufferTopEdge)
 {
     const kernel::display::Rect bounds =
-        kernel::display::TerminalAppLayout::bounds_for({
+        kernel::display::DesktopAppLayout::primary_app_bounds_for({
             {0, 0, 1280, 760},
             {},
             false,
@@ -38,7 +38,7 @@ TEST(AppLayoutTest, HiddenPanelKeepsTerminalAwayFromFramebufferTopEdge)
 TEST(AppLayoutTest, HiddenPanelPreservesAtLeastOneTextCellOnShortFramebuffers)
 {
     const kernel::display::Rect bounds =
-        kernel::display::TerminalAppLayout::bounds_for({
+        kernel::display::DesktopAppLayout::primary_app_bounds_for({
             {0, 0, 80, 16},
             {},
             false,
@@ -54,7 +54,7 @@ TEST(AppLayoutTest, HiddenPanelPreservesAtLeastOneTextCellOnShortFramebuffers)
 TEST(AppLayoutTest, VisiblePanelPlacesTerminalBelowPanel)
 {
     const kernel::display::Rect bounds =
-        kernel::display::TerminalAppLayout::bounds_for({
+        kernel::display::DesktopAppLayout::primary_app_bounds_for({
             {0, 0, 1280, 760},
             {16, 16, 180, 56},
             true,
@@ -70,7 +70,7 @@ TEST(AppLayoutTest, VisiblePanelPlacesTerminalBelowPanel)
 TEST(AppLayoutTest, InvalidPanelLayoutFallsBackToSafeHiddenPanelBounds)
 {
     const kernel::display::Rect bounds =
-        kernel::display::TerminalAppLayout::bounds_for({
+        kernel::display::DesktopAppLayout::primary_app_bounds_for({
             {0, 0, 1280, 760},
             {16, 730, 180, 56},
             true,
@@ -86,7 +86,7 @@ TEST(AppLayoutTest, InvalidPanelLayoutFallsBackToSafeHiddenPanelBounds)
 TEST(AppLayoutTest, RejectsBoundsThatCannotFitATextCell)
 {
     const kernel::display::Rect bounds =
-        kernel::display::TerminalAppLayout::bounds_for({
+        kernel::display::DesktopAppLayout::primary_app_bounds_for({
             {0, 0, 7, 15},
             {},
             false,
@@ -97,4 +97,21 @@ TEST(AppLayoutTest, RejectsBoundsThatCannotFitATextCell)
         });
 
     EXPECT_TRUE(bounds.empty());
+}
+
+TEST(AppLayoutTest, ComputesAppCellCapacityFromBounds)
+{
+    const kernel::display::AppCellCapacity capacity =
+        kernel::display::DesktopAppLayout::cell_capacity_for({16, 32, 1280, 744}, 8, 16);
+
+    EXPECT_TRUE(capacity.valid());
+    EXPECT_EQ(capacity.columns, 160u);
+    EXPECT_EQ(capacity.rows, 46u);
+}
+
+TEST(AppLayoutTest, RejectsInvalidAppCellCapacity)
+{
+    EXPECT_FALSE(kernel::display::DesktopAppLayout::cell_capacity_for({0, 0, 7, 16}, 8, 16).valid());
+    EXPECT_FALSE(kernel::display::DesktopAppLayout::cell_capacity_for({0, 0, 8, 15}, 8, 16).valid());
+    EXPECT_FALSE(kernel::display::DesktopAppLayout::cell_capacity_for({0, 0, 8, 16}, 0, 16).valid());
 }

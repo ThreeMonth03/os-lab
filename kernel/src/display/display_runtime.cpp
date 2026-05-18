@@ -2,7 +2,7 @@
 
 #include "debug_overlay_runtime.hpp"
 #include "desktop_background_runtime.hpp"
-#include "display_runtime_terminal.hpp"
+#include "display_runtime_app.hpp"
 #include "gui_panel_runtime.hpp"
 
 #include "kernel/boot/limine_support.hpp"
@@ -30,14 +30,14 @@ struct DisplayRuntimeState
     display::SceneBuffer scene;
     display::FramebufferPresenter presenter;
     display::DisplayFrame frame;
-    display::LayerDamageAccumulator terminal_damage;
+    display::LayerDamageAccumulator app_surface_damage;
     display::DisplayRuntimeStats stats;
     display::DisplayTargetRegistry targets;
     display::AppSurfaceRegistry app_surfaces;
     display::GuiSurfaceRegistry gui_surfaces;
-    display::AppSurface terminal_app_surface;
-    display::Color terminal_foreground;
-    display::Color terminal_background;
+    display::AppSurface primary_app_surface;
+    display::Color app_foreground;
+    display::Color app_background;
     display::HitTestResult pointer_target;
     uint32_t * scene_memory = nullptr;
     size_t scene_bytes = 0;
@@ -83,13 +83,13 @@ display::Rect framebuffer_bounds(const limine_framebuffer & framebuffer)
     return {0, 0, framebuffer.width, framebuffer.height};
 }
 
-display::Rect terminal_app_bounds_for(const limine_framebuffer & framebuffer,
-                                      display::Rect panel_bounds,
-                                      gui_panel::Config panel_config,
-                                      uint64_t terminal_cell_width,
-                                      uint64_t terminal_cell_height)
+display::Rect primary_app_bounds_for(const limine_framebuffer & framebuffer,
+                                     display::Rect panel_bounds,
+                                     gui_panel::Config panel_config,
+                                     uint64_t terminal_cell_width,
+                                     uint64_t terminal_cell_height)
 {
-    return display::TerminalAppLayout::bounds_for({
+    return display::DesktopAppLayout::primary_app_bounds_for({
         framebuffer_bounds(framebuffer),
         panel_bounds,
         panel_config.visible,
@@ -137,7 +137,7 @@ bool reset_display_runtime_state(const limine_framebuffer & framebuffer)
     display::compositor::set_scene_buffer(g_state.scene);
     display::compositor::set_presenter(g_state.presenter);
     g_state.frame.reset(bounds);
-    g_state.terminal_damage.reset(bounds);
+    g_state.app_surface_damage.reset(bounds);
     g_state.stats = {};
     return true;
 }
@@ -192,23 +192,23 @@ display::Rect init_optional_gui_panel_layer(const limine_framebuffer & framebuff
     return panel_bounds;
 }
 
-bool init_terminal_app_layer(const limine_framebuffer & framebuffer,
-                             display::DisplayPalette palette,
-                             gui_panel::Config panel_config,
-                             display::Rect active_panel_bounds,
-                             uint64_t terminal_cell_width,
-                             uint64_t terminal_cell_height)
+bool init_primary_app_layer(const limine_framebuffer & framebuffer,
+                            display::DisplayPalette palette,
+                            gui_panel::Config panel_config,
+                            display::Rect active_panel_bounds,
+                            uint64_t terminal_cell_width,
+                            uint64_t terminal_cell_height)
 {
-    g_state.terminal_app_surface =
+    g_state.primary_app_surface =
         display::make_app_surface(display::kTerminalAppSurfaceId,
-                                  terminal_app_bounds_for(framebuffer,
-                                                          active_panel_bounds,
-                                                          panel_config,
-                                                          terminal_cell_width,
-                                                          terminal_cell_height),
+                                  primary_app_bounds_for(framebuffer,
+                                                         active_panel_bounds,
+                                                         panel_config,
+                                                         terminal_cell_width,
+                                                         terminal_cell_height),
                                   true,
                                   true);
-    if (!g_state.app_surfaces.register_surface(g_state.terminal_app_surface))
+    if (!g_state.app_surfaces.register_surface(g_state.primary_app_surface))
     {
         return false;
     }
@@ -234,10 +234,10 @@ bool init_terminal_app_layer(const limine_framebuffer & framebuffer,
         return false;
     }
 
-    g_state.terminal_app_surface = *registered_app;
-    g_state.terminal_damage.reset(g_state.terminal_app_surface.bounds);
-    g_state.terminal_foreground = color_for(framebuffer, palette.terminal_foreground);
-    g_state.terminal_background = color_for(framebuffer, palette.terminal_background);
+    g_state.primary_app_surface = *registered_app;
+    g_state.app_surface_damage.reset(g_state.primary_app_surface.bounds);
+    g_state.app_foreground = color_for(framebuffer, palette.terminal_foreground);
+    g_state.app_background = color_for(framebuffer, palette.terminal_background);
 
     if (!display::compositor::register_surface(registered_app->composited_surface()))
     {
@@ -294,7 +294,7 @@ namespace kernel::display::runtime
 bool ready()
 {
     return g_state.surface.ready() && g_state.scene.ready() && g_state.presenter.ready() &&
-           g_state.terminal_app_surface.valid() &&
+           g_state.primary_app_surface.valid() &&
            g_state.targets.active_target().valid();
 }
 
@@ -321,12 +321,12 @@ bool init(uint64_t terminal_cell_width, uint64_t terminal_cell_height)
 
     const display::Rect active_panel_bounds =
         init_optional_gui_panel_layer(*framebuffer, palette, panel_config);
-    if (!init_terminal_app_layer(*framebuffer,
-                                 palette,
-                                 panel_config,
-                                 active_panel_bounds,
-                                 terminal_cell_width,
-                                 terminal_cell_height))
+    if (!init_primary_app_layer(*framebuffer,
+                                palette,
+                                panel_config,
+                                active_panel_bounds,
+                                terminal_cell_width,
+                                terminal_cell_height))
     {
         return false;
     }
@@ -339,12 +339,12 @@ bool init(uint64_t terminal_cell_width, uint64_t terminal_cell_height)
     return true;
 }
 
-TerminalAppConfig terminal_app_config()
+AppSurfaceHostConfig primary_app_config()
 {
     return {
-        g_state.terminal_app_surface,
-        g_state.terminal_foreground,
-        g_state.terminal_background,
+        g_state.primary_app_surface,
+        g_state.app_foreground,
+        g_state.app_background,
     };
 }
 
@@ -393,16 +393,16 @@ void submit_present_operations_to_frame(const display::PresentOperationList & op
     }
 }
 
-void flush_terminal_damage_into_frame()
+void flush_app_surface_damage_into_frame()
 {
-    if (g_state.terminal_damage.empty())
+    if (g_state.app_surface_damage.empty())
     {
         return;
     }
 
     const display::PresentOperationList present_operations =
         display::compositor::update_scene_from_layer_damage(display::LayerKind::AppSurface,
-                                                            g_state.terminal_damage.flush());
+                                                            g_state.app_surface_damage.flush());
     submit_present_operations_to_frame(present_operations);
 }
 
@@ -415,7 +415,7 @@ void end_frame()
 
     if (g_state.frame.depth() == 1)
     {
-        flush_terminal_damage_into_frame();
+        flush_app_surface_damage_into_frame();
     }
 
     const DisplayFrameFlush flush = g_state.frame.end();
@@ -441,11 +441,11 @@ void refresh_debug_overlay_if_due()
     debug_overlay::refresh_if_due();
 }
 
-void submit_terminal_app_damage(FrameDamage damage)
+void submit_app_surface_damage(FrameDamage damage)
 {
     if (g_state.frame.in_frame())
     {
-        g_state.terminal_damage.record(damage);
+        g_state.app_surface_damage.record(damage);
         return;
     }
 
@@ -454,24 +454,24 @@ void submit_terminal_app_damage(FrameDamage damage)
     submit_present_operations_to_frame(present_operations);
 }
 
-bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback)
+bool register_app_surface_pixel_source(compositor::LayerPixelCallback callback)
 {
     return display::compositor::register_layer_pixel_callback(display::LayerKind::AppSurface, callback);
 }
 
-bool register_terminal_app_row_source(compositor::LayerRowCallback callback)
+bool register_app_surface_row_source(compositor::LayerRowCallback callback)
 {
     return display::compositor::register_layer_row_callback(display::LayerKind::AppSurface, callback);
 }
 
-bool register_terminal_app_scroll_composition(LayerScrollComposition composition)
+bool register_app_surface_scroll_composition(LayerScrollComposition composition)
 {
     return display::compositor::register_layer_scroll_composition(display::LayerKind::AppSurface,
                                                                   composition);
 }
 
-bool register_terminal_caret(compositor::LayerPixelCallback pixel_callback,
-                             compositor::LayerBoundsCallback bounds_callback)
+bool register_text_caret(compositor::LayerPixelCallback pixel_callback,
+                         compositor::LayerBoundsCallback bounds_callback)
 {
     return display::compositor::register_layer_pixel_callback(display::LayerKind::TerminalCaret,
                                                               pixel_callback) &&

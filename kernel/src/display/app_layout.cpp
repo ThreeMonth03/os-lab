@@ -14,10 +14,10 @@ bool has_cell_capacity(kernel::display::Rect bounds, uint64_t cell_width, uint64
            bounds.height >= cell_height;
 }
 
-kernel::display::Rect safe_hidden_panel_bounds(kernel::display::Rect desktop_bounds,
-                                               uint64_t top_safe_inset,
-                                               uint64_t cell_width,
-                                               uint64_t cell_height)
+kernel::display::Rect safe_hidden_system_ui_bounds(kernel::display::Rect desktop_bounds,
+                                                   uint64_t top_safe_inset,
+                                                   uint64_t cell_width,
+                                                   uint64_t cell_height)
 {
     if (!has_cell_capacity(desktop_bounds, cell_width, cell_height))
     {
@@ -47,25 +47,42 @@ kernel::display::Rect safe_hidden_panel_bounds(kernel::display::Rect desktop_bou
 namespace kernel::display
 {
 
-Rect TerminalAppLayout::bounds_for(TerminalAppLayoutConfig config)
+AppCellCapacity DesktopAppLayout::cell_capacity_for(Rect bounds,
+                                                    uint64_t cell_width,
+                                                    uint64_t cell_height)
 {
-    if (!has_cell_capacity(config.desktop_bounds, config.cell_width, config.cell_height))
+    if (!has_cell_capacity(bounds, cell_width, cell_height))
     {
         return {};
     }
 
-    const Rect hidden_bounds = safe_hidden_panel_bounds(config.desktop_bounds,
-                                                        config.hidden_panel_top_safe_inset,
-                                                        config.cell_width,
-                                                        config.cell_height);
-    if (!config.panel_visible || config.panel_bounds.empty())
+    return {
+        bounds.width / cell_width,
+        bounds.height / cell_height,
+    };
+}
+
+Rect DesktopAppLayout::primary_app_bounds_for(DesktopAppLayoutConfig config)
+{
+    if (!has_cell_capacity(config.desktop_bounds,
+                           config.minimum_cell_width,
+                           config.minimum_cell_height))
+    {
+        return {};
+    }
+
+    const Rect hidden_bounds = safe_hidden_system_ui_bounds(config.desktop_bounds,
+                                                            config.hidden_system_ui_top_safe_inset,
+                                                            config.minimum_cell_width,
+                                                            config.minimum_cell_height);
+    if (!config.system_ui_visible || config.system_ui_bounds.empty())
     {
         return hidden_bounds;
     }
 
-    const uint64_t margin = config.panel_margin;
+    const uint64_t margin = config.system_ui_margin;
     const uint64_t left = config.desktop_bounds.x + margin;
-    const uint64_t top = config.panel_bounds.y + config.panel_bounds.height + margin;
+    const uint64_t top = config.system_ui_bounds.y + config.system_ui_bounds.height + margin;
     const uint64_t desktop_right = config.desktop_bounds.x + config.desktop_bounds.width;
     const uint64_t desktop_bottom = config.desktop_bounds.y + config.desktop_bounds.height;
     if (left >= desktop_right || top >= desktop_bottom)
@@ -86,7 +103,9 @@ Rect TerminalAppLayout::bounds_for(TerminalAppLayoutConfig config)
         desktop_right - left - right_margin,
         desktop_bottom - top - margin,
     };
-    if (!has_cell_capacity(panel_adjusted_bounds, config.cell_width, config.cell_height))
+    if (!has_cell_capacity(panel_adjusted_bounds,
+                           config.minimum_cell_width,
+                           config.minimum_cell_height))
     {
         return hidden_bounds;
     }

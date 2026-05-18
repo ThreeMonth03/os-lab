@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "kernel/base/string_view.hpp"
+#include "kernel/display/app_layout.hpp"
 #include "kernel/display/app_surface.hpp"
 #include "kernel/display/display.hpp"
 #include "kernel/display/scroll_mapped_surface.hpp"
@@ -18,9 +19,9 @@ namespace kernel::console
 
 struct TerminalRepaintSink
 {
-    void (*submit_terminal_damage)(display::FrameDamage damage) = nullptr;
+    void (*submit_app_surface_damage)(display::FrameDamage damage) = nullptr;
 
-    bool ready() const { return submit_terminal_damage != nullptr; }
+    bool ready() const { return submit_app_surface_damage != nullptr; }
 };
 
 struct TerminalCursorState
@@ -46,6 +47,11 @@ struct TerminalCursorState
     void hide() { visible = false; }
 };
 
+enum class TerminalResizePolicy
+{
+    Clear,
+};
+
 class TerminalApp
 {
 public:
@@ -58,6 +64,8 @@ public:
                display::Color foreground,
                display::Color background,
                TerminalRepaintSink repaint_sink);
+    bool resize(display::AppSurface app_surface,
+                TerminalResizePolicy policy = TerminalResizePolicy::Clear);
 
     bool ready() const;
     display::Rect bounds() const { return app_surface_.bounds; }
@@ -104,7 +112,12 @@ private:
     display::Rect render_text_cells_in_rect(display::Rect rect);
     display::Rect render_dirty_text_cells();
     display::Rect render_text_repaint(bool repaint_entire_layer);
-    bool allocate_backing_surface();
+    bool allocate_backing_surface_for(display::AppSurface app_surface,
+                                      uint32_t *& memory,
+                                      size_t & bytes,
+                                      display::BackingSurface & backing_storage,
+                                      display::ScrollMappedSurface & backing) const;
+    bool replace_surface(display::AppSurface app_surface);
     bool update_scope_active() const { return update_depth_ > 0; }
     bool pending_backing_scroll() const { return pending_scroll_rows_ > 0; }
     void record_pending_dirty(display::Rect rect);
@@ -122,6 +135,8 @@ private:
     display::ScrollMappedSurface backing_;
     display::TerminalRenderer renderer_;
     TerminalRepaintSink repaint_sink_;
+    display::Color foreground_;
+    display::Color background_;
     text::TextConsole console_;
     text::TextBuffer text_buffer_;
     display::TerminalRenderCache render_cache_;

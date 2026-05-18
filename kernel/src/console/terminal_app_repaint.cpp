@@ -151,9 +151,9 @@ void TerminalApp::apply_repaint(display::FrameDamage damage)
         return;
     }
 
-    if (repaint_sink_.submit_terminal_damage != nullptr)
+    if (repaint_sink_.submit_app_surface_damage != nullptr)
     {
-        repaint_sink_.submit_terminal_damage(damage);
+        repaint_sink_.submit_app_surface_damage(damage);
     }
 }
 
