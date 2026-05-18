@@ -9,6 +9,7 @@
 #include "kernel/display/app_layout.hpp"
 #include "kernel/display/app_surface_host.hpp"
 #include "kernel/display/composited_surface.hpp"
+#include "kernel/display/desktop_shell.hpp"
 #include "kernel/display/display_frame.hpp"
 #include "kernel/display/display_palette.hpp"
 #include "kernel/display/display_target.hpp"
@@ -61,7 +62,8 @@ struct DisplayRuntimeState
     display::PointerCursorShape pointer_cursor_shape = display::PointerCursorShape::Arrow;
     display::runtime::AppSurfaceResizeCallback app_resize_callback = nullptr;
     display::runtime::AppSurfaceStateCallback app_state_callback = nullptr;
-    bool desktop_bar_terminal_button_pressed = false;
+    desktop_bar::DesktopShellAction pressed_desktop_shell_action =
+        desktop_bar::DesktopShellAction::None;
     uint32_t * scene_memory = nullptr;
     size_t scene_bytes = 0;
     uint64_t terminal_cell_width = 0;
@@ -123,10 +125,11 @@ bool desktop_bar_debug_actions_enabled()
     return OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS != 0 && terminal_window_interaction_enabled();
 }
 
-desktop_bar::TerminalButtonState terminal_button_state_for(display::AppSurface surface)
+desktop_bar::TerminalItemState terminal_item_state_for(display::AppSurface surface)
 {
     return {
         surface.visible(),
+        surface.focused,
         surface.closed(),
     };
 }
@@ -137,9 +140,9 @@ display::Rect desktop_bar_bounds()
     return bar == nullptr || !bar->visible ? display::Rect{} : bar->bounds;
 }
 
-void sync_desktop_bar_terminal_button()
+void sync_desktop_bar_terminal_item()
 {
-    desktop_bar::sync_terminal_button_state(terminal_button_state_for(g_state.primary_app_surface));
+    desktop_bar::sync_terminal_item_state(terminal_item_state_for(g_state.primary_app_surface));
 }
 
 void repaint_desktop_bar_if_visible()
@@ -453,7 +456,7 @@ bool init(uint64_t terminal_cell_width, uint64_t terminal_cell_height)
     {
         return false;
     }
-    sync_desktop_bar_terminal_button();
+    sync_desktop_bar_terminal_item();
 
     init_optional_debug_overlay_layer(*framebuffer,
                                       palette,
@@ -488,8 +491,8 @@ bool restore_primary_app_surface(display::AppSurface previous)
 
 bool commit_primary_app_mutation(display::AppSurfaceMutation mutation, bool resize_terminal_app)
 {
-    const desktop_bar::TerminalButtonState previous_button =
-        terminal_button_state_for(g_state.primary_app_surface);
+    const desktop_bar::TerminalItemState previous_item =
+        terminal_item_state_for(g_state.primary_app_surface);
     if (!sync_primary_app_compositor_surface(mutation.current, mutation.previous.bounds))
     {
         restore_primary_app_surface(mutation.previous);
@@ -513,17 +516,18 @@ bool commit_primary_app_mutation(display::AppSurfaceMutation mutation, bool resi
     {
         g_state.app_state_callback(mutation.current);
     }
-    const desktop_bar::TerminalButtonState current_button =
-        terminal_button_state_for(g_state.primary_app_surface);
-    sync_desktop_bar_terminal_button();
+    const desktop_bar::TerminalItemState current_item =
+        terminal_item_state_for(g_state.primary_app_surface);
+    sync_desktop_bar_terminal_item();
 
     if (!mutation.repaint_bounds.empty())
     {
         display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground,
                                                  mutation.repaint_bounds);
     }
-    if (previous_button.app_visible != current_button.app_visible ||
-        previous_button.app_closed != current_button.app_closed)
+    if (previous_item.app_visible != current_item.app_visible ||
+        previous_item.app_focused != current_item.app_focused ||
+        previous_item.app_closed != current_item.app_closed)
     {
         repaint_desktop_bar_if_visible();
     }
@@ -809,7 +813,7 @@ void update_pointer_target(uint64_t x, uint64_t y)
     if (g_state.pointer_target.target_kind == display::DisplayTargetKind::GuiSurface &&
         g_state.pointer_target.gui_surface_id == desktop_bar::kGuiSurfaceId)
     {
-        g_state.pointer_target.desktop_bar_region = desktop_bar::hit_test(x, y);
+        g_state.pointer_target.desktop_bar_hit = desktop_bar::hit_test(x, y);
     }
     g_state.pointer_cursor_shape =
         terminal_window_interaction_enabled() &&
@@ -819,11 +823,12 @@ void update_pointer_target(uint64_t x, uint64_t y)
             : display::PointerCursorShape::Arrow;
 }
 
-bool pointer_targets_terminal_button()
+bool pointer_targets_desktop_shell_action(desktop_bar::DesktopShellAction action)
 {
     return g_state.pointer_target.target_kind == display::DisplayTargetKind::GuiSurface &&
            g_state.pointer_target.gui_surface_id == desktop_bar::kGuiSurfaceId &&
-           g_state.pointer_target.desktop_bar_region == desktop_bar::HitRegion::TerminalButton;
+           g_state.pointer_target.desktop_bar_hit.action == action &&
+           g_state.pointer_target.desktop_bar_hit.item_enabled;
 }
 
 bool show_and_focus_terminal_app()
@@ -842,6 +847,35 @@ bool show_and_focus_terminal_app()
     return focus_app_surface(display::kTerminalAppSurfaceId);
 }
 
+bool dispatch_desktop_shell_action(desktop_bar::DesktopShellAction action,
+                                   TerminalWindowInteractionResult & result)
+{
+    const desktop_shell::AppLifecycleMutation mutation =
+        desktop_shell::ActionHandler::mutation_for(action,
+                                                   terminal_item_state_for(
+                                                       g_state.primary_app_surface));
+    switch (mutation)
+    {
+    case desktop_shell::AppLifecycleMutation::None:
+        return false;
+    case desktop_shell::AppLifecycleMutation::ShowAndFocus:
+        if (show_and_focus_terminal_app())
+        {
+            result.focus_keyboard_terminal_app = true;
+            return true;
+        }
+        return false;
+    case desktop_shell::AppLifecycleMutation::Focus:
+        if (focus_app_surface(display::kTerminalAppSurfaceId))
+        {
+            result.focus_keyboard_terminal_app = true;
+            return true;
+        }
+        return false;
+    }
+    return false;
+}
+
 bool handle_desktop_bar_pointer(uint64_t x,
                                 uint64_t y,
                                 bool primary_down,
@@ -849,21 +883,24 @@ bool handle_desktop_bar_pointer(uint64_t x,
 {
     if (!desktop_bar_debug_actions_enabled())
     {
-        g_state.desktop_bar_terminal_button_pressed = false;
+        g_state.pressed_desktop_shell_action = desktop_bar::DesktopShellAction::None;
         return false;
     }
 
-    const bool terminal_button_target = pointer_targets_terminal_button();
-    const bool terminal_button_enabled = desktop_bar::terminal_button_enabled();
+    const desktop_bar::DesktopShellAction hovered_action =
+        g_state.pointer_target.desktop_bar_hit.action;
+    const bool action_target =
+        hovered_action != desktop_bar::DesktopShellAction::None &&
+        pointer_targets_desktop_shell_action(hovered_action);
     if (primary_down)
     {
-        if (terminal_button_target && terminal_button_enabled)
+        if (action_target)
         {
-            g_state.desktop_bar_terminal_button_pressed = true;
+            g_state.pressed_desktop_shell_action = hovered_action;
             result.handled = true;
             return true;
         }
-        if (g_state.desktop_bar_terminal_button_pressed)
+        if (g_state.pressed_desktop_shell_action != desktop_bar::DesktopShellAction::None)
         {
             result.handled = true;
             return true;
@@ -871,16 +908,17 @@ bool handle_desktop_bar_pointer(uint64_t x,
         return false;
     }
 
-    if (!g_state.desktop_bar_terminal_button_pressed)
+    const desktop_bar::DesktopShellAction pressed_action = g_state.pressed_desktop_shell_action;
+    if (pressed_action == desktop_bar::DesktopShellAction::None)
     {
         return false;
     }
 
-    g_state.desktop_bar_terminal_button_pressed = false;
+    g_state.pressed_desktop_shell_action = desktop_bar::DesktopShellAction::None;
     result.handled = true;
-    if (terminal_button_target && terminal_button_enabled && show_and_focus_terminal_app())
+    if (action_target && hovered_action == pressed_action &&
+        dispatch_desktop_shell_action(pressed_action, result))
     {
-        result.focus_keyboard_terminal_app = true;
         update_pointer_target(x, y);
     }
     return true;
@@ -894,7 +932,7 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     if (!ready() || !terminal_window_interaction_enabled())
     {
         g_state.terminal_window_interaction.reset();
-        g_state.desktop_bar_terminal_button_pressed = false;
+        g_state.pressed_desktop_shell_action = desktop_bar::DesktopShellAction::None;
         g_state.pointer_cursor_shape = display::PointerCursorShape::Arrow;
         return result;
     }

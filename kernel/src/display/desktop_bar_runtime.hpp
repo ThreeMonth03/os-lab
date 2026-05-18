@@ -6,8 +6,8 @@ namespace kernel::display::desktop_bar
 {
 
 [[nodiscard]] bool init(const GuiSurface & bar, Palette palette, Config config);
-void sync_terminal_button_state(TerminalButtonState terminal);
-[[nodiscard]] HitRegion hit_test(uint64_t x, uint64_t y);
-[[nodiscard]] bool terminal_button_enabled();
+void sync_terminal_item_state(TerminalItemState terminal);
+[[nodiscard]] HitTestResult hit_test(uint64_t x, uint64_t y);
+[[nodiscard]] bool action_enabled(DesktopShellAction action);
 
 } // namespace kernel::display::desktop_bar

@@ -83,7 +83,7 @@ HitTestResult HitTester::hit_app_surfaces(uint64_t x, uint64_t y) const
                 surface->id,
                 kInvalidGuiSurfaceId,
                 chrome_region,
-                desktop_bar::HitRegion::None};
+                {}};
     }
 
     return {};
@@ -112,7 +112,7 @@ HitTestResult HitTester::hit_gui_surfaces(uint64_t x, uint64_t y) const
                 kInvalidAppSurfaceId,
                 surface->id,
                 WindowChromeHitRegion::None,
-                desktop_bar::HitRegion::None};
+                {}};
     }
 
     return {};

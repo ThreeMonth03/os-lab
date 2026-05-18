@@ -29,9 +29,9 @@ bool on_rect_border(kernel::display::Rect rect, uint64_t x, uint64_t y)
             y + 1 == rect.y + rect.height);
 }
 
-uint64_t button_margin_for(kernel::display::Rect bar_bounds)
+uint64_t item_margin_for(kernel::display::Rect bar_bounds)
 {
-    return min_u64(kernel::display::desktop_bar::kButtonMargin,
+    return min_u64(kernel::display::desktop_bar::kItemMargin,
                    bar_bounds.height / 4);
 }
 
@@ -148,30 +148,35 @@ bool should_redraw(const GuiSurface & surface)
     return surface.valid() && surface.visible;
 }
 
-bool Button::valid() const
+bool Item::valid() const
 {
-    return visible && kind != ButtonKind::None && !bounds.empty();
+    return visible && kind != ItemKind::None && action != DesktopShellAction::None &&
+           !bounds.empty();
 }
 
-Button terminal_button_for(const GuiSurface & surface,
-                           Config config,
-                           TerminalButtonState terminal)
+bool HitTestResult::hit_item() const
+{
+    return region == HitRegion::Item && item_kind != ItemKind::None &&
+           action != DesktopShellAction::None;
+}
+
+Item terminal_item_for(const GuiSurface & surface, Config config, TerminalItemState terminal)
 {
     if (!surface.valid() || !surface.visible || !config.debug_actions)
     {
         return {};
     }
 
-    const uint64_t margin = button_margin_for(surface.bounds);
+    const uint64_t margin = item_margin_for(surface.bounds);
     if (surface.bounds.width <= margin * 2 || surface.bounds.height <= margin * 2)
     {
         return {};
     }
 
     const uint64_t available_width = surface.bounds.width - (margin * 2);
-    const uint64_t button_width = min_u64(kTerminalButtonWidth, available_width);
+    const uint64_t button_width = min_u64(kDefaultItemWidth, available_width);
     const uint64_t button_height = surface.bounds.height - (margin * 2);
-    if (button_width < kTerminalButtonMinWidth || button_height < kTerminalButtonMinHeight)
+    if (button_width < kItemMinWidth || button_height < kItemMinHeight)
     {
         return {};
     }
@@ -181,37 +186,49 @@ Button terminal_button_for(const GuiSurface & surface,
          surface.bounds.y + ((surface.bounds.height - button_height) / 2),
          button_width,
          button_height},
-        ButtonKind::Terminal,
+        ItemKind::Terminal,
+        DesktopShellAction::TerminalShowFocus,
         true,
-        !terminal.app_visible && !terminal.app_closed,
+        !terminal.app_closed && (!terminal.app_visible || !terminal.app_focused),
         terminal.app_visible && !terminal.app_closed,
+        terminal.app_focused && terminal.app_visible && !terminal.app_closed,
     };
 }
 
-HitRegion hit_test(const GuiSurface & surface,
-                   Config config,
-                   TerminalButtonState terminal,
-                   uint64_t x,
-                   uint64_t y)
+HitTestResult hit_test(const GuiSurface & surface,
+                       Config config,
+                       TerminalItemState terminal,
+                       uint64_t x,
+                       uint64_t y)
 {
     if (!surface.valid() || !surface.visible || !contains(surface.bounds, x, y))
     {
-        return HitRegion::None;
+        return {};
     }
 
-    const Button terminal_button = terminal_button_for(surface, config, terminal);
-    if (terminal_button.valid() && contains(terminal_button.bounds, x, y))
+    const Item terminal_item = terminal_item_for(surface, config, terminal);
+    if (terminal_item.valid() && contains(terminal_item.bounds, x, y))
     {
-        return HitRegion::TerminalButton;
+        return {
+            HitRegion::Item,
+            terminal_item.kind,
+            terminal_item.action,
+            terminal_item.enabled,
+        };
     }
 
-    return HitRegion::Background;
+    return {
+        HitRegion::Background,
+        ItemKind::None,
+        DesktopShellAction::None,
+        false,
+    };
 }
 
 PixelSample sample_pixel(const GuiSurface & surface,
                          Palette palette,
                          Config config,
-                         TerminalButtonState terminal,
+                         TerminalItemState terminal,
                          uint64_t x,
                          uint64_t y)
 {
@@ -220,20 +237,20 @@ PixelSample sample_pixel(const GuiSurface & surface,
         return transparent_pixel();
     }
 
-    const Button terminal_button = terminal_button_for(surface, config, terminal);
-    if (terminal_button.valid() && contains(terminal_button.bounds, x, y))
+    const Item terminal_item = terminal_item_for(surface, config, terminal);
+    if (terminal_item.valid() && contains(terminal_item.bounds, x, y))
     {
-        if (on_rect_border(terminal_button.bounds, x, y))
+        if (on_rect_border(terminal_item.bounds, x, y))
         {
             return opaque_pixel(palette.button_border);
         }
-        if (terminal_icon_pixel(terminal_button.bounds, x, y))
+        if (terminal_icon_pixel(terminal_item.bounds, x, y))
         {
             return opaque_pixel(palette.button_icon);
         }
 
-        return opaque_pixel(terminal_button.enabled ? palette.button_background
-                                                    : palette.button_disabled_background);
+        return opaque_pixel(terminal_item.enabled ? palette.button_background
+                                                  : palette.button_disabled_background);
     }
 
     if (y < surface.bounds.y + kTopBorderHeight)

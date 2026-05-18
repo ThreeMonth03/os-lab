@@ -12,22 +12,28 @@ inline constexpr GuiSurfaceId kGuiSurfaceId = 1;
 inline constexpr uint64_t kDefaultHeight = 32;
 inline constexpr uint64_t kMinimumHeight = 8;
 inline constexpr uint64_t kTopBorderHeight = 1;
-inline constexpr uint64_t kButtonMargin = 6;
-inline constexpr uint64_t kTerminalButtonWidth = 96;
-inline constexpr uint64_t kTerminalButtonMinWidth = 24;
-inline constexpr uint64_t kTerminalButtonMinHeight = 12;
+inline constexpr uint64_t kItemMargin = 6;
+inline constexpr uint64_t kDefaultItemWidth = 96;
+inline constexpr uint64_t kItemMinWidth = 24;
+inline constexpr uint64_t kItemMinHeight = 12;
 
-enum class ButtonKind
+enum class ItemKind
 {
     None,
     Terminal,
+};
+
+enum class DesktopShellAction
+{
+    None,
+    TerminalShowFocus,
 };
 
 enum class HitRegion
 {
     None,
     Background,
-    TerminalButton,
+    Item,
 };
 
 struct Config
@@ -55,21 +61,34 @@ struct Layout
     bool bar_visible = false;
 };
 
-struct TerminalButtonState
+struct TerminalItemState
 {
     bool app_visible = true;
+    bool app_focused = true;
     bool app_closed = false;
 };
 
-struct Button
+struct Item
 {
     Rect bounds;
-    ButtonKind kind = ButtonKind::None;
+    ItemKind kind = ItemKind::None;
+    DesktopShellAction action = DesktopShellAction::None;
     bool visible = false;
     bool enabled = false;
     bool active = false;
+    bool focused = false;
 
     [[nodiscard]] bool valid() const;
+};
+
+struct HitTestResult
+{
+    HitRegion region = HitRegion::None;
+    ItemKind item_kind = ItemKind::None;
+    DesktopShellAction action = DesktopShellAction::None;
+    bool item_enabled = false;
+
+    [[nodiscard]] bool hit_item() const;
 };
 
 [[nodiscard]] Config default_config();
@@ -78,18 +97,18 @@ struct Button
 [[nodiscard]] Layout layout_for(Rect desktop_bounds, Config config = {});
 [[nodiscard]] GuiSurface make_surface(Rect desktop_bounds, GuiSurfaceId id = kGuiSurfaceId, Config config = {});
 [[nodiscard]] bool should_redraw(const GuiSurface & surface);
-[[nodiscard]] Button terminal_button_for(const GuiSurface & surface,
-                                         Config config,
-                                         TerminalButtonState terminal);
-[[nodiscard]] HitRegion hit_test(const GuiSurface & surface,
-                                 Config config,
-                                 TerminalButtonState terminal,
-                                 uint64_t x,
-                                 uint64_t y);
+[[nodiscard]] Item terminal_item_for(const GuiSurface & surface,
+                                     Config config,
+                                     TerminalItemState terminal);
+[[nodiscard]] HitTestResult hit_test(const GuiSurface & surface,
+                                     Config config,
+                                     TerminalItemState terminal,
+                                     uint64_t x,
+                                     uint64_t y);
 [[nodiscard]] PixelSample sample_pixel(const GuiSurface & surface,
                                        Palette palette,
                                        Config config,
-                                       TerminalButtonState terminal,
+                                       TerminalItemState terminal,
                                        uint64_t x,
                                        uint64_t y);
 

@@ -19,7 +19,7 @@ struct HitTestResult
     AppSurfaceId app_surface_id = kInvalidAppSurfaceId;
     GuiSurfaceId gui_surface_id = kInvalidGuiSurfaceId;
     WindowChromeHitRegion app_chrome_region = WindowChromeHitRegion::None;
-    desktop_bar::HitRegion desktop_bar_region = desktop_bar::HitRegion::None;
+    desktop_bar::HitTestResult desktop_bar_hit;
 
     [[nodiscard]] bool hit() const;
 };

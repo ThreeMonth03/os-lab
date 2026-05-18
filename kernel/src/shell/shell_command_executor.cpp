@@ -119,10 +119,9 @@ kernel::StringView pointer_target_name(kernel::display::HitTestResult target)
     case kernel::display::DisplayTargetKind::GuiSurface:
         if (target.gui_surface_id == kernel::display::desktop_bar::kGuiSurfaceId)
         {
-            if (target.desktop_bar_region ==
-                kernel::display::desktop_bar::HitRegion::TerminalButton)
+            if (target.desktop_bar_hit.item_kind == kernel::display::desktop_bar::ItemKind::Terminal)
             {
-                return "desktop bar terminal button";
+                return "desktop bar item";
             }
             return "desktop bar";
         }
@@ -173,8 +172,20 @@ kernel::StringView desktop_bar_region_name(kernel::display::desktop_bar::HitRegi
         return "none";
     case kernel::display::desktop_bar::HitRegion::Background:
         return "background";
-    case kernel::display::desktop_bar::HitRegion::TerminalButton:
-        return "terminal button";
+    case kernel::display::desktop_bar::HitRegion::Item:
+        return "item";
+    }
+    return "unknown";
+}
+
+kernel::StringView desktop_bar_item_name(kernel::display::desktop_bar::ItemKind kind)
+{
+    switch (kind)
+    {
+    case kernel::display::desktop_bar::ItemKind::None:
+        return "none";
+    case kernel::display::desktop_bar::ItemKind::Terminal:
+        return "terminal";
     }
     return "unknown";
 }
@@ -285,7 +296,9 @@ void write_input_stats()
         if (pointer_target.gui_surface_id == kernel::display::desktop_bar::kGuiSurfaceId)
         {
             terminal::write_string("  pointer desktop bar region: ");
-            terminal::write_line(desktop_bar_region_name(pointer_target.desktop_bar_region));
+            terminal::write_line(desktop_bar_region_name(pointer_target.desktop_bar_hit.region));
+            terminal::write_string("  pointer desktop bar item: ");
+            terminal::write_line(desktop_bar_item_name(pointer_target.desktop_bar_hit.item_kind));
         }
     }
     terminal::write_string("  keyboard mode: ");

@@ -10,7 +10,7 @@ struct DesktopBarState
     kernel::display::GuiSurface bar;
     kernel::display::desktop_bar::Palette palette;
     kernel::display::desktop_bar::Config config;
-    kernel::display::desktop_bar::TerminalButtonState terminal_button;
+    kernel::display::desktop_bar::TerminalItemState terminal_item;
     bool initialized = false;
 };
 
@@ -26,7 +26,7 @@ kernel::display::PixelSample sample_bar_pixel(uint64_t x, uint64_t y)
     return kernel::display::desktop_bar::sample_pixel(g_state.bar,
                                                       g_state.palette,
                                                       g_state.config,
-                                                      g_state.terminal_button,
+                                                      g_state.terminal_item,
                                                       x,
                                                       y);
 }
@@ -47,7 +47,7 @@ bool init(const GuiSurface & bar, Palette palette, Config config)
     g_state.bar = bar;
     g_state.palette = palette;
     g_state.config = config;
-    g_state.terminal_button = {};
+    g_state.terminal_item = {};
     if (!compositor::register_layer_pixel_callback(LayerKind::GuiSurface, sample_bar_pixel))
     {
         g_state = {};
@@ -58,36 +58,35 @@ bool init(const GuiSurface & bar, Palette palette, Config config)
     return true;
 }
 
-void sync_terminal_button_state(TerminalButtonState terminal)
+void sync_terminal_item_state(TerminalItemState terminal)
 {
     if (!g_state.initialized)
     {
         return;
     }
 
-    g_state.terminal_button = terminal;
+    g_state.terminal_item = terminal;
 }
 
-HitRegion hit_test(uint64_t x, uint64_t y)
+HitTestResult hit_test(uint64_t x, uint64_t y)
 {
     if (!g_state.initialized)
     {
-        return HitRegion::None;
+        return {};
     }
 
-    return hit_test(g_state.bar, g_state.config, g_state.terminal_button, x, y);
+    return hit_test(g_state.bar, g_state.config, g_state.terminal_item, x, y);
 }
 
-bool terminal_button_enabled()
+bool action_enabled(DesktopShellAction action)
 {
     if (!g_state.initialized)
     {
         return false;
     }
 
-    const Button button =
-        terminal_button_for(g_state.bar, g_state.config, g_state.terminal_button);
-    return button.valid() && button.enabled;
+    const Item item = terminal_item_for(g_state.bar, g_state.config, g_state.terminal_item);
+    return item.valid() && item.enabled && item.action == action;
 }
 
 } // namespace kernel::display::desktop_bar
