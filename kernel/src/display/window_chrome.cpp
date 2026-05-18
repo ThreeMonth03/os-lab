@@ -68,6 +68,21 @@ kernel::display::Rect close_button_icon_bounds(kernel::display::Rect button)
     };
 }
 
+kernel::display::Rect close_button_hit_bounds(kernel::display::WindowFrameMetrics metrics)
+{
+    if (metrics.close_button_bounds.empty() || metrics.title_bar_bounds.empty())
+    {
+        return metrics.close_button_bounds;
+    }
+
+    return {
+        metrics.close_button_bounds.x,
+        metrics.title_bar_bounds.y,
+        metrics.close_button_bounds.width,
+        metrics.title_bar_bounds.height,
+    };
+}
+
 kernel::display::Rect resize_handle_bounds(kernel::display::Rect outer_bounds,
                                            kernel::display::WindowFrameConfig config)
 {
@@ -174,7 +189,7 @@ WindowChromeHitRegion WindowChrome::hit_test(WindowFrameMetrics metrics, uint64_
     {
         return WindowChromeHitRegion::Content;
     }
-    if (contains(metrics.close_button_bounds, x, y))
+    if (contains(close_button_hit_bounds(metrics), x, y))
     {
         return WindowChromeHitRegion::CloseButton;
     }

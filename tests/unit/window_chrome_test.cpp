@@ -100,6 +100,8 @@ TEST(WindowChromeTest, HitTestPrioritizesControlsAndContent)
 
     EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 318, 30),
               kernel::display::WindowChromeHitRegion::CloseButton);
+    EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 318, 21),
+              kernel::display::WindowChromeHitRegion::CloseButton);
     EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 325, 215),
               kernel::display::WindowChromeHitRegion::ResizeBottomRight);
     EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 10, 100),
