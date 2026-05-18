@@ -82,3 +82,20 @@ TEST(TerminalRenderCacheTest, ScrollUpMovesRenderedRowsAndBlanksExposedRows)
     EXPECT_EQ(cache.glyph_at(0, 1), 'd');
     EXPECT_EQ(cache.glyph_at(0, 2), kernel::text::kTextBufferBlank);
 }
+
+TEST(TerminalRenderCacheTest, ScrollUpStillDetectsUnrenderedFinalCells)
+{
+    kernel::text::TextBuffer logical;
+    kernel::display::TerminalRenderCache cache;
+    ASSERT_TRUE(logical.reset(3, 3));
+    ASSERT_TRUE(cache.reset(3, 3));
+    cache.clear_rendered();
+
+    ASSERT_TRUE(logical.put(0, 2, 'x'));
+    ASSERT_TRUE(logical.scroll_up());
+    ASSERT_TRUE(logical.scroll_up());
+    cache.scroll_up(2);
+
+    EXPECT_TRUE(cache.needs_render(logical, 0, 0));
+    EXPECT_EQ(cache.count_dirty_cells(logical), 1u);
+}

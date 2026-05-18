@@ -239,8 +239,9 @@ void TerminalApp::flush_pending_backing_scroll()
     render_cache_.scroll_up(rows);
     const uint64_t distance = rows * kCellHeight;
     const display::Rect exposed = display::exposed_scroll_region({text_grid_rect(), distance});
-    const display::Rect rendered_dirty =
+    display::Rect rendered_dirty =
         render_text_cells_in_rect(display::bounding_rect(pending_dirty, exposed));
+    rendered_dirty = display::bounding_rect(rendered_dirty, render_dirty_text_cells());
 
     display::FrameDamage damage;
     if (!damage.append_scroll({scroll_dirty, distance}) ||
