@@ -391,6 +391,25 @@ bool Compositor::register_layer(Layer layer)
     return true;
 }
 
+bool Compositor::update_layer(Layer layer)
+{
+    if (!layer.valid())
+    {
+        return false;
+    }
+
+    for (size_t index = 0; index < layer_count_; ++index)
+    {
+        if (layers_[index].kind == layer.kind && layers_[index].surface_id == layer.surface_id)
+        {
+            layers_[index] = layer;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool Compositor::register_surface(CompositedSurfaceDescriptor surface)
 {
     if (!surface.valid())
@@ -398,6 +417,11 @@ bool Compositor::register_surface(CompositedSurfaceDescriptor surface)
         return false;
     }
     return register_layer(surface.layer());
+}
+
+bool Compositor::update_surface(CompositedSurfaceDescriptor surface)
+{
+    return surface.valid() && update_layer(surface.layer());
 }
 
 const Layer * Compositor::find_layer(LayerKind kind) const

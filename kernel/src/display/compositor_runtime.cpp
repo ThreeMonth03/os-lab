@@ -635,6 +635,11 @@ bool register_surface(CompositedSurfaceDescriptor surface)
     return g_compositor.register_surface(surface);
 }
 
+bool update_surface(CompositedSurfaceDescriptor surface)
+{
+    return g_compositor.update_surface(surface);
+}
+
 bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback)
 {
     if (kind == LayerKind::None || callback == nullptr)

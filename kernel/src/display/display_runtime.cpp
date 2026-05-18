@@ -7,6 +7,7 @@
 
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/display/app_layout.hpp"
+#include "kernel/display/app_surface_host.hpp"
 #include "kernel/display/composited_surface.hpp"
 #include "kernel/display/display_frame.hpp"
 #include "kernel/display/display_palette.hpp"
@@ -34,11 +35,13 @@ struct DisplayRuntimeState
     display::DisplayRuntimeStats stats;
     display::DisplayTargetRegistry targets;
     display::AppSurfaceRegistry app_surfaces;
+    display::AppSurfaceHost app_host;
     display::GuiSurfaceRegistry gui_surfaces;
     display::AppSurface primary_app_surface;
     display::Color app_foreground;
     display::Color app_background;
     display::HitTestResult pointer_target;
+    display::runtime::AppSurfaceResizeCallback app_resize_callback = nullptr;
     uint32_t * scene_memory = nullptr;
     size_t scene_bytes = 0;
 };
@@ -138,6 +141,7 @@ bool reset_display_runtime_state(const limine_framebuffer & framebuffer)
     display::compositor::set_presenter(g_state.presenter);
     g_state.frame.reset(bounds);
     g_state.app_surface_damage.reset(bounds);
+    g_state.app_host.reset(g_state.app_surfaces, g_state.targets);
     g_state.stats = {};
     return true;
 }
@@ -251,6 +255,39 @@ bool init_primary_app_layer(const limine_framebuffer & framebuffer,
     return display::compositor::register_surface(caret_surface);
 }
 
+display::CompositedSurfaceDescriptor text_caret_surface_for(display::Rect app_bounds,
+                                                            bool app_visible)
+{
+    return display::make_composited_surface(display::kTerminalCaretLayerSurfaceId,
+                                            display::CompositedSurfaceRole::TextCaret,
+                                            app_bounds,
+                                            app_visible,
+                                            false,
+                                            false);
+}
+
+bool sync_primary_app_compositor_surface(display::AppSurface surface,
+                                         display::Rect previous_bounds)
+{
+    const display::Rect layer_bounds = surface.closed() ? previous_bounds : surface.bounds;
+    const display::CompositedSurfaceDescriptor app_surface =
+        surface.closed() ? display::make_composited_surface(surface.display_surface_id,
+                                                            display::CompositedSurfaceRole::App,
+                                                            layer_bounds,
+                                                            false,
+                                                            false,
+                                                            false)
+                         : surface.composited_surface();
+    if (!display::compositor::update_surface(app_surface))
+    {
+        return false;
+    }
+
+    return display::compositor::update_surface(text_caret_surface_for(layer_bounds,
+                                                                      !surface.closed() &&
+                                                                          surface.visible()));
+}
+
 void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
                                        display::DisplayPalette palette,
                                        display::Rect overlay_bounds)
@@ -294,8 +331,7 @@ namespace kernel::display::runtime
 bool ready()
 {
     return g_state.surface.ready() && g_state.scene.ready() && g_state.presenter.ready() &&
-           g_state.primary_app_surface.valid() &&
-           g_state.targets.active_target().valid();
+           g_state.primary_app_surface.valid() && !g_state.primary_app_surface.closed();
 }
 
 bool init(uint64_t terminal_cell_width, uint64_t terminal_cell_height)
@@ -346,6 +382,113 @@ AppSurfaceHostConfig primary_app_config()
         g_state.app_foreground,
         g_state.app_background,
     };
+}
+
+bool restore_primary_app_surface(display::AppSurface previous)
+{
+    if (!g_state.app_host.restore_surface(previous))
+    {
+        return false;
+    }
+
+    g_state.primary_app_surface = previous;
+    g_state.app_surface_damage.reset(previous.bounds);
+    return sync_primary_app_compositor_surface(previous, previous.bounds);
+}
+
+bool commit_primary_app_mutation(display::AppSurfaceMutation mutation, bool resize_terminal_app)
+{
+    if (!sync_primary_app_compositor_surface(mutation.current, mutation.previous.bounds))
+    {
+        restore_primary_app_surface(mutation.previous);
+        return false;
+    }
+
+    g_state.primary_app_surface = mutation.current;
+    g_state.app_surface_damage.reset(mutation.current.closed() ? mutation.previous.bounds
+                                                               : mutation.current.bounds);
+
+    if (resize_terminal_app)
+    {
+        if (g_state.app_resize_callback == nullptr ||
+            !g_state.app_resize_callback(mutation.current))
+        {
+            restore_primary_app_surface(mutation.previous);
+            return false;
+        }
+    }
+
+    if (!mutation.repaint_bounds.empty())
+    {
+        display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground,
+                                                 mutation.repaint_bounds);
+    }
+
+    return true;
+}
+
+bool resize_app_surface(AppSurfaceId id, Rect bounds)
+{
+    if (!ready() || id != display::kTerminalAppSurfaceId || g_state.app_resize_callback == nullptr)
+    {
+        return false;
+    }
+
+    display::AppSurfaceMutation mutation;
+    if (!g_state.app_host.resize_surface(id, bounds, mutation))
+    {
+        return false;
+    }
+
+    return commit_primary_app_mutation(mutation, true);
+}
+
+bool set_app_surface_visible(AppSurfaceId id, bool visible)
+{
+    if (!ready() || id != display::kTerminalAppSurfaceId)
+    {
+        return false;
+    }
+
+    display::AppSurfaceMutation mutation;
+    if (!g_state.app_host.set_visible(id, visible, mutation))
+    {
+        return false;
+    }
+
+    return commit_primary_app_mutation(mutation, false);
+}
+
+bool focus_app_surface(AppSurfaceId id)
+{
+    if (!ready() || id != display::kTerminalAppSurfaceId)
+    {
+        return false;
+    }
+
+    display::AppSurfaceMutation mutation;
+    if (!g_state.app_host.focus_surface(id, mutation))
+    {
+        return false;
+    }
+
+    return commit_primary_app_mutation(mutation, false);
+}
+
+bool close_app_surface(AppSurfaceId id)
+{
+    if (!ready() || id != display::kTerminalAppSurfaceId)
+    {
+        return false;
+    }
+
+    display::AppSurfaceMutation mutation;
+    if (!g_state.app_host.close_surface(id, mutation))
+    {
+        return false;
+    }
+
+    return commit_primary_app_mutation(mutation, false);
 }
 
 HitTestResult pointer_target()
@@ -452,6 +595,17 @@ void submit_app_surface_damage(FrameDamage damage)
     const display::PresentOperationList present_operations =
         display::compositor::update_scene_from_layer_damage(display::LayerKind::AppSurface, damage);
     submit_present_operations_to_frame(present_operations);
+}
+
+bool register_app_surface_resize_callback(AppSurfaceResizeCallback callback)
+{
+    if (callback == nullptr)
+    {
+        return false;
+    }
+
+    g_state.app_resize_callback = callback;
+    return true;
 }
 
 bool register_app_surface_pixel_source(compositor::LayerPixelCallback callback)

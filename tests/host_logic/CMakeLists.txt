@@ -1,6 +1,7 @@
 set(OS_LAB_HOST_LOGIC_DISPLAY_SOURCES
     ${PROJECT_SOURCE_DIR}/kernel/src/display/app_layout.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/app_surface.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/display/app_surface_host.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/backing_surface.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/composited_surface.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/compositor.cpp

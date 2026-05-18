@@ -57,6 +57,42 @@ bool DisplayTargetRegistry::register_target(SurfaceDescriptor descriptor)
     return true;
 }
 
+bool DisplayTargetRegistry::update_target(SurfaceDescriptor descriptor)
+{
+    if (!descriptor.valid())
+    {
+        return false;
+    }
+
+    SurfaceDescriptor * target = find_mutable(descriptor.id);
+    if (target == nullptr || target->kind != descriptor.kind)
+    {
+        return false;
+    }
+
+    *target = descriptor;
+    if (descriptor.active)
+    {
+        active_target_id_ = descriptor.id;
+    }
+    else if (active_target_id_ == descriptor.id)
+    {
+        active_target_id_ = kInvalidSurfaceId;
+    }
+
+    if (descriptor.focused)
+    {
+        focused_target_id_ = descriptor.id;
+    }
+    else if (focused_target_id_ == descriptor.id)
+    {
+        focused_target_id_ = kInvalidSurfaceId;
+    }
+
+    sync_target_state();
+    return true;
+}
+
 bool DisplayTargetRegistry::set_active(SurfaceId id)
 {
     if (find(id) == nullptr)
@@ -79,6 +115,18 @@ bool DisplayTargetRegistry::set_focused(SurfaceId id)
     focused_target_id_ = id;
     sync_target_state();
     return true;
+}
+
+void DisplayTargetRegistry::clear_active()
+{
+    active_target_id_ = kInvalidSurfaceId;
+    sync_target_state();
+}
+
+void DisplayTargetRegistry::clear_focus()
+{
+    focused_target_id_ = kInvalidSurfaceId;
+    sync_target_state();
 }
 
 const SurfaceDescriptor * DisplayTargetRegistry::find(SurfaceId id) const

@@ -199,6 +199,8 @@ public:
     void clear_layers();
     [[nodiscard]] bool register_layer(Layer layer);
     [[nodiscard]] bool register_surface(CompositedSurfaceDescriptor surface);
+    [[nodiscard]] bool update_layer(Layer layer);
+    [[nodiscard]] bool update_surface(CompositedSurfaceDescriptor surface);
     [[nodiscard]] const Layer * find_layer(LayerKind kind) const;
     [[nodiscard]] const Layer * top_visible_layer() const;
     [[nodiscard]] LayerRepaintPlan repaint_plan_from(LayerKind base_layer, Rect dirty_rect) const;
@@ -224,6 +226,7 @@ void init(Rect bounds);
 void set_scene_buffer(SceneBuffer & scene_buffer);
 void set_presenter(FramebufferPresenter & presenter);
 [[nodiscard]] bool register_surface(CompositedSurfaceDescriptor surface);
+[[nodiscard]] bool update_surface(CompositedSurfaceDescriptor surface);
 [[nodiscard]] bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback);
 [[nodiscard]] bool register_layer_row_callback(LayerKind kind, LayerRowCallback callback);
 [[nodiscard]] bool register_layer_scroll_composition(LayerKind kind, LayerScrollComposition composition);

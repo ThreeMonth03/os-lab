@@ -149,7 +149,6 @@ bool TerminalApp::resize(display::AppSurface app_surface, TerminalResizePolicy p
         return false;
     }
 
-    apply_repaint_request(repaint_.record_dirty(bounds()));
     return true;
 }
 

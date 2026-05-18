@@ -31,6 +31,11 @@ kernel::display::Rect terminal_caret_bounds()
     return g_terminal_app.caret_bounds();
 }
 
+bool resize_terminal_app(kernel::display::AppSurface surface)
+{
+    return g_terminal_app.resize(surface);
+}
+
 } // namespace
 
 namespace kernel::console::terminal
@@ -55,6 +60,7 @@ bool init()
         !display::runtime::register_app_surface_row_source(terminal_row_pixels) ||
         !display::runtime::register_app_surface_scroll_composition(
             display::LayerScrollComposition::RecomposeFromSource) ||
+        !display::runtime::register_app_surface_resize_callback(resize_terminal_app) ||
         !display::runtime::register_text_caret(sample_terminal_caret_pixel, terminal_caret_bounds))
     {
         return false;

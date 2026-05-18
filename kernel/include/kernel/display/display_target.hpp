@@ -39,8 +39,11 @@ public:
 
     void clear();
     [[nodiscard]] bool register_target(SurfaceDescriptor descriptor);
+    [[nodiscard]] bool update_target(SurfaceDescriptor descriptor);
     [[nodiscard]] bool set_active(SurfaceId id);
     [[nodiscard]] bool set_focused(SurfaceId id);
+    void clear_active();
+    void clear_focus();
 
     size_t size() const { return count_; }
     size_t capacity() const { return kMaxDisplayTargets; }
