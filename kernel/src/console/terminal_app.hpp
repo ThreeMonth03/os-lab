@@ -11,6 +11,7 @@
 #include "kernel/display/terminal_render_cache.hpp"
 #include "kernel/display/terminal_renderer.hpp"
 #include "kernel/display/terminal_repaint_state.hpp"
+#include "kernel/display/window_chrome.hpp"
 #include "kernel/text/text_buffer.hpp"
 #include "kernel/text/text_console.hpp"
 
@@ -69,6 +70,7 @@ public:
 
     bool ready() const;
     display::Rect bounds() const { return app_surface_.bounds; }
+    display::Rect viewport_bounds() const { return text_viewport_; }
     uint64_t columns() const { return console_.columns(); }
     uint64_t rows() const { return console_.rows(); }
     uint64_t cursor_column() const { return console_.cursor_column(); }
@@ -101,6 +103,9 @@ private:
     uint64_t text_grid_width() const;
     uint64_t text_grid_height() const;
     display::Rect text_grid_rect() const;
+    display::WindowFrameMetrics frame_metrics_for(display::Rect bounds) const;
+    display::AppCellCapacity cell_capacity_for(display::AppSurface app_surface) const;
+    void paint_window_chrome();
     display::Rect cell_rect(uint64_t column, uint64_t row) const;
     display::Rect row_tail_rect(uint64_t column, uint64_t row) const;
 
@@ -131,6 +136,8 @@ private:
     void write_tab();
 
     display::AppSurface app_surface_;
+    display::WindowFrameMetrics frame_metrics_;
+    display::Rect text_viewport_;
     display::BackingSurface backing_storage_;
     display::ScrollMappedSurface backing_;
     display::TerminalRenderer renderer_;

@@ -78,12 +78,10 @@ display::Rect TerminalApp::render_text_cells_in_rect(display::Rect rect)
         return {};
     }
 
-    const uint64_t first_column = (rect.x - app_surface_.bounds.x) / kCellWidth;
-    const uint64_t first_row = (rect.y - app_surface_.bounds.y) / kCellHeight;
-    const uint64_t last_column =
-        (rect.x + rect.width - 1 - app_surface_.bounds.x) / kCellWidth;
-    const uint64_t last_row =
-        (rect.y + rect.height - 1 - app_surface_.bounds.y) / kCellHeight;
+    const uint64_t first_column = (rect.x - text_viewport_.x) / kCellWidth;
+    const uint64_t first_row = (rect.y - text_viewport_.y) / kCellHeight;
+    const uint64_t last_column = (rect.x + rect.width - 1 - text_viewport_.x) / kCellWidth;
+    const uint64_t last_row = (rect.y + rect.height - 1 - text_viewport_.y) / kCellHeight;
 
     display::Rect dirty_rect;
     for (uint64_t row = first_row; row <= last_row && row < text_buffer_.rows(); ++row)

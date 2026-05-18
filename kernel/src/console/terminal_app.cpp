@@ -4,17 +4,28 @@
 
 #include "kernel/memory/heap.hpp"
 
+#ifndef OS_LAB_TERMINAL_WINDOW_CHROME
+#define OS_LAB_TERMINAL_WINDOW_CHROME 0
+#endif
+
 namespace kernel::console
 {
 
 namespace
 {
 
-display::Rect text_grid_rect_for(display::Rect bounds, display::AppCellCapacity capacity)
+display::WindowFrameConfig terminal_window_frame_config()
+{
+    display::WindowFrameConfig config;
+    config.visible = OS_LAB_TERMINAL_WINDOW_CHROME != 0;
+    return config;
+}
+
+display::Rect text_grid_rect_for(display::Rect viewport, display::AppCellCapacity capacity)
 {
     return {
-        bounds.x,
-        bounds.y,
+        viewport.x,
+        viewport.y,
         capacity.columns * TerminalApp::kCellWidth,
         capacity.rows * TerminalApp::kCellHeight,
     };
@@ -61,8 +72,8 @@ bool TerminalApp::allocate_backing_surface_for(display::AppSurface app_surface,
                                                display::BackingSurface & backing_storage,
                                                display::ScrollMappedSurface & backing) const
 {
-    const display::AppCellCapacity capacity =
-        display::DesktopAppLayout::cell_capacity_for(app_surface.bounds, kCellWidth, kCellHeight);
+    const display::WindowFrameMetrics metrics = frame_metrics_for(app_surface.bounds);
+    const display::AppCellCapacity capacity = cell_capacity_for(app_surface);
     if (!capacity.valid())
     {
         return false;
@@ -83,14 +94,14 @@ bool TerminalApp::allocate_backing_surface_for(display::AppSurface app_surface,
     memory = static_cast<uint32_t *>(allocated_memory);
     bytes = required_bytes;
     backing_storage = display::BackingSurface(memory, app_surface.bounds, app_surface.bounds.width);
-    backing.reset(backing_storage, text_grid_rect_for(app_surface.bounds, capacity));
+    backing.reset(backing_storage, text_grid_rect_for(metrics.client_bounds, capacity));
     return backing.ready();
 }
 
 bool TerminalApp::replace_surface(display::AppSurface app_surface)
 {
-    const display::AppCellCapacity capacity =
-        display::DesktopAppLayout::cell_capacity_for(app_surface.bounds, kCellWidth, kCellHeight);
+    const display::WindowFrameMetrics metrics = frame_metrics_for(app_surface.bounds);
+    const display::AppCellCapacity capacity = cell_capacity_for(app_surface);
     if (!app_surface.valid() || app_surface.closed() || !capacity.valid() ||
         capacity.columns > text_buffer_.max_columns() || capacity.rows > text_buffer_.max_rows())
     {
@@ -116,22 +127,25 @@ bool TerminalApp::replace_surface(display::AppSurface app_surface)
     }
 
     app_surface_ = app_surface;
+    frame_metrics_ = metrics;
+    text_viewport_ = frame_metrics_.client_bounds;
     backing_memory_ = new_memory;
     backing_bytes_ = new_bytes;
     backing_storage_ = new_storage;
-    backing_.reset(backing_storage_, text_grid_rect_for(app_surface_.bounds, capacity));
+    backing_.reset(backing_storage_, text_grid_rect_for(text_viewport_, capacity));
     if (!text_buffer_.reset(capacity.columns, capacity.rows) ||
         !render_cache_.reset(capacity.columns, capacity.rows))
     {
         return false;
     }
     console_.reset(capacity.columns, capacity.rows);
-    renderer_.reset(backing_, app_surface_.bounds, foreground_, background_);
+    renderer_.reset(backing_, text_viewport_, foreground_, background_);
     repaint_.reset(app_surface_.bounds);
     cursor_.reset();
     update_depth_ = 0;
     pending_scroll_rows_ = 0;
     pending_dirty_after_scroll_ = {};
+    paint_window_chrome();
     renderer_.clear_screen();
     render_cache_.clear_rendered();
     return renderer_.ready();
@@ -179,21 +193,109 @@ uint64_t TerminalApp::text_grid_height() const
     return text_buffer_.rows() * kCellHeight;
 }
 
+display::WindowFrameMetrics TerminalApp::frame_metrics_for(display::Rect bounds) const
+{
+    return display::WindowChrome::metrics_for(bounds, terminal_window_frame_config());
+}
+
+display::AppCellCapacity TerminalApp::cell_capacity_for(display::AppSurface app_surface) const
+{
+    const display::WindowFrameMetrics metrics = frame_metrics_for(app_surface.bounds);
+    return metrics.valid()
+               ? display::DesktopAppLayout::cell_capacity_for(metrics.client_bounds,
+                                                              kCellWidth,
+                                                              kCellHeight)
+               : display::AppCellCapacity{};
+}
+
 display::Rect TerminalApp::text_grid_rect() const
 {
     return {
-        app_surface_.bounds.x,
-        app_surface_.bounds.y,
+        text_viewport_.x,
+        text_viewport_.y,
         text_grid_width(),
         text_grid_height(),
     };
 }
 
+void TerminalApp::paint_window_chrome()
+{
+    if (!backing_.ready())
+    {
+        return;
+    }
+
+    backing_.fill_rect(app_surface_.bounds, background_);
+    if (!frame_metrics_.visible)
+    {
+        return;
+    }
+
+    const display::Rect outer = frame_metrics_.outer_bounds;
+    const uint64_t border = frame_metrics_.border_thickness;
+    if (border == 0)
+    {
+        return;
+    }
+
+    backing_.fill_rect({outer.x, outer.y, outer.width, border}, foreground_);
+    backing_.fill_rect({outer.x,
+                        outer.y + outer.height - border,
+                        outer.width,
+                        border},
+                       foreground_);
+    backing_.fill_rect({outer.x, outer.y, border, outer.height}, foreground_);
+    backing_.fill_rect({outer.x + outer.width - border,
+                        outer.y,
+                        border,
+                        outer.height},
+                       foreground_);
+
+    const display::Rect title = frame_metrics_.title_bar_bounds;
+    if (!title.empty())
+    {
+        backing_.fill_rect({title.x, title.y + title.height - border, title.width, border},
+                           foreground_);
+    }
+
+    const display::Rect close = frame_metrics_.close_button_bounds;
+    if (!close.empty())
+    {
+        backing_.fill_rect({close.x, close.y, close.width, border}, foreground_);
+        backing_.fill_rect({close.x,
+                            close.y + close.height - border,
+                            close.width,
+                            border},
+                           foreground_);
+        backing_.fill_rect({close.x, close.y, border, close.height}, foreground_);
+        backing_.fill_rect({close.x + close.width - border,
+                            close.y,
+                            border,
+                            close.height},
+                           foreground_);
+    }
+
+    const display::Rect handle = frame_metrics_.resize_handle_bounds;
+    if (!handle.empty())
+    {
+        backing_.fill_rect({handle.x + handle.width - border,
+                            handle.y,
+                            border,
+                            handle.height},
+                           foreground_);
+        backing_.fill_rect({handle.x,
+                            handle.y + handle.height - border,
+                            handle.width,
+                            border},
+                           foreground_);
+    }
+}
+
 display::Rect TerminalApp::cell_rect(uint64_t column, uint64_t row) const
 {
     return {
-        app_surface_.bounds.x + (column * kCellWidth),
-        app_surface_.bounds.y + (row * kCellHeight),
+        text_viewport_.x + (column * kCellWidth),
+        text_viewport_.y + (row * kCellHeight),
         kCellWidth,
         kCellHeight,
     };
@@ -206,8 +308,8 @@ display::Rect TerminalApp::caret_rect(uint64_t column, uint64_t row) const
     static constexpr uint64_t kCursorHeight = display::TerminalRenderer::kGlyphScale;
 
     return {
-        app_surface_.bounds.x + (column * kCellWidth),
-        app_surface_.bounds.y + (row * kCellHeight) + kCursorTop,
+        text_viewport_.x + (column * kCellWidth),
+        text_viewport_.y + (row * kCellHeight) + kCursorTop,
         text::Glyph5x7::width * display::TerminalRenderer::kGlyphScale,
         kCursorHeight,
     };
@@ -226,8 +328,8 @@ display::Rect TerminalApp::row_tail_rect(uint64_t column, uint64_t row) const
     }
 
     return {
-        app_surface_.bounds.x + (column * kCellWidth),
-        app_surface_.bounds.y + (row * kCellHeight),
+        text_viewport_.x + (column * kCellWidth),
+        text_viewport_.y + (row * kCellHeight),
         (console_.columns() - column) * kCellWidth,
         kCellHeight,
     };

@@ -19,6 +19,7 @@ build_type=${CMAKE_BUILD_TYPE:-Debug}
 gui_panel_visible=${GUI_PANEL_VISIBLE:-OFF}
 display_profiling=${DISPLAY_PROFILING:-OFF}
 display_profile_script=${DISPLAY_PROFILE_SCRIPT:-OFF}
+terminal_window_chrome=${TERMINAL_WINDOW_CHROME:-OFF}
 
 cmake_options=(
     -DCMAKE_BUILD_TYPE="${build_type}"
@@ -27,6 +28,7 @@ cmake_options=(
     -DOS_LAB_GUI_PANEL_VISIBLE="${gui_panel_visible}"
     -DOS_LAB_DISPLAY_PROFILING="${display_profiling}"
     -DOS_LAB_DISPLAY_PROFILE_SCRIPT="${display_profile_script}"
+    -DOS_LAB_TERMINAL_WINDOW_CHROME="${terminal_window_chrome}"
 )
 
 case "${kind}" in
