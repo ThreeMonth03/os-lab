@@ -49,4 +49,4 @@ design document.
 - `TERMINAL_WINDOW_CHROME=ON TERMINAL_WINDOW_INTERACTION=ON` debug terminal
   move/edge-resize/close behavior
 - `GUI_PANEL_VISIBLE=ON TERMINAL_WINDOW_CHROME=ON TERMINAL_WINDOW_INTERACTION=ON
-  DESKTOP_BAR_DEBUG_ACTIONS=ON` debug desktop bar terminal reopen behavior
+  DESKTOP_BAR_DEBUG_ACTIONS=ON` debug desktop bar item/action lifecycle behavior

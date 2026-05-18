@@ -101,8 +101,8 @@ Normal `make demo` and `make gui` always build with exception triggers disabled.
 for the future desktop path. `GUI_PANEL_VISIBLE=ON` is a legacy transitional
 flag that now shows the desktop shell/bar surface; it remains available for
 comparison but should not be a dependency for new window interaction work.
-`DESKTOP_BAR_DEBUG_ACTIONS=ON` adds an opt-in desktop bar terminal reopen button
-for lifecycle testing; it is not a formal taskbar or launcher.
+`DESKTOP_BAR_DEBUG_ACTIONS=ON` adds opt-in desktop bar item actions for terminal
+lifecycle testing; it is not a formal taskbar or launcher.
 
 ## Native Toolchain
 

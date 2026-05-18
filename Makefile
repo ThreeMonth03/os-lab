@@ -69,7 +69,7 @@ help:
 		'  make gui TERMINAL_WINDOW_CHROME=ON TERMINAL_WINDOW_INTERACTION=ON' \
 		'                 Debug-only boot with terminal chrome move/resize/close interaction' \
 		'  make gui GUI_PANEL_VISIBLE=ON TERMINAL_WINDOW_CHROME=ON TERMINAL_WINDOW_INTERACTION=ON DESKTOP_BAR_DEBUG_ACTIONS=ON' \
-		'                 Debug-only desktop bar terminal reopen button path' \
+		'                 Debug-only desktop bar item/action lifecycle path' \
 		'  make profile-gui' \
 		'                 Boot GUI with profiling, scripted input, and serial log capture' \
 		'  make profile-summary' \
