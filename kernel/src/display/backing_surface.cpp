@@ -123,6 +123,18 @@ BackingSurface::BackingSurface(uint32_t * pixels, Rect bounds, uint64_t stride_p
 {
 }
 
+bool BackingSurface::move_to(Rect bounds)
+{
+    if (!ready() || bounds.empty() || bounds.width != bounds_.width ||
+        bounds.height != bounds_.height)
+    {
+        return false;
+    }
+
+    bounds_ = bounds;
+    return true;
+}
+
 bool BackingSurface::contains(uint64_t x, uint64_t y) const
 {
     return ready() && x >= bounds_.x && y >= bounds_.y && x < bounds_.x + bounds_.width &&

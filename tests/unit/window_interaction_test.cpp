@@ -27,12 +27,48 @@ kernel::display::WindowResizeConstraints constraints()
     };
 }
 
+kernel::display::WindowPointerEvent event(kernel::display::WindowChromeHitRegion region,
+                                          uint64_t x,
+                                          uint64_t y,
+                                          bool down)
+{
+    return {
+        {10, 20, 320, 200},
+        region,
+        x,
+        y,
+        down,
+        constraints(),
+    };
+}
+
 } // namespace
 
-TEST(WindowInteractionTest, ResizeDragGrowsFromAnchor)
+TEST(WindowInteractionTest, MoveDragComputesMovedBounds)
 {
-    const kernel::display::WindowResizeDrag drag =
-        kernel::display::WindowResizeDrag::begin({10, 20, 320, 200}, 329, 219, constraints());
+    const kernel::display::WindowMoveDrag drag =
+        kernel::display::WindowMoveDrag::begin({10, 20, 320, 200}, 30, 40, {0, 0, 800, 600});
+
+    ASSERT_TRUE(drag.valid());
+    expect_rect(drag.bounds_for(80, 90), 60, 70, 320, 200);
+}
+
+TEST(WindowInteractionTest, MoveDragClampsToWorkArea)
+{
+    const kernel::display::WindowMoveDrag drag =
+        kernel::display::WindowMoveDrag::begin({10, 20, 320, 200}, 30, 40, {0, 0, 800, 600});
+
+    expect_rect(drag.bounds_for(2000, 2000), 480, 400, 320, 200);
+}
+
+TEST(WindowInteractionTest, ResizeDragGrowsBottomRightFromAnchor)
+{
+    const kernel::display::WindowResizeDrag drag = kernel::display::WindowResizeDrag::begin(
+        {10, 20, 320, 200},
+        329,
+        219,
+        kernel::display::WindowResizeEdge::BottomRight,
+        constraints());
 
     ASSERT_TRUE(drag.valid());
     expect_rect(drag.bounds_for(429, 269), 10, 20, 420, 250);
@@ -40,10 +76,40 @@ TEST(WindowInteractionTest, ResizeDragGrowsFromAnchor)
 
 TEST(WindowInteractionTest, ResizeDragClampsToWorkArea)
 {
-    const kernel::display::WindowResizeDrag drag =
-        kernel::display::WindowResizeDrag::begin({10, 20, 320, 200}, 329, 219, constraints());
+    const kernel::display::WindowResizeDrag drag = kernel::display::WindowResizeDrag::begin(
+        {10, 20, 320, 200},
+        329,
+        219,
+        kernel::display::WindowResizeEdge::BottomRight,
+        constraints());
 
     expect_rect(drag.bounds_for(2000, 2000), 10, 20, 790, 580);
+}
+
+TEST(WindowInteractionTest, ResizeDragSupportsLeftEdge)
+{
+    const kernel::display::WindowResizeDrag drag = kernel::display::WindowResizeDrag::begin(
+        {100, 20, 320, 200},
+        100,
+        100,
+        kernel::display::WindowResizeEdge::Left,
+        constraints());
+
+    expect_rect(drag.bounds_for(60, 100), 60, 20, 360, 200);
+    expect_rect(drag.bounds_for(380, 100), 298, 20, 122, 200);
+}
+
+TEST(WindowInteractionTest, ResizeDragSupportsTopEdge)
+{
+    const kernel::display::WindowResizeDrag drag = kernel::display::WindowResizeDrag::begin(
+        {100, 120, 320, 200},
+        200,
+        120,
+        kernel::display::WindowResizeEdge::Top,
+        constraints());
+
+    expect_rect(drag.bounds_for(200, 80), 100, 80, 320, 240);
+    expect_rect(drag.bounds_for(200, 280), 100, 209, 320, 111);
 }
 
 TEST(WindowInteractionTest, ResizeDragRejectsTooSmallBounds)
@@ -54,16 +120,24 @@ TEST(WindowInteractionTest, ResizeDragRejectsTooSmallBounds)
         90,
         kernel::display::terminal_window_frame_config(true),
     };
-    const kernel::display::WindowResizeDrag drag =
-        kernel::display::WindowResizeDrag::begin({10, 20, 80, 40}, 89, 59, tight_constraints);
+    const kernel::display::WindowResizeDrag drag = kernel::display::WindowResizeDrag::begin(
+        {10, 20, 80, 40},
+        89,
+        59,
+        kernel::display::WindowResizeEdge::BottomRight,
+        tight_constraints);
 
     EXPECT_TRUE(drag.bounds_for(60, 40).empty());
 }
 
 TEST(WindowInteractionTest, ResizeDragKeepsMinimumClientCapacity)
 {
-    const kernel::display::WindowResizeDrag drag =
-        kernel::display::WindowResizeDrag::begin({10, 20, 320, 200}, 329, 219, constraints());
+    const kernel::display::WindowResizeDrag drag = kernel::display::WindowResizeDrag::begin(
+        {10, 20, 320, 200},
+        329,
+        219,
+        kernel::display::WindowResizeEdge::BottomRight,
+        constraints());
 
     const kernel::display::Rect bounds = drag.bounds_for(20, 30);
     const kernel::display::WindowFrameMetrics metrics =
@@ -74,4 +148,107 @@ TEST(WindowInteractionTest, ResizeDragKeepsMinimumClientCapacity)
     ASSERT_TRUE(metrics.valid());
     EXPECT_GE(metrics.client_bounds.width, 120u);
     EXPECT_GE(metrics.client_bounds.height, 90u);
+}
+
+TEST(WindowInteractionTest, CursorShapeMapsChromeRegions)
+{
+    EXPECT_EQ(kernel::display::cursor_shape_for_hit_region(
+                  kernel::display::WindowChromeHitRegion::TitleBar),
+              kernel::display::PointerCursorShape::Move);
+    EXPECT_EQ(kernel::display::cursor_shape_for_hit_region(
+                  kernel::display::WindowChromeHitRegion::ResizeLeft),
+              kernel::display::PointerCursorShape::ResizeHorizontal);
+    EXPECT_EQ(kernel::display::cursor_shape_for_hit_region(
+                  kernel::display::WindowChromeHitRegion::ResizeBottom),
+              kernel::display::PointerCursorShape::ResizeVertical);
+    EXPECT_EQ(kernel::display::cursor_shape_for_hit_region(
+                  kernel::display::WindowChromeHitRegion::ResizeTopRight),
+              kernel::display::PointerCursorShape::ResizeDiagonalForward);
+    EXPECT_EQ(kernel::display::cursor_shape_for_hit_region(
+                  kernel::display::WindowChromeHitRegion::ResizeBottomRight),
+              kernel::display::PointerCursorShape::ResizeDiagonalBackward);
+    EXPECT_EQ(kernel::display::cursor_shape_for_hit_region(
+                  kernel::display::WindowChromeHitRegion::Content),
+              kernel::display::PointerCursorShape::Arrow);
+}
+
+TEST(WindowInteractionTest, ControllerCommitsMoveOnRelease)
+{
+    kernel::display::WindowInteractionController controller;
+
+    const kernel::display::WindowInteractionResult press =
+        controller.update(event(kernel::display::WindowChromeHitRegion::TitleBar, 30, 40, true));
+    EXPECT_TRUE(press.handled);
+    EXPECT_EQ(press.mode, kernel::display::WindowInteractionMode::Move);
+
+    const kernel::display::WindowInteractionResult release =
+        controller.update(event(kernel::display::WindowChromeHitRegion::TitleBar, 80, 90, false));
+    EXPECT_TRUE(release.handled);
+    EXPECT_TRUE(release.commit_move);
+    expect_rect(release.proposed_bounds, 60, 70, 320, 200);
+}
+
+TEST(WindowInteractionTest, ControllerCommitsResizeOnRelease)
+{
+    kernel::display::WindowInteractionController controller;
+
+    const kernel::display::WindowInteractionResult press =
+        controller.update(event(kernel::display::WindowChromeHitRegion::ResizeBottomRight,
+                                329,
+                                219,
+                                true));
+    EXPECT_TRUE(press.handled);
+    EXPECT_EQ(press.mode, kernel::display::WindowInteractionMode::Resize);
+
+    const kernel::display::WindowInteractionResult release =
+        controller.update(event(kernel::display::WindowChromeHitRegion::ResizeBottomRight,
+                                429,
+                                269,
+                                false));
+    EXPECT_TRUE(release.handled);
+    EXPECT_TRUE(release.commit_resize);
+    expect_rect(release.proposed_bounds, 10, 20, 420, 250);
+}
+
+TEST(WindowInteractionTest, ControllerCloseRequiresReleaseOverCloseButton)
+{
+    kernel::display::WindowInteractionController controller;
+
+    EXPECT_TRUE(controller
+                    .update(event(kernel::display::WindowChromeHitRegion::CloseButton, 318, 30, true))
+                    .handled);
+    EXPECT_TRUE(controller
+                    .update(event(kernel::display::WindowChromeHitRegion::CloseButton, 318, 30, false))
+                    .close_requested);
+}
+
+TEST(WindowInteractionTest, ReleaseWithoutActiveDragIsNoOp)
+{
+    kernel::display::WindowInteractionController controller;
+
+    const kernel::display::WindowInteractionResult result =
+        controller.update(event(kernel::display::WindowChromeHitRegion::Content, 40, 50, false));
+
+    EXPECT_FALSE(result.handled);
+    EXPECT_FALSE(result.commit_move);
+    EXPECT_FALSE(result.commit_resize);
+    EXPECT_FALSE(result.close_requested);
+}
+
+TEST(WindowInteractionTest, ResetClearsActiveMode)
+{
+    kernel::display::WindowInteractionController controller;
+    ASSERT_TRUE(controller.update(event(kernel::display::WindowChromeHitRegion::TitleBar,
+                                        30,
+                                        40,
+                                        true))
+                    .handled);
+    ASSERT_TRUE(controller.active());
+
+    controller.reset();
+
+    EXPECT_FALSE(controller.active());
+    const kernel::display::WindowInteractionResult result =
+        controller.update(event(kernel::display::WindowChromeHitRegion::Content, 50, 50, false));
+    EXPECT_FALSE(result.handled);
 }

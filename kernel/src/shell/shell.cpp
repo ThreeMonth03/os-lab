@@ -311,6 +311,7 @@ void handle_mouse_move_event(const kernel::input::MouseMoveEvent & event,
     display_runtime::update_pointer_target(position.x, position.y);
     const display_runtime::TerminalWindowInteractionResult window_result =
         display_runtime::handle_terminal_window_pointer(position.x, position.y, event.left_button);
+    mouse_cursor::set_shape(display_runtime::pointer_cursor_shape());
     if (window_result.clear_keyboard_focus)
     {
         kernel::input::set_focus(kernel::input::InputFocus::None);

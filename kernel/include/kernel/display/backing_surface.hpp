@@ -46,6 +46,7 @@ public:
     uint64_t height() const { return bounds_.height; }
     uint64_t stride_pixels() const { return stride_pixels_; }
 
+    [[nodiscard]] bool move_to(Rect bounds);
     [[nodiscard]] bool contains(uint64_t x, uint64_t y) const;
     [[nodiscard]] Color pixel(uint64_t x, uint64_t y) const;
     [[nodiscard]] PixelSample sample(uint64_t x, uint64_t y) const;

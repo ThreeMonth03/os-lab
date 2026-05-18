@@ -120,14 +120,15 @@ TEST(HitTestTest, AppSurfaceHitTestReportsWindowChromeRegion)
         kernel::display::hit_test(fixture.targets,
                                   fixture.app_surfaces,
                                   fixture.gui_surfaces,
-                                  20,
+                                  40,
                                   30,
                                   chrome);
 
     ASSERT_TRUE(close.hit());
     EXPECT_EQ(close.app_chrome_region, kernel::display::WindowChromeHitRegion::CloseButton);
     ASSERT_TRUE(resize.hit());
-    EXPECT_EQ(resize.app_chrome_region, kernel::display::WindowChromeHitRegion::ResizeHandle);
+    EXPECT_EQ(resize.app_chrome_region,
+              kernel::display::WindowChromeHitRegion::ResizeBottomRight);
     ASSERT_TRUE(title.hit());
     EXPECT_EQ(title.app_chrome_region, kernel::display::WindowChromeHitRegion::TitleBar);
 }

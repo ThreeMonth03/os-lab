@@ -14,7 +14,14 @@ enum class WindowChromeHitRegion
     TitleBar,
     Content,
     CloseButton,
-    ResizeHandle,
+    ResizeLeft,
+    ResizeRight,
+    ResizeTop,
+    ResizeBottom,
+    ResizeTopLeft,
+    ResizeTopRight,
+    ResizeBottomLeft,
+    ResizeBottomRight,
 };
 
 struct WindowFrameConfig

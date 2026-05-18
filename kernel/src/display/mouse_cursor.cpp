@@ -34,12 +34,108 @@ constexpr char kCursorBitmap[kCursorHeight][kCursorWidth + 1] = {
     "......##..",
 };
 
+constexpr char kMoveCursorBitmap[kCursorHeight][kCursorWidth + 1] = {
+    "....#.....",
+    "...###....",
+    "....#.....",
+    "....#.....",
+    "#...#...#.",
+    "##..#..##.",
+    "#########.",
+    "##..#..##.",
+    "#...#...#.",
+    "....#.....",
+    "....#.....",
+    "....#.....",
+    "...###....",
+    "....#.....",
+    "..........",
+    "..........",
+};
+
+constexpr char kResizeHorizontalBitmap[kCursorHeight][kCursorWidth + 1] = {
+    "..........",
+    "..........",
+    "..........",
+    "..........",
+    "...#..#...",
+    "..##..##..",
+    ".########.",
+    "..##..##..",
+    "...#..#...",
+    "..........",
+    "..........",
+    "..........",
+    "..........",
+    "..........",
+    "..........",
+    "..........",
+};
+
+constexpr char kResizeVerticalBitmap[kCursorHeight][kCursorWidth + 1] = {
+    "....#.....",
+    "...###....",
+    "....#.....",
+    "....#.....",
+    "....#.....",
+    "....#.....",
+    "....#.....",
+    "....#.....",
+    "....#.....",
+    "....#.....",
+    "....#.....",
+    "....#.....",
+    "...###....",
+    "....#.....",
+    "..........",
+    "..........",
+};
+
+constexpr char kResizeDiagonalForwardBitmap[kCursorHeight][kCursorWidth + 1] = {
+    "......#...",
+    ".....##...",
+    "....#.#...",
+    "...#..#...",
+    "..#...#...",
+    ".#....#...",
+    "########..",
+    "....#.....",
+    "...#......",
+    "..#.......",
+    ".#........",
+    "#.........",
+    "..........",
+    "..........",
+    "..........",
+    "..........",
+};
+
+constexpr char kResizeDiagonalBackwardBitmap[kCursorHeight][kCursorWidth + 1] = {
+    "...#......",
+    "...##.....",
+    "...#.#....",
+    "...#..#...",
+    "...#...#..",
+    "...#....#.",
+    "..########",
+    ".....#....",
+    "......#...",
+    ".......#..",
+    "........#.",
+    ".........#",
+    "..........",
+    "..........",
+    "..........",
+    "..........",
+};
+
 struct CursorState
 {
     display::CursorGeometry geometry;
     kernel::input::PointerState pointer;
     uint32_t outline = 0;
     uint32_t fill = 0;
+    display::PointerCursorShape shape = display::PointerCursorShape::Arrow;
     bool initialized = false;
     bool visible = false;
 };
@@ -73,6 +169,26 @@ display::Rect current_damage_bounds()
     return g_state.geometry.damage_rect(g_state.pointer.x(), g_state.pointer.y());
 }
 
+const char (*cursor_bitmap())[kCursorWidth + 1]
+{
+    switch (g_state.shape)
+    {
+    case display::PointerCursorShape::Arrow:
+        return kCursorBitmap;
+    case display::PointerCursorShape::Move:
+        return kMoveCursorBitmap;
+    case display::PointerCursorShape::ResizeHorizontal:
+        return kResizeHorizontalBitmap;
+    case display::PointerCursorShape::ResizeVertical:
+        return kResizeVerticalBitmap;
+    case display::PointerCursorShape::ResizeDiagonalForward:
+        return kResizeDiagonalForwardBitmap;
+    case display::PointerCursorShape::ResizeDiagonalBackward:
+        return kResizeDiagonalBackwardBitmap;
+    }
+    return kCursorBitmap;
+}
+
 display::PixelSample sample_cursor_pixel(uint64_t x, uint64_t y)
 {
     const display::Rect visible = current_bounds();
@@ -84,7 +200,7 @@ display::PixelSample sample_cursor_pixel(uint64_t x, uint64_t y)
 
     const uint64_t bitmap_row = y - g_state.pointer.y();
     const uint64_t bitmap_column = x - g_state.pointer.x();
-    const char pixel = kCursorBitmap[bitmap_row][bitmap_column];
+    const char pixel = cursor_bitmap()[bitmap_row][bitmap_column];
     if (pixel == '#')
     {
         return display::opaque_pixel({g_state.outline});
@@ -195,6 +311,22 @@ void move_by(int16_t delta_x, int16_t delta_y)
     else if (was_visible && movement_pushed_against_edge(delta_x, delta_y))
     {
         display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground, new_bounds);
+    }
+}
+
+void set_shape(PointerCursorShape shape)
+{
+    if (!g_state.initialized || g_state.shape == shape)
+    {
+        return;
+    }
+
+    const bool was_visible = g_state.visible;
+    const display::Rect dirty = current_damage_bounds();
+    g_state.shape = shape;
+    if (was_visible)
+    {
+        display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground, dirty);
     }
 }
 

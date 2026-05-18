@@ -58,6 +58,21 @@ kernel::display::Rect resize_handle_bounds(kernel::display::Rect outer_bounds,
     };
 }
 
+uint64_t resize_handle_size(kernel::display::WindowFrameMetrics metrics)
+{
+    if (!metrics.visible || metrics.border_thickness == 0)
+    {
+        return 0;
+    }
+    if (!metrics.resize_handle_bounds.empty())
+    {
+        return metrics.resize_handle_bounds.width < metrics.resize_handle_bounds.height
+                   ? metrics.resize_handle_bounds.width
+                   : metrics.resize_handle_bounds.height;
+    }
+    return metrics.border_thickness;
+}
+
 } // namespace
 
 namespace kernel::display
@@ -129,10 +144,51 @@ WindowChromeHitRegion WindowChrome::hit_test(WindowFrameMetrics metrics, uint64_
     {
         return WindowChromeHitRegion::CloseButton;
     }
-    if (contains(metrics.resize_handle_bounds, x, y))
+
+    const uint64_t resize_size = resize_handle_size(metrics);
+    if (resize_size > 0)
     {
-        return WindowChromeHitRegion::ResizeHandle;
+        const uint64_t outer_right = metrics.outer_bounds.x + metrics.outer_bounds.width;
+        const uint64_t outer_bottom = metrics.outer_bounds.y + metrics.outer_bounds.height;
+        const bool on_left = x < metrics.outer_bounds.x + resize_size;
+        const bool on_right = x >= outer_right - resize_size;
+        const bool on_top = y < metrics.outer_bounds.y + metrics.border_thickness;
+        const bool on_bottom = y >= outer_bottom - resize_size;
+
+        if (on_left && on_top)
+        {
+            return WindowChromeHitRegion::ResizeTopLeft;
+        }
+        if (on_right && on_top)
+        {
+            return WindowChromeHitRegion::ResizeTopRight;
+        }
+        if (on_left && on_bottom)
+        {
+            return WindowChromeHitRegion::ResizeBottomLeft;
+        }
+        if (on_right && on_bottom)
+        {
+            return WindowChromeHitRegion::ResizeBottomRight;
+        }
+        if (on_left)
+        {
+            return WindowChromeHitRegion::ResizeLeft;
+        }
+        if (on_right)
+        {
+            return WindowChromeHitRegion::ResizeRight;
+        }
+        if (on_top)
+        {
+            return WindowChromeHitRegion::ResizeTop;
+        }
+        if (on_bottom)
+        {
+            return WindowChromeHitRegion::ResizeBottom;
+        }
     }
+
     if (contains(metrics.client_bounds, x, y))
     {
         return WindowChromeHitRegion::Content;

@@ -14,6 +14,7 @@
 #include "kernel/display/display_target.hpp"
 #include "kernel/display/framebuffer_presenter.hpp"
 #include "kernel/display/gui_surface.hpp"
+#include "kernel/display/pointer_cursor_shape.hpp"
 #include "kernel/display/scene_buffer.hpp"
 #include "kernel/display/window_chrome.hpp"
 #include "kernel/display/window_interaction.hpp"
@@ -35,26 +36,6 @@ namespace desktop_background = kernel::display::desktop_background;
 namespace display = kernel::display;
 namespace gui_panel = kernel::display::gui_panel;
 
-enum class TerminalWindowInteractionMode
-{
-    None,
-    Resize,
-    Close,
-};
-
-struct TerminalWindowInteractionState
-{
-    bool previous_primary_down = false;
-    TerminalWindowInteractionMode mode = TerminalWindowInteractionMode::None;
-    display::WindowResizeDrag resize_drag;
-
-    void reset()
-    {
-        mode = TerminalWindowInteractionMode::None;
-        resize_drag = {};
-    }
-};
-
 struct DisplayRuntimeState
 {
     display::Surface surface;
@@ -71,7 +52,8 @@ struct DisplayRuntimeState
     display::Color app_foreground;
     display::Color app_background;
     display::HitTestResult pointer_target;
-    TerminalWindowInteractionState terminal_window_interaction;
+    display::WindowInteractionController terminal_window_interaction;
+    display::PointerCursorShape pointer_cursor_shape = display::PointerCursorShape::Arrow;
     display::runtime::AppSurfaceResizeCallback app_resize_callback = nullptr;
     display::runtime::AppSurfaceStateCallback app_state_callback = nullptr;
     uint32_t * scene_memory = nullptr;
@@ -512,6 +494,28 @@ bool resize_app_surface(AppSurfaceId id, Rect bounds)
     return commit_primary_app_mutation(mutation, true);
 }
 
+bool move_app_surface(AppSurfaceId id, Rect bounds)
+{
+    if (!ready() || id != display::kTerminalAppSurfaceId)
+    {
+        return false;
+    }
+
+    if (bounds.width != g_state.primary_app_surface.bounds.width ||
+        bounds.height != g_state.primary_app_surface.bounds.height)
+    {
+        return false;
+    }
+
+    display::AppSurfaceMutation mutation;
+    if (!g_state.app_host.resize_surface(id, bounds, mutation))
+    {
+        return false;
+    }
+
+    return commit_primary_app_mutation(mutation, false);
+}
+
 bool set_app_surface_visible(AppSurfaceId id, bool visible)
 {
     if (!ready() || id != display::kTerminalAppSurfaceId)
@@ -579,6 +583,11 @@ bool close_app_surface(AppSurfaceId id)
 HitTestResult pointer_target()
 {
     return g_state.pointer_target;
+}
+
+PointerCursorShape pointer_cursor_shape()
+{
+    return g_state.pointer_cursor_shape;
 }
 
 DisplayPipelineStats stats()
@@ -734,6 +743,7 @@ void update_pointer_target(uint64_t x, uint64_t y)
     if (!ready())
     {
         g_state.pointer_target = {};
+        g_state.pointer_cursor_shape = display::PointerCursorShape::Arrow;
         return;
     }
 
@@ -743,6 +753,12 @@ void update_pointer_target(uint64_t x, uint64_t y)
                                                x,
                                                y,
                                                terminal_frame_config());
+    g_state.pointer_cursor_shape =
+        terminal_window_interaction_enabled() &&
+                g_state.pointer_target.target_kind == display::DisplayTargetKind::AppSurface &&
+                g_state.pointer_target.app_surface_id == display::kTerminalAppSurfaceId
+            ? display::cursor_shape_for_hit_region(g_state.pointer_target.app_chrome_region)
+            : display::PointerCursorShape::Arrow;
 }
 
 TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
@@ -752,74 +768,53 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     TerminalWindowInteractionResult result;
     if (!ready() || !terminal_window_interaction_enabled())
     {
-        g_state.terminal_window_interaction.previous_primary_down = primary_down;
+        g_state.terminal_window_interaction.reset();
+        g_state.pointer_cursor_shape = display::PointerCursorShape::Arrow;
         return result;
     }
 
-    const bool pressed = primary_down && !g_state.terminal_window_interaction.previous_primary_down;
-    const bool released = !primary_down && g_state.terminal_window_interaction.previous_primary_down;
+    const bool terminal_target =
+        g_state.pointer_target.target_kind == display::DisplayTargetKind::AppSurface &&
+        g_state.pointer_target.app_surface_id == display::kTerminalAppSurfaceId;
+    const display::WindowInteractionResult interaction =
+        g_state.terminal_window_interaction.update({
+            g_state.primary_app_surface.bounds,
+            terminal_target ? g_state.pointer_target.app_chrome_region
+                            : display::WindowChromeHitRegion::None,
+            x,
+            y,
+            primary_down,
+            terminal_resize_constraints(),
+        });
+    g_state.pointer_cursor_shape = interaction.cursor_shape;
+    result.handled = interaction.handled;
 
-    if (pressed && g_state.pointer_target.target_kind == display::DisplayTargetKind::AppSurface &&
-        g_state.pointer_target.app_surface_id == display::kTerminalAppSurfaceId)
+    if (interaction.commit_move)
     {
-        if (g_state.pointer_target.app_chrome_region == display::WindowChromeHitRegion::ResizeHandle)
+        const bool moved = move_app_surface(display::kTerminalAppSurfaceId,
+                                            interaction.proposed_bounds);
+        if (moved)
         {
-            g_state.terminal_window_interaction.mode = TerminalWindowInteractionMode::Resize;
-            g_state.terminal_window_interaction.resize_drag =
-                display::WindowResizeDrag::begin(g_state.primary_app_surface.bounds,
-                                                 x,
-                                                 y,
-                                                 terminal_resize_constraints());
-            result.handled = true;
-        }
-        else if (g_state.pointer_target.app_chrome_region ==
-                 display::WindowChromeHitRegion::CloseButton)
-        {
-            g_state.terminal_window_interaction.mode = TerminalWindowInteractionMode::Close;
-            result.handled = true;
+            result.app_moved = true;
+            update_pointer_target(x, y);
         }
     }
-
-    if (primary_down && g_state.terminal_window_interaction.mode != TerminalWindowInteractionMode::None)
+    else if (interaction.commit_resize)
     {
-        result.handled = true;
+        const bool resized = resize_app_surface(display::kTerminalAppSurfaceId,
+                                                interaction.proposed_bounds);
+        if (resized)
+        {
+            result.app_resized = true;
+            update_pointer_target(x, y);
+        }
+    }
+    else if (interaction.close_requested)
+    {
+        result.clear_keyboard_focus = set_app_surface_visible(display::kTerminalAppSurfaceId, false);
+        update_pointer_target(x, y);
     }
 
-    if (released)
-    {
-        if (g_state.terminal_window_interaction.mode == TerminalWindowInteractionMode::Resize)
-        {
-            const display::Rect resized_bounds =
-                g_state.terminal_window_interaction.resize_drag.bounds_for(x, y);
-            result.handled = true;
-            if (!resized_bounds.empty())
-            {
-                const bool resized =
-                    resize_app_surface(display::kTerminalAppSurfaceId, resized_bounds);
-                if (resized)
-                {
-                    result.app_resized = true;
-                    update_pointer_target(x, y);
-                }
-            }
-        }
-        else if (g_state.terminal_window_interaction.mode == TerminalWindowInteractionMode::Close)
-        {
-            result.handled = true;
-            if (g_state.pointer_target.target_kind == display::DisplayTargetKind::AppSurface &&
-                g_state.pointer_target.app_surface_id == display::kTerminalAppSurfaceId &&
-                g_state.pointer_target.app_chrome_region == display::WindowChromeHitRegion::CloseButton)
-            {
-                result.clear_keyboard_focus =
-                    set_app_surface_visible(display::kTerminalAppSurfaceId, false);
-                update_pointer_target(x, y);
-            }
-        }
-
-        g_state.terminal_window_interaction.reset();
-    }
-
-    g_state.terminal_window_interaction.previous_primary_down = primary_down;
     return result;
 }
 

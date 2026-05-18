@@ -101,13 +101,19 @@ TEST(WindowChromeTest, HitTestPrioritizesControlsAndContent)
     EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 318, 30),
               kernel::display::WindowChromeHitRegion::CloseButton);
     EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 325, 215),
-              kernel::display::WindowChromeHitRegion::ResizeHandle);
-    EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 20, 30),
-              kernel::display::WindowChromeHitRegion::TitleBar);
-    EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 20, 50),
-              kernel::display::WindowChromeHitRegion::Content);
+              kernel::display::WindowChromeHitRegion::ResizeBottomRight);
     EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 10, 100),
-              kernel::display::WindowChromeHitRegion::Border);
+              kernel::display::WindowChromeHitRegion::ResizeLeft);
+    EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 329, 100),
+              kernel::display::WindowChromeHitRegion::ResizeRight);
+    EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 200, 219),
+              kernel::display::WindowChromeHitRegion::ResizeBottom);
+    EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 200, 20),
+              kernel::display::WindowChromeHitRegion::ResizeTop);
+    EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 40, 30),
+              kernel::display::WindowChromeHitRegion::TitleBar);
+    EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 40, 50),
+              kernel::display::WindowChromeHitRegion::Content);
     EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 400, 400),
               kernel::display::WindowChromeHitRegion::None);
 }

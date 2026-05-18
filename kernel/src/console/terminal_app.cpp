@@ -198,6 +198,38 @@ bool TerminalApp::replace_surface(display::AppSurface app_surface, TerminalResiz
     return renderer_.ready();
 }
 
+bool TerminalApp::move_surface(display::AppSurface app_surface)
+{
+    if (!ready() || !app_surface.valid() || app_surface.closed() ||
+        app_surface.bounds.width != app_surface_.bounds.width ||
+        app_surface.bounds.height != app_surface_.bounds.height)
+    {
+        return false;
+    }
+
+    const display::WindowFrameMetrics metrics = frame_metrics_for(app_surface.bounds);
+    const display::AppCellCapacity capacity = cell_capacity_for(app_surface);
+    if (!metrics.valid() || !capacity.valid() || capacity.columns != text_buffer_.columns() ||
+        capacity.rows != text_buffer_.rows() || !backing_storage_.move_to(app_surface.bounds))
+    {
+        return false;
+    }
+
+    app_surface_ = app_surface;
+    frame_metrics_ = metrics;
+    text_viewport_ = frame_metrics_.client_bounds;
+    backing_.reset(backing_storage_, text_grid_rect_for(text_viewport_, capacity));
+    renderer_.reset(backing_, text_viewport_, foreground_, background_);
+    repaint_.reset(app_surface_.bounds);
+    update_depth_ = 0;
+    pending_scroll_rows_ = 0;
+    pending_dirty_after_scroll_ = {};
+    paint_window_chrome();
+    renderer_.clear_screen();
+    repaint_text_layer();
+    return renderer_.ready();
+}
+
 bool TerminalApp::resize(display::AppSurface app_surface, TerminalResizePolicy policy)
 {
     if (!ready() || !repaint_sink_.ready())
@@ -218,6 +250,18 @@ void TerminalApp::sync_surface_state(display::AppSurface app_surface)
     if (!app_surface.valid())
     {
         return;
+    }
+
+    if (ready() && app_surface.visible() && app_surface_.visible() &&
+        app_surface.bounds.width == app_surface_.bounds.width &&
+        app_surface.bounds.height == app_surface_.bounds.height &&
+        (app_surface.bounds.x != app_surface_.bounds.x ||
+         app_surface.bounds.y != app_surface_.bounds.y))
+    {
+        if (move_surface(app_surface))
+        {
+            return;
+        }
     }
 
     app_surface_ = app_surface;

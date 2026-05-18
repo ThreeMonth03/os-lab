@@ -135,8 +135,22 @@ kernel::StringView app_chrome_region_name(kernel::display::WindowChromeHitRegion
         return "content";
     case kernel::display::WindowChromeHitRegion::CloseButton:
         return "close button";
-    case kernel::display::WindowChromeHitRegion::ResizeHandle:
-        return "resize handle";
+    case kernel::display::WindowChromeHitRegion::ResizeLeft:
+        return "resize left edge";
+    case kernel::display::WindowChromeHitRegion::ResizeRight:
+        return "resize right edge";
+    case kernel::display::WindowChromeHitRegion::ResizeTop:
+        return "resize top edge";
+    case kernel::display::WindowChromeHitRegion::ResizeBottom:
+        return "resize bottom edge";
+    case kernel::display::WindowChromeHitRegion::ResizeTopLeft:
+        return "resize top-left corner";
+    case kernel::display::WindowChromeHitRegion::ResizeTopRight:
+        return "resize top-right corner";
+    case kernel::display::WindowChromeHitRegion::ResizeBottomLeft:
+        return "resize bottom-left corner";
+    case kernel::display::WindowChromeHitRegion::ResizeBottomRight:
+        return "resize bottom-right corner";
     }
     return "unknown";
 }

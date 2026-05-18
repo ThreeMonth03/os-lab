@@ -126,6 +126,7 @@ private:
                                       display::BackingSurface & backing_storage,
                                       display::ScrollMappedSurface & backing) const;
     bool replace_surface(display::AppSurface app_surface, TerminalResizePolicy policy);
+    bool move_surface(display::AppSurface app_surface);
     bool update_scope_active() const { return update_depth_ > 0; }
     bool pending_backing_scroll() const { return pending_scroll_rows_ > 0; }
     void record_pending_dirty(display::Rect rect);
