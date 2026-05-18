@@ -30,6 +30,7 @@ void refresh_desktop();
 void submit_terminal_app_damage(FrameDamage damage);
 [[nodiscard]] bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback);
 [[nodiscard]] bool register_terminal_app_row_source(compositor::LayerRowCallback callback);
+[[nodiscard]] bool register_terminal_app_scroll_composition(LayerScrollComposition composition);
 [[nodiscard]] bool register_terminal_caret(compositor::LayerPixelCallback pixel_callback,
                                            compositor::LayerBoundsCallback bounds_callback);
 

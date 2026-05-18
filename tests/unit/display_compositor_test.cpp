@@ -64,6 +64,19 @@ kernel::display::PixelSample fixed_sample(const kernel::display::LayerPixelSourc
     return *sample;
 }
 
+const kernel::display::BackingSurface * g_runtime_backing = nullptr;
+
+kernel::display::PixelSample runtime_backing_sample(uint64_t x, uint64_t y)
+{
+    return g_runtime_backing == nullptr ? kernel::display::transparent_pixel()
+                                        : g_runtime_backing->sample(x, y);
+}
+
+const uint32_t * runtime_backing_row(uint64_t y)
+{
+    return g_runtime_backing == nullptr ? nullptr : g_runtime_backing->row_pixels(y);
+}
+
 } // namespace
 
 TEST(DisplayCompositorTest, ClipsDirtyRectsToFramebufferBounds)
@@ -635,6 +648,59 @@ TEST(DisplayCompositorTest, FullAppRepaintRestoresOverlayAndCursorLayers)
     ASSERT_EQ(plan.count, 2u);
     EXPECT_EQ(plan.at(0), kernel::display::LayerKind::DebugOverlay);
     EXPECT_EQ(plan.at(1), kernel::display::LayerKind::MouseCursor);
+}
+
+TEST(DisplayCompositorTest, ScrollMappedLayerRecomposesFromFinalSourceInsteadOfSceneScroll)
+{
+    uint32_t scene_pixels[16] = {};
+    uint32_t backing_pixels[16] = {};
+    for (uint32_t index = 0; index < 16; ++index)
+    {
+        backing_pixels[index] = 100 + index;
+    }
+
+    kernel::display::SceneBuffer scene(scene_pixels, {0, 0, 4, 4}, 4);
+    kernel::display::BackingSurface backing(backing_pixels, {0, 0, 4, 4}, 4);
+    kernel::display::compositor::init({0, 0, 4, 4});
+    kernel::display::compositor::set_scene_buffer(scene);
+    ASSERT_TRUE(kernel::display::compositor::register_surface(kernel::display::make_composited_surface(
+        200,
+        kernel::display::CompositedSurfaceRole::App,
+        {0, 0, 4, 4},
+        true,
+        true,
+        true)));
+
+    g_runtime_backing = &backing;
+    ASSERT_TRUE(kernel::display::compositor::register_layer_pixel_callback(
+        kernel::display::LayerKind::AppSurface,
+        runtime_backing_sample));
+    ASSERT_TRUE(kernel::display::compositor::register_layer_row_callback(
+        kernel::display::LayerKind::AppSurface,
+        runtime_backing_row));
+    ASSERT_TRUE(kernel::display::compositor::register_layer_scroll_composition(
+        kernel::display::LayerKind::AppSurface,
+        kernel::display::LayerScrollComposition::RecomposeFromSource));
+
+    kernel::display::FrameDamage damage;
+    ASSERT_TRUE(damage.append_scroll({{0, 0, 4, 4}, 1}));
+
+    const kernel::display::PresentOperationList operations =
+        kernel::display::compositor::update_scene_from_layer_damage(
+            kernel::display::LayerKind::AppSurface,
+            damage);
+
+    ASSERT_EQ(operations.count(), 1u);
+    EXPECT_TRUE(operations.at(0).normal_rect_present());
+    expect_rect(operations.at(0).rect, 0, 0, 4, 4);
+    EXPECT_EQ(kernel::display::compositor::stats().scene_scroll_count, 0u);
+    EXPECT_EQ(kernel::display::compositor::stats().scene_scroll_copy_pixels, 0u);
+    EXPECT_EQ(kernel::display::compositor::stats().scene_compose_from_backing_pixels, 16u);
+    for (uint32_t index = 0; index < 16; ++index)
+    {
+        EXPECT_EQ(scene_pixels[index], backing_pixels[index]);
+    }
+    g_runtime_backing = nullptr;
 }
 
 TEST(DisplayCompositorTest, RepaintsOnlyVisibleHigherLayersIntersectingDirtyRect)

@@ -49,6 +49,14 @@ enum class LayerOcclusion
     Opaque,
 };
 
+enum class LayerScrollComposition
+{
+    // The scene/front buffers still contain the pre-scroll pixels, so they can be copied.
+    SceneCopy,
+    // The layer source already represents the post-scroll pixels, so the scene must re-read it.
+    RecomposeFromSource,
+};
+
 struct Layer
 {
     LayerKind kind = LayerKind::None;
@@ -218,6 +226,7 @@ void set_presenter(FramebufferPresenter & presenter);
 [[nodiscard]] bool register_surface(CompositedSurfaceDescriptor surface);
 [[nodiscard]] bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback);
 [[nodiscard]] bool register_layer_row_callback(LayerKind kind, LayerRowCallback callback);
+[[nodiscard]] bool register_layer_scroll_composition(LayerKind kind, LayerScrollComposition composition);
 [[nodiscard]] bool register_layer_bounds_callback(LayerKind kind, LayerBoundsCallback callback);
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
 [[nodiscard]] PresentOperationList update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage);

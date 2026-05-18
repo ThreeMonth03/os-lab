@@ -53,6 +53,8 @@ bool init()
 
     if (!display::runtime::register_terminal_app_pixel_source(sample_terminal_pixel) ||
         !display::runtime::register_terminal_app_row_source(terminal_row_pixels) ||
+        !display::runtime::register_terminal_app_scroll_composition(
+            display::LayerScrollComposition::RecomposeFromSource) ||
         !display::runtime::register_terminal_caret(sample_terminal_caret_pixel, terminal_caret_bounds))
     {
         return false;

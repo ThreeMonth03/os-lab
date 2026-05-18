@@ -464,6 +464,12 @@ bool register_terminal_app_row_source(compositor::LayerRowCallback callback)
     return display::compositor::register_layer_row_callback(display::LayerKind::AppSurface, callback);
 }
 
+bool register_terminal_app_scroll_composition(LayerScrollComposition composition)
+{
+    return display::compositor::register_layer_scroll_composition(display::LayerKind::AppSurface,
+                                                                  composition);
+}
+
 bool register_terminal_caret(compositor::LayerPixelCallback pixel_callback,
                              compositor::LayerBoundsCallback bounds_callback)
 {

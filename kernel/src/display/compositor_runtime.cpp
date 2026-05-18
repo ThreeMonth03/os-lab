@@ -25,6 +25,13 @@ struct LayerRowCallbackSlot
     kernel::display::compositor::LayerRowCallback callback = nullptr;
 };
 
+struct LayerScrollCompositionSlot
+{
+    kernel::display::LayerKind kind = kernel::display::LayerKind::None;
+    kernel::display::LayerScrollComposition composition =
+        kernel::display::LayerScrollComposition::SceneCopy;
+};
+
 constexpr kernel::display::LayerKind kTopDownLayerOrder[] = {
     kernel::display::LayerKind::MouseCursor,
     kernel::display::LayerKind::TerminalCaret,
@@ -37,6 +44,7 @@ constexpr kernel::display::LayerKind kTopDownLayerOrder[] = {
 LayerPixelCallbackSlot g_layer_pixel_callbacks[kernel::display::kMaxCompositorLayers] = {};
 LayerBoundsCallbackSlot g_layer_bounds_callbacks[kernel::display::kMaxCompositorLayers] = {};
 LayerRowCallbackSlot g_layer_row_callbacks[kernel::display::kMaxCompositorLayers] = {};
+LayerScrollCompositionSlot g_layer_scroll_compositions[kernel::display::kMaxCompositorLayers] = {};
 kernel::display::SceneBuffer * g_scene_buffer = nullptr;
 kernel::display::FramebufferPresenter * g_presenter = nullptr;
 kernel::display::CompositorRuntimeStats g_stats;
@@ -205,6 +213,18 @@ kernel::display::compositor::LayerRowCallback layer_row_callback_for(kernel::dis
     return nullptr;
 }
 
+kernel::display::LayerScrollComposition layer_scroll_composition_for(kernel::display::LayerKind kind)
+{
+    for (auto & slot : g_layer_scroll_compositions)
+    {
+        if (slot.kind == kind)
+        {
+            return slot.composition;
+        }
+    }
+    return kernel::display::LayerScrollComposition::SceneCopy;
+}
+
 bool presenter_overlay_layer(kernel::display::LayerKind kind)
 {
     return kind == kernel::display::LayerKind::MouseCursor ||
@@ -277,7 +297,7 @@ size_t collect_pixel_sources(kernel::display::LayerPixelSource (&sources)[kernel
         {
             continue;
         }
-        sources[count++] = {
+        sources[count] = {
             layer->kind,
             layer->bounds,
             layer->occlusion,
@@ -286,6 +306,7 @@ size_t collect_pixel_sources(kernel::display::LayerPixelSource (&sources)[kernel
             layer_row_callback_for(kind) == nullptr ? nullptr : layer_row_reader,
             layer->visible,
         };
+        ++count;
     }
     return count;
 }
@@ -480,13 +501,23 @@ void append_scene_scroll_regions(kernel::display::LayerKind layer,
         return;
     }
 
-    ++g_stats.scene_scroll_count;
     rect = kernel::display::intersect_rect(rect, g_scene_buffer->bounds());
     if (rect.empty())
     {
         return;
     }
 
+    if (layer_scroll_composition_for(layer) ==
+        kernel::display::LayerScrollComposition::RecomposeFromSource)
+    {
+        if (compose_backed_region_from(layer, rect, false))
+        {
+            operations.append_rect(rect);
+        }
+        return;
+    }
+
+    ++g_stats.scene_scroll_count;
     kernel::display::Rect repaint_rect;
     const kernel::display::LayerRepaintPlan plan = g_compositor.repaint_plan_from(layer, rect);
     for (size_t index = 0; index < plan.count; ++index)
@@ -576,6 +607,10 @@ void init(Rect bounds)
     {
         slot = {};
     }
+    for (auto & slot : g_layer_scroll_compositions)
+    {
+        slot = {};
+    }
 }
 
 void set_scene_buffer(SceneBuffer & scene_buffer)
@@ -651,6 +686,34 @@ bool register_layer_row_callback(LayerKind kind, LayerRowCallback callback)
         if (slot.kind == LayerKind::None)
         {
             slot = {kind, callback};
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool register_layer_scroll_composition(LayerKind kind, LayerScrollComposition composition)
+{
+    if (kind == LayerKind::None)
+    {
+        return false;
+    }
+
+    for (auto & slot : g_layer_scroll_compositions)
+    {
+        if (slot.kind == kind)
+        {
+            slot.composition = composition;
+            return true;
+        }
+    }
+
+    for (auto & slot : g_layer_scroll_compositions)
+    {
+        if (slot.kind == LayerKind::None)
+        {
+            slot = {kind, composition};
             return true;
         }
     }
