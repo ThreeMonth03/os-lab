@@ -197,13 +197,16 @@ void TerminalApp::record_pending_dirty(display::Rect rect)
 
 void TerminalApp::record_pending_scroll()
 {
+    pending_dirty_after_scroll_ = display::scroll_dirty_region_up(pending_dirty_after_scroll_,
+                                                                  text_grid_rect(),
+                                                                  kCellHeight);
+
     if (pending_scroll_rows_ < text_buffer_.rows())
     {
         ++pending_scroll_rows_;
     }
 
-    const uint64_t distance = pending_scroll_rows_ * kCellHeight;
-    record_pending_dirty(display::exposed_scroll_region({text_grid_rect(), distance}));
+    record_pending_dirty(display::exposed_scroll_region({text_grid_rect(), kCellHeight}));
 }
 
 void TerminalApp::flush_pending_backing_scroll()

@@ -100,5 +100,6 @@ private:
 };
 
 [[nodiscard]] Rect exposed_scroll_region(ScrollDamage scroll);
+[[nodiscard]] Rect scroll_dirty_region_up(Rect dirty_rect, Rect scroll_region, uint64_t distance);
 
 } // namespace kernel::display

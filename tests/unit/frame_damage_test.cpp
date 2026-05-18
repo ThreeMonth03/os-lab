@@ -103,6 +103,30 @@ TEST(FrameDamageTest, ExposedScrollRegionIsBottomSlice)
     expect_rect(exposed, 4, 36, 20, 12);
 }
 
+TEST(FrameDamageTest, ScrollDirtyRegionUpTracksFinalDirtyPosition)
+{
+    const kernel::display::Rect dirty =
+        kernel::display::scroll_dirty_region_up({0, 72, 80, 18}, {0, 0, 80, 90}, 18);
+
+    expect_rect(dirty, 0, 54, 80, 18);
+}
+
+TEST(FrameDamageTest, ScrollDirtyRegionUpDropsContentScrolledOut)
+{
+    const kernel::display::Rect dirty =
+        kernel::display::scroll_dirty_region_up({0, 0, 80, 18}, {0, 0, 80, 90}, 18);
+
+    EXPECT_TRUE(dirty.empty());
+}
+
+TEST(FrameDamageTest, ScrollDirtyRegionUpClipsPartialDirtyRegion)
+{
+    const kernel::display::Rect dirty =
+        kernel::display::scroll_dirty_region_up({0, 9, 80, 18}, {0, 0, 80, 90}, 18);
+
+    expect_rect(dirty, 0, 0, 80, 9);
+}
+
 TEST(FrameDamageTest, LayerAccumulatorCollapsesMultipleScrollsToFinalDirtyRegion)
 {
     kernel::display::LayerDamageAccumulator accumulator({0, 0, 100, 100});

@@ -310,4 +310,37 @@ Rect exposed_scroll_region(ScrollDamage scroll)
     };
 }
 
+Rect scroll_dirty_region_up(Rect dirty_rect, Rect scroll_region, uint64_t distance)
+{
+    dirty_rect = intersect_rect(dirty_rect, scroll_region);
+    if (dirty_rect.empty() || scroll_region.empty() || distance == 0)
+    {
+        return dirty_rect;
+    }
+
+    if (distance >= scroll_region.height)
+    {
+        return {};
+    }
+
+    const Rect retained_region = {
+        scroll_region.x,
+        scroll_region.y + distance,
+        scroll_region.width,
+        scroll_region.height - distance,
+    };
+    const Rect retained_dirty = intersect_rect(dirty_rect, retained_region);
+    if (retained_dirty.empty())
+    {
+        return {};
+    }
+
+    return {
+        retained_dirty.x,
+        retained_dirty.y - distance,
+        retained_dirty.width,
+        retained_dirty.height,
+    };
+}
+
 } // namespace kernel::display
