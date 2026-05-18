@@ -20,6 +20,7 @@ struct AppSurfaceHostConfig
 };
 
 using AppSurfaceResizeCallback = bool (*)(AppSurface surface);
+using AppSurfaceStateCallback = void (*)(AppSurface surface);
 
 [[nodiscard]] bool init(uint64_t terminal_cell_width, uint64_t terminal_cell_height);
 
@@ -36,6 +37,7 @@ void end_frame();
 void refresh_desktop();
 void submit_app_surface_damage(FrameDamage damage);
 [[nodiscard]] bool register_app_surface_resize_callback(AppSurfaceResizeCallback callback);
+[[nodiscard]] bool register_app_surface_state_callback(AppSurfaceStateCallback callback);
 [[nodiscard]] bool register_app_surface_pixel_source(compositor::LayerPixelCallback callback);
 [[nodiscard]] bool register_app_surface_row_source(compositor::LayerRowCallback callback);
 [[nodiscard]] bool register_app_surface_scroll_composition(LayerScrollComposition composition);

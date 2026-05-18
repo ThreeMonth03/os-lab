@@ -36,6 +36,11 @@ bool resize_terminal_app(kernel::display::AppSurface surface)
     return g_terminal_app.resize(surface);
 }
 
+void sync_terminal_app_state(kernel::display::AppSurface surface)
+{
+    g_terminal_app.sync_surface_state(surface);
+}
+
 } // namespace
 
 namespace kernel::console::terminal
@@ -61,6 +66,7 @@ bool init()
         !display::runtime::register_app_surface_scroll_composition(
             display::LayerScrollComposition::RecomposeFromSource) ||
         !display::runtime::register_app_surface_resize_callback(resize_terminal_app) ||
+        !display::runtime::register_app_surface_state_callback(sync_terminal_app_state) ||
         !display::runtime::register_text_caret(sample_terminal_caret_pixel, terminal_caret_bounds))
     {
         return false;

@@ -73,6 +73,7 @@ struct DisplayRuntimeState
     display::HitTestResult pointer_target;
     TerminalWindowInteractionState terminal_window_interaction;
     display::runtime::AppSurfaceResizeCallback app_resize_callback = nullptr;
+    display::runtime::AppSurfaceStateCallback app_state_callback = nullptr;
     uint32_t * scene_memory = nullptr;
     size_t scene_bytes = 0;
     uint64_t terminal_cell_width = 0;
@@ -481,6 +482,10 @@ bool commit_primary_app_mutation(display::AppSurfaceMutation mutation, bool resi
             return false;
         }
     }
+    else if (g_state.app_state_callback != nullptr)
+    {
+        g_state.app_state_callback(mutation.current);
+    }
 
     if (!mutation.repaint_bounds.empty())
     {
@@ -685,6 +690,17 @@ bool register_app_surface_resize_callback(AppSurfaceResizeCallback callback)
     }
 
     g_state.app_resize_callback = callback;
+    return true;
+}
+
+bool register_app_surface_state_callback(AppSurfaceStateCallback callback)
+{
+    if (callback == nullptr)
+    {
+        return false;
+    }
+
+    g_state.app_state_callback = callback;
     return true;
 }
 
