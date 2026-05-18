@@ -4,6 +4,10 @@
 #define OS_LAB_GUI_PANEL_VISIBLE 0
 #endif
 
+#ifndef OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS
+#define OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS 0
+#endif
+
 namespace
 {
 
@@ -18,6 +22,50 @@ bool contains(kernel::display::Rect rect, uint64_t x, uint64_t y)
            y < rect.y + rect.height;
 }
 
+bool on_rect_border(kernel::display::Rect rect, uint64_t x, uint64_t y)
+{
+    return contains(rect, x, y) &&
+           (x == rect.x || y == rect.y || x + 1 == rect.x + rect.width ||
+            y + 1 == rect.y + rect.height);
+}
+
+uint64_t button_margin_for(kernel::display::Rect bar_bounds)
+{
+    return min_u64(kernel::display::desktop_bar::kButtonMargin,
+                   bar_bounds.height / 4);
+}
+
+bool terminal_icon_pixel(kernel::display::Rect button_bounds, uint64_t x, uint64_t y)
+{
+    constexpr uint64_t kIconWidth = 14;
+    constexpr uint64_t kIconHeight = 10;
+    constexpr uint64_t kIconLeftInset = 8;
+    if (button_bounds.width < kIconLeftInset + kIconWidth + 2 ||
+        button_bounds.height < kIconHeight + 2)
+    {
+        return false;
+    }
+
+    const uint64_t icon_x = button_bounds.x + kIconLeftInset;
+    const uint64_t icon_y = button_bounds.y + ((button_bounds.height - kIconHeight) / 2);
+    const kernel::display::Rect icon{icon_x, icon_y, kIconWidth, kIconHeight};
+    if (!contains(icon, x, y))
+    {
+        return false;
+    }
+
+    const uint64_t local_x = x - icon.x;
+    const uint64_t local_y = y - icon.y;
+    const bool monitor_outline = local_x == 0 || local_y == 0 ||
+                                 local_x + 1 == kIconWidth || local_y + 2 == kIconHeight;
+    const bool prompt_mark = local_x >= 3 && local_x <= 5 &&
+                             (local_y == 3 || local_y == 4 || local_y == 5) &&
+                             local_x == local_y;
+    const bool prompt_tail = local_x == 6 && local_y == 4;
+    const bool baseline = local_x >= 8 && local_x <= 11 && local_y == 6;
+    return monitor_outline || prompt_mark || prompt_tail || baseline;
+}
+
 } // namespace
 
 namespace kernel::display::desktop_bar
@@ -27,6 +75,7 @@ Config default_config()
 {
     Config config;
     config.visible = OS_LAB_GUI_PANEL_VISIBLE != 0;
+    config.debug_actions = OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS != 0;
     return config;
 }
 
@@ -99,11 +148,92 @@ bool should_redraw(const GuiSurface & surface)
     return surface.valid() && surface.visible;
 }
 
-PixelSample sample_pixel(const GuiSurface & surface, Palette palette, uint64_t x, uint64_t y)
+bool Button::valid() const
+{
+    return visible && kind != ButtonKind::None && !bounds.empty();
+}
+
+Button terminal_button_for(const GuiSurface & surface,
+                           Config config,
+                           TerminalButtonState terminal)
+{
+    if (!surface.valid() || !surface.visible || !config.debug_actions)
+    {
+        return {};
+    }
+
+    const uint64_t margin = button_margin_for(surface.bounds);
+    if (surface.bounds.width <= margin * 2 || surface.bounds.height <= margin * 2)
+    {
+        return {};
+    }
+
+    const uint64_t available_width = surface.bounds.width - (margin * 2);
+    const uint64_t button_width = min_u64(kTerminalButtonWidth, available_width);
+    const uint64_t button_height = surface.bounds.height - (margin * 2);
+    if (button_width < kTerminalButtonMinWidth || button_height < kTerminalButtonMinHeight)
+    {
+        return {};
+    }
+
+    return {
+        {surface.bounds.x + margin,
+         surface.bounds.y + ((surface.bounds.height - button_height) / 2),
+         button_width,
+         button_height},
+        ButtonKind::Terminal,
+        true,
+        !terminal.app_visible && !terminal.app_closed,
+        terminal.app_visible && !terminal.app_closed,
+    };
+}
+
+HitRegion hit_test(const GuiSurface & surface,
+                   Config config,
+                   TerminalButtonState terminal,
+                   uint64_t x,
+                   uint64_t y)
+{
+    if (!surface.valid() || !surface.visible || !contains(surface.bounds, x, y))
+    {
+        return HitRegion::None;
+    }
+
+    const Button terminal_button = terminal_button_for(surface, config, terminal);
+    if (terminal_button.valid() && contains(terminal_button.bounds, x, y))
+    {
+        return HitRegion::TerminalButton;
+    }
+
+    return HitRegion::Background;
+}
+
+PixelSample sample_pixel(const GuiSurface & surface,
+                         Palette palette,
+                         Config config,
+                         TerminalButtonState terminal,
+                         uint64_t x,
+                         uint64_t y)
 {
     if (!surface.valid() || !surface.visible || !contains(surface.bounds, x, y))
     {
         return transparent_pixel();
+    }
+
+    const Button terminal_button = terminal_button_for(surface, config, terminal);
+    if (terminal_button.valid() && contains(terminal_button.bounds, x, y))
+    {
+        if (on_rect_border(terminal_button.bounds, x, y))
+        {
+            return opaque_pixel(palette.button_border);
+        }
+        if (terminal_icon_pixel(terminal_button.bounds, x, y))
+        {
+            return opaque_pixel(palette.button_icon);
+        }
+
+        return opaque_pixel(terminal_button.enabled ? palette.button_background
+                                                    : palette.button_disabled_background);
     }
 
     if (y < surface.bounds.y + kTopBorderHeight)
