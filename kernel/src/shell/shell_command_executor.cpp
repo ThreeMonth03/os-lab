@@ -4,6 +4,7 @@
 
 #include "kernel/core/halt.hpp"
 #include "kernel/debug/display_profile.hpp"
+#include "kernel/display/desktop_bar.hpp"
 #include "kernel/display/display_runtime.hpp"
 #include "kernel/display/display_stats.hpp"
 #include "kernel/display/mouse_cursor.hpp"
@@ -105,9 +106,9 @@ kernel::StringView input_focus_name(kernel::input::InputFocus focus)
     return "unknown";
 }
 
-kernel::StringView pointer_target_name(kernel::display::DisplayTargetKind kind)
+kernel::StringView pointer_target_name(kernel::display::HitTestResult target)
 {
-    switch (kind)
+    switch (target.target_kind)
     {
     case kernel::display::DisplayTargetKind::None:
         return "none";
@@ -116,6 +117,10 @@ kernel::StringView pointer_target_name(kernel::display::DisplayTargetKind kind)
     case kernel::display::DisplayTargetKind::DebugOverlay:
         return "debug overlay";
     case kernel::display::DisplayTargetKind::GuiSurface:
+        if (target.gui_surface_id == kernel::display::desktop_bar::kGuiSurfaceId)
+        {
+            return "desktop bar";
+        }
         return "gui surface";
     }
     return "unknown";
@@ -245,7 +250,7 @@ void write_input_stats()
     terminal::write_string("  focus: ");
     terminal::write_line(input_focus_name(kernel::input::focus()));
     terminal::write_string("  pointer target kind: ");
-    terminal::write_line(pointer_target_name(pointer_target.target_kind));
+    terminal::write_line(pointer_target_name(pointer_target));
     write_stat("pointer x", pointer_position.x);
     write_stat("pointer y", pointer_position.y);
     write_stat("pointer display surface id", pointer_target.surface_id);

@@ -7,6 +7,8 @@ add_library(os_lab_kernel_display OBJECT
     compositor.cpp
     compositor_runtime.cpp
     cursor_geometry.cpp
+    desktop_bar.cpp
+    desktop_bar_runtime.cpp
     desktop_background.cpp
     desktop_background_runtime.cpp
     debug_overlay.cpp
@@ -22,7 +24,6 @@ add_library(os_lab_kernel_display OBJECT
     frame_damage.cpp
     gui_panel.cpp
     gui_panel_renderer.cpp
-    gui_panel_runtime.cpp
     gui_surface.cpp
     hit_test.cpp
     image_view.cpp
