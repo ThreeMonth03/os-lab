@@ -297,7 +297,10 @@ void run_display_profile_script(kernel::text::LineEditor & line,
 
 #endif
 
-void handle_mouse_move_event(const kernel::input::MouseMoveEvent & event)
+void handle_mouse_move_event(const kernel::input::MouseMoveEvent & event,
+                             kernel::text::LineEditor & line,
+                             kernel::shell::EditorView & view,
+                             bool caps_lock)
 {
     if (!event.x_overflow && !event.y_overflow)
     {
@@ -311,6 +314,10 @@ void handle_mouse_move_event(const kernel::input::MouseMoveEvent & event)
     if (window_result.clear_keyboard_focus)
     {
         kernel::input::set_focus(kernel::input::InputFocus::None);
+    }
+    if (window_result.app_resized)
+    {
+        view.resynchronize_after_terminal_resize(line, caps_lock);
     }
 }
 
@@ -334,7 +341,7 @@ void handle_routed_event(const kernel::input::RoutedEvent & routed, kernel::text
     case kernel::input::EventTarget::Pointer:
         if (routed.event.kind == kernel::input::EventKind::MouseMove)
         {
-            handle_mouse_move_event(routed.event.mouse_move);
+            handle_mouse_move_event(routed.event.mouse_move, line, view, caps_lock);
         }
         break;
     case kernel::input::EventTarget::None:

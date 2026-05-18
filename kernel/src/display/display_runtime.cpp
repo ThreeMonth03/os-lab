@@ -798,6 +798,7 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
                     resize_app_surface(display::kTerminalAppSurfaceId, resized_bounds);
                 if (resized)
                 {
+                    result.app_resized = true;
                     update_pointer_target(x, y);
                 }
             }

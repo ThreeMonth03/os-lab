@@ -145,6 +145,11 @@ void draw_char_at(uint64_t column, uint64_t row, char value)
     g_terminal_app.draw_char_at(column, row, value);
 }
 
+void set_row_continuation(uint64_t row, bool continuation)
+{
+    g_terminal_app.set_row_continuation(row, continuation);
+}
+
 void set_cursor(uint64_t column, uint64_t row)
 {
     g_terminal_app.set_cursor(column, row);

@@ -25,6 +25,8 @@ public:
 
     [[nodiscard]] EditorViewCell position_for(size_t text_index) const;
     [[nodiscard]] uint64_t visual_rows(size_t text_length) const;
+    [[nodiscard]] uint64_t prompt_row_for_terminal_cursor(uint64_t terminal_cursor_row,
+                                                          size_t text_cursor) const;
 
 private:
     uint64_t columns_ = 0;

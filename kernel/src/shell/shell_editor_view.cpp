@@ -66,6 +66,15 @@ void EditorView::clear_rendered_area(uint64_t rows_to_clear) const
     }
 }
 
+void EditorView::mark_line_continuations(uint64_t rows_to_cover, uint64_t rows_needed) const
+{
+    const uint64_t rows = terminal::rows();
+    for (uint64_t row = 0; row < rows_to_cover && position_.prompt_row + row < rows; ++row)
+    {
+        terminal::set_row_continuation(position_.prompt_row + row, row != 0 && row < rows_needed);
+    }
+}
+
 void EditorView::set_cursor(bool caps_lock, size_t index) const
 {
     const text::EditorViewCell cell = layout(caps_lock).position_for(index);
@@ -106,6 +115,7 @@ void EditorView::redraw_prompt_and_line(const text::LineEditor & line, bool caps
     position_.input_column = terminal::cursor_column();
     position_.input_row = terminal::cursor_row();
     terminal::write_string(line.view());
+    mark_line_continuations(max_u64(position_.rendered_rows, rows_needed), rows_needed);
     position_.rendered_rows = rows_needed;
 
     set_cursor(caps_lock, line.cursor());
@@ -137,6 +147,7 @@ void EditorView::redraw_dirty_range(const text::LineEditor & line, bool caps_loc
     scroll_to_fit(rows_needed);
     draw_text_range(line.view(), current_layout, dirty.start, dirty.new_end);
     clear_text_range(current_layout, dirty.new_end, dirty.old_end);
+    mark_line_continuations(max_u64(position_.rendered_rows, rows_needed), rows_needed);
     position_.rendered_rows = rows_needed;
 
     set_cursor(caps_lock, line.cursor());
@@ -154,6 +165,18 @@ void EditorView::write_new_prompt_and_line(const text::LineEditor & line, bool c
     position_.prompt_column = terminal::cursor_column();
     position_.prompt_row = terminal::cursor_row();
     position_.rendered_rows = 1;
+    redraw_prompt_and_line(line, caps_lock);
+}
+
+void EditorView::resynchronize_after_terminal_resize(const text::LineEditor & line, bool caps_lock)
+{
+    const text::EditorViewLayout resized_layout(terminal::columns(),
+                                                0,
+                                                prompt_for_caps(caps_lock).size());
+    position_.prompt_column = 0;
+    position_.prompt_row =
+        resized_layout.prompt_row_for_terminal_cursor(terminal::cursor_row(), line.cursor());
+    position_.rendered_rows = resized_layout.visual_rows(line.size());
     redraw_prompt_and_line(line, caps_lock);
 }
 

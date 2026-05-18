@@ -232,6 +232,14 @@ TEST(EditorViewLayoutTest, HandlesZeroColumns)
     EXPECT_EQ(layout.visual_rows(10), 1u);
 }
 
+TEST(EditorViewLayoutTest, MapsTerminalCursorBackToPromptRow)
+{
+    const kernel::text::EditorViewLayout layout(10, 0, 2);
+
+    EXPECT_EQ(layout.prompt_row_for_terminal_cursor(5, 18), 3u);
+    EXPECT_EQ(layout.prompt_row_for_terminal_cursor(1, 18), 0u);
+}
+
 TEST(EditorDirtyRangeTest, AppendAtEndRedrawsOnlyNewCharacter)
 {
     const kernel::text::EditorDirtyRange dirty =

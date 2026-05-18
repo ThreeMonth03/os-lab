@@ -31,4 +31,11 @@ uint64_t EditorViewLayout::visual_rows(size_t text_length) const
     return position_for(text_length).row + 1;
 }
 
+uint64_t EditorViewLayout::prompt_row_for_terminal_cursor(uint64_t terminal_cursor_row,
+                                                          size_t text_cursor) const
+{
+    const EditorViewCell cursor_offset = position_for(text_cursor);
+    return terminal_cursor_row >= cursor_offset.row ? terminal_cursor_row - cursor_offset.row : 0;
+}
+
 } // namespace kernel::text

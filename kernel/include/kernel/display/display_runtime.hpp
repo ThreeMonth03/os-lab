@@ -12,6 +12,7 @@ struct TerminalWindowInteractionResult
 {
     bool handled = false;
     bool clear_keyboard_focus = false;
+    bool app_resized = false;
 };
 
 [[nodiscard]] HitTestResult pointer_target();
