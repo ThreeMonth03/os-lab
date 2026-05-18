@@ -119,6 +119,11 @@ kernel::StringView pointer_target_name(kernel::display::HitTestResult target)
     case kernel::display::DisplayTargetKind::GuiSurface:
         if (target.gui_surface_id == kernel::display::desktop_bar::kGuiSurfaceId)
         {
+            if (target.desktop_bar_region ==
+                kernel::display::desktop_bar::HitRegion::TerminalButton)
+            {
+                return "desktop bar terminal button";
+            }
             return "desktop bar";
         }
         return "gui surface";
@@ -156,6 +161,20 @@ kernel::StringView app_chrome_region_name(kernel::display::WindowChromeHitRegion
         return "resize bottom-left corner";
     case kernel::display::WindowChromeHitRegion::ResizeBottomRight:
         return "resize bottom-right corner";
+    }
+    return "unknown";
+}
+
+kernel::StringView desktop_bar_region_name(kernel::display::desktop_bar::HitRegion region)
+{
+    switch (region)
+    {
+    case kernel::display::desktop_bar::HitRegion::None:
+        return "none";
+    case kernel::display::desktop_bar::HitRegion::Background:
+        return "background";
+    case kernel::display::desktop_bar::HitRegion::TerminalButton:
+        return "terminal button";
     }
     return "unknown";
 }
@@ -263,6 +282,11 @@ void write_input_stats()
     if (pointer_target.target_kind == kernel::display::DisplayTargetKind::GuiSurface)
     {
         write_stat("pointer gui surface id", pointer_target.gui_surface_id);
+        if (pointer_target.gui_surface_id == kernel::display::desktop_bar::kGuiSurfaceId)
+        {
+            terminal::write_string("  pointer desktop bar region: ");
+            terminal::write_line(desktop_bar_region_name(pointer_target.desktop_bar_region));
+        }
     }
     terminal::write_string("  keyboard mode: ");
     terminal::write_line(input_device_mode_name(stats.keyboard_mode));

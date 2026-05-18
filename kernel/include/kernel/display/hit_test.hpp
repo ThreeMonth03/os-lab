@@ -5,6 +5,7 @@
 #include "kernel/display/display.hpp"
 #include "kernel/display/display_target.hpp"
 #include "kernel/display/app_surface.hpp"
+#include "kernel/display/desktop_bar.hpp"
 #include "kernel/display/gui_surface.hpp"
 #include "kernel/display/window_chrome.hpp"
 
@@ -18,6 +19,7 @@ struct HitTestResult
     AppSurfaceId app_surface_id = kInvalidAppSurfaceId;
     GuiSurfaceId gui_surface_id = kInvalidGuiSurfaceId;
     WindowChromeHitRegion app_chrome_region = WindowChromeHitRegion::None;
+    desktop_bar::HitRegion desktop_bar_region = desktop_bar::HitRegion::None;
 
     [[nodiscard]] bool hit() const;
 };

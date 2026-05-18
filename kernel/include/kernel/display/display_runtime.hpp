@@ -13,6 +13,7 @@ struct TerminalWindowInteractionResult
 {
     bool handled = false;
     bool clear_keyboard_focus = false;
+    bool focus_keyboard_terminal_app = false;
     bool app_resized = false;
     bool app_moved = false;
 };

@@ -28,6 +28,10 @@
 #define OS_LAB_TERMINAL_WINDOW_INTERACTION 0
 #endif
 
+#ifndef OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS
+#define OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS 0
+#endif
+
 namespace
 {
 
@@ -57,6 +61,7 @@ struct DisplayRuntimeState
     display::PointerCursorShape pointer_cursor_shape = display::PointerCursorShape::Arrow;
     display::runtime::AppSurfaceResizeCallback app_resize_callback = nullptr;
     display::runtime::AppSurfaceStateCallback app_state_callback = nullptr;
+    bool desktop_bar_terminal_button_pressed = false;
     uint32_t * scene_memory = nullptr;
     size_t scene_bytes = 0;
     uint64_t terminal_cell_width = 0;
@@ -111,6 +116,39 @@ display::WindowFrameConfig terminal_frame_config()
 bool terminal_window_interaction_enabled()
 {
     return OS_LAB_TERMINAL_WINDOW_CHROME != 0 && OS_LAB_TERMINAL_WINDOW_INTERACTION != 0;
+}
+
+bool desktop_bar_debug_actions_enabled()
+{
+    return OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS != 0 && terminal_window_interaction_enabled();
+}
+
+desktop_bar::TerminalButtonState terminal_button_state_for(display::AppSurface surface)
+{
+    return {
+        surface.visible(),
+        surface.closed(),
+    };
+}
+
+display::Rect desktop_bar_bounds()
+{
+    const display::GuiSurface * bar = g_state.gui_surfaces.find(desktop_bar::kGuiSurfaceId);
+    return bar == nullptr || !bar->visible ? display::Rect{} : bar->bounds;
+}
+
+void sync_desktop_bar_terminal_button()
+{
+    desktop_bar::sync_terminal_button_state(terminal_button_state_for(g_state.primary_app_surface));
+}
+
+void repaint_desktop_bar_if_visible()
+{
+    const display::Rect bounds = desktop_bar_bounds();
+    if (!bounds.empty())
+    {
+        display::compositor::repaint_layers_from(display::LayerKind::GuiSurface, bounds);
+    }
 }
 
 display::Rect debug_overlay_avoid_bounds(display::Rect app_bounds)
@@ -219,6 +257,10 @@ desktop_bar::Layout init_desktop_bar_layer(const limine_framebuffer & framebuffe
                            {
                                color_for(framebuffer, palette.panel_border),
                                color_for(framebuffer, palette.terminal_background),
+                               color_for(framebuffer, palette.panel_border),
+                               color_for(framebuffer, palette.desktop_background),
+                               color_for(framebuffer, palette.terminal_background),
+                               color_for(framebuffer, palette.terminal_foreground),
                            },
                            bar_config))
     {
@@ -411,6 +453,7 @@ bool init(uint64_t terminal_cell_width, uint64_t terminal_cell_height)
     {
         return false;
     }
+    sync_desktop_bar_terminal_button();
 
     init_optional_debug_overlay_layer(*framebuffer,
                                       palette,
@@ -445,6 +488,8 @@ bool restore_primary_app_surface(display::AppSurface previous)
 
 bool commit_primary_app_mutation(display::AppSurfaceMutation mutation, bool resize_terminal_app)
 {
+    const desktop_bar::TerminalButtonState previous_button =
+        terminal_button_state_for(g_state.primary_app_surface);
     if (!sync_primary_app_compositor_surface(mutation.current, mutation.previous.bounds))
     {
         restore_primary_app_surface(mutation.previous);
@@ -468,11 +513,19 @@ bool commit_primary_app_mutation(display::AppSurfaceMutation mutation, bool resi
     {
         g_state.app_state_callback(mutation.current);
     }
+    const desktop_bar::TerminalButtonState current_button =
+        terminal_button_state_for(g_state.primary_app_surface);
+    sync_desktop_bar_terminal_button();
 
     if (!mutation.repaint_bounds.empty())
     {
         display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground,
                                                  mutation.repaint_bounds);
+    }
+    if (previous_button.app_visible != current_button.app_visible ||
+        previous_button.app_closed != current_button.app_closed)
+    {
+        repaint_desktop_bar_if_visible();
     }
 
     return true;
@@ -753,12 +806,84 @@ void update_pointer_target(uint64_t x, uint64_t y)
                                                x,
                                                y,
                                                terminal_frame_config());
+    if (g_state.pointer_target.target_kind == display::DisplayTargetKind::GuiSurface &&
+        g_state.pointer_target.gui_surface_id == desktop_bar::kGuiSurfaceId)
+    {
+        g_state.pointer_target.desktop_bar_region = desktop_bar::hit_test(x, y);
+    }
     g_state.pointer_cursor_shape =
         terminal_window_interaction_enabled() &&
                 g_state.pointer_target.target_kind == display::DisplayTargetKind::AppSurface &&
                 g_state.pointer_target.app_surface_id == display::kTerminalAppSurfaceId
             ? display::cursor_shape_for_hit_region(g_state.pointer_target.app_chrome_region)
             : display::PointerCursorShape::Arrow;
+}
+
+bool pointer_targets_terminal_button()
+{
+    return g_state.pointer_target.target_kind == display::DisplayTargetKind::GuiSurface &&
+           g_state.pointer_target.gui_surface_id == desktop_bar::kGuiSurfaceId &&
+           g_state.pointer_target.desktop_bar_region == desktop_bar::HitRegion::TerminalButton;
+}
+
+bool show_and_focus_terminal_app()
+{
+    if (g_state.primary_app_surface.closed())
+    {
+        return false;
+    }
+
+    if (!g_state.primary_app_surface.visible() &&
+        !set_app_surface_visible(display::kTerminalAppSurfaceId, true))
+    {
+        return false;
+    }
+
+    return focus_app_surface(display::kTerminalAppSurfaceId);
+}
+
+bool handle_desktop_bar_pointer(uint64_t x,
+                                uint64_t y,
+                                bool primary_down,
+                                TerminalWindowInteractionResult & result)
+{
+    if (!desktop_bar_debug_actions_enabled())
+    {
+        g_state.desktop_bar_terminal_button_pressed = false;
+        return false;
+    }
+
+    const bool terminal_button_target = pointer_targets_terminal_button();
+    const bool terminal_button_enabled = desktop_bar::terminal_button_enabled();
+    if (primary_down)
+    {
+        if (terminal_button_target && terminal_button_enabled)
+        {
+            g_state.desktop_bar_terminal_button_pressed = true;
+            result.handled = true;
+            return true;
+        }
+        if (g_state.desktop_bar_terminal_button_pressed)
+        {
+            result.handled = true;
+            return true;
+        }
+        return false;
+    }
+
+    if (!g_state.desktop_bar_terminal_button_pressed)
+    {
+        return false;
+    }
+
+    g_state.desktop_bar_terminal_button_pressed = false;
+    result.handled = true;
+    if (terminal_button_target && terminal_button_enabled && show_and_focus_terminal_app())
+    {
+        result.focus_keyboard_terminal_app = true;
+        update_pointer_target(x, y);
+    }
+    return true;
 }
 
 TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
@@ -769,7 +894,13 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     if (!ready() || !terminal_window_interaction_enabled())
     {
         g_state.terminal_window_interaction.reset();
+        g_state.desktop_bar_terminal_button_pressed = false;
         g_state.pointer_cursor_shape = display::PointerCursorShape::Arrow;
+        return result;
+    }
+
+    if (handle_desktop_bar_pointer(x, y, primary_down, result))
+    {
         return result;
     }
 

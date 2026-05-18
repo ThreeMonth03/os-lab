@@ -316,6 +316,10 @@ void handle_mouse_move_event(const kernel::input::MouseMoveEvent & event,
     {
         kernel::input::set_focus(kernel::input::InputFocus::None);
     }
+    if (window_result.focus_keyboard_terminal_app)
+    {
+        kernel::input::set_focus(kernel::input::InputFocus::TerminalApp);
+    }
     if (window_result.app_resized)
     {
         view.resynchronize_after_terminal_resize(line, caps_lock);

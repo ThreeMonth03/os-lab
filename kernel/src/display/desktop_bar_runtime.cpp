@@ -10,6 +10,7 @@ struct DesktopBarState
     kernel::display::GuiSurface bar;
     kernel::display::desktop_bar::Palette palette;
     kernel::display::desktop_bar::Config config;
+    kernel::display::desktop_bar::TerminalButtonState terminal_button;
     bool initialized = false;
 };
 
@@ -22,7 +23,12 @@ kernel::display::PixelSample sample_bar_pixel(uint64_t x, uint64_t y)
         return kernel::display::transparent_pixel();
     }
 
-    return kernel::display::desktop_bar::sample_pixel(g_state.bar, g_state.palette, x, y);
+    return kernel::display::desktop_bar::sample_pixel(g_state.bar,
+                                                      g_state.palette,
+                                                      g_state.config,
+                                                      g_state.terminal_button,
+                                                      x,
+                                                      y);
 }
 
 } // namespace
@@ -41,6 +47,7 @@ bool init(const GuiSurface & bar, Palette palette, Config config)
     g_state.bar = bar;
     g_state.palette = palette;
     g_state.config = config;
+    g_state.terminal_button = {};
     if (!compositor::register_layer_pixel_callback(LayerKind::GuiSurface, sample_bar_pixel))
     {
         g_state = {};
@@ -49,6 +56,38 @@ bool init(const GuiSurface & bar, Palette palette, Config config)
 
     g_state.initialized = true;
     return true;
+}
+
+void sync_terminal_button_state(TerminalButtonState terminal)
+{
+    if (!g_state.initialized)
+    {
+        return;
+    }
+
+    g_state.terminal_button = terminal;
+}
+
+HitRegion hit_test(uint64_t x, uint64_t y)
+{
+    if (!g_state.initialized)
+    {
+        return HitRegion::None;
+    }
+
+    return hit_test(g_state.bar, g_state.config, g_state.terminal_button, x, y);
+}
+
+bool terminal_button_enabled()
+{
+    if (!g_state.initialized)
+    {
+        return false;
+    }
+
+    const Button button =
+        terminal_button_for(g_state.bar, g_state.config, g_state.terminal_button);
+    return button.valid() && button.enabled;
 }
 
 } // namespace kernel::display::desktop_bar
