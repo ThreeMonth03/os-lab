@@ -14,7 +14,7 @@ and WSL2.
 - Framebuffer terminal, shell line editor, shell history, and static cursor
 - PS/2 keyboard and mouse input through IRQ paths
 - Software mouse cursor, debug overlay, compositor dirty-region foundation, and
-  opt-in minimal GUI panel
+  debug-only desktop shell/bar foundations
 - Early memory map parsing, frame allocator, paging, heap, and slab foundations
 - Host-side GTest, clang-format, clang-tidy, and QEMU smoke paths
 
@@ -98,8 +98,8 @@ Normal `make demo` and `make gui` always build with exception triggers disabled.
 `make gui` is the stable default path. `TERMINAL_WINDOW_CHROME=ON` and
 `TERMINAL_WINDOW_INTERACTION=ON` are debug-only terminal app/window experiments
 for the future desktop path. `GUI_PANEL_VISIBLE=ON` is a legacy transitional
-panel flag; it remains available for comparison but should not be a dependency
-for new window interaction work.
+flag that now shows the desktop shell/bar surface; it remains available for
+comparison but should not be a dependency for new window interaction work.
 
 ## Native Toolchain
 

@@ -62,7 +62,7 @@ help:
 		'  make demo      Build in Docker, then boot headless' \
 		'  make gui       Build in Docker, then boot with a QEMU window' \
 		'  make gui GUI_PANEL_VISIBLE=ON' \
-		'                 Legacy debug-only boot with the transitional GUI panel visible' \
+		'                 Legacy debug flag: show the transitional desktop bar/shell surface' \
 		'  make gui TERMINAL_WINDOW_CHROME=ON' \
 		'                 Debug-only boot with terminal window chrome visible' \
 		'  make gui TERMINAL_WINDOW_CHROME=ON TERMINAL_WINDOW_INTERACTION=ON' \

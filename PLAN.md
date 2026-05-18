@@ -9,8 +9,8 @@ design document.
 - Freestanding C++23 kernel target
 - Framebuffer terminal and early shell
 - PS/2 keyboard and mouse IRQ input
-- Display primitives, compositor dirty regions, debug overlay, and opt-in GUI
-  panel
+- Display primitives, compositor dirty regions, debug overlay, debug-only
+  terminal window chrome, and transitional desktop shell/bar surface
 - IDT, exception handling, PIC IRQ, PIT timer, active paging, heap, and slab
   foundations
 - Host-side unit tests plus QEMU smoke paths
@@ -44,7 +44,7 @@ design document.
 
 - keyboard input, Caps Lock prompt indicator, history, and Ctrl shortcuts
 - mouse movement and cursor layering
-- scrolling terminal output with debug overlay and optional GUI panel
-- `GUI_PANEL_VISIBLE=ON` legacy/transitional panel drawing and lack of cursor artifacts
+- scrolling terminal output with debug overlay and optional desktop shell/bar
+- `GUI_PANEL_VISIBLE=ON` legacy/transitional desktop bar drawing and lack of cursor artifacts
 - `TERMINAL_WINDOW_CHROME=ON TERMINAL_WINDOW_INTERACTION=ON` debug terminal
   move/edge-resize/close behavior
