@@ -21,6 +21,7 @@ TEST(TextConsoleTest, WritesCharacterAndAdvancesCursor)
     expect_cell(update.cell, 0, 0);
     EXPECT_EQ(update.glyph, 'x');
     EXPECT_FALSE(update.scroll);
+    EXPECT_EQ(update.line_break, kernel::text::TextConsoleLineBreak::None);
     EXPECT_EQ(console.cursor_column(), 1u);
     EXPECT_EQ(console.cursor_row(), 0u);
 }
@@ -34,6 +35,8 @@ TEST(TextConsoleTest, NewlineMovesToNextRow)
 
     EXPECT_EQ(update.action, kernel::text::TextConsoleAction::None);
     EXPECT_FALSE(update.scroll);
+    EXPECT_EQ(update.line_break, kernel::text::TextConsoleLineBreak::Hard);
+    EXPECT_EQ(update.line_break_row, 1u);
     EXPECT_EQ(console.cursor_column(), 0u);
     EXPECT_EQ(console.cursor_row(), 1u);
 }
@@ -46,6 +49,8 @@ TEST(TextConsoleTest, NewlineAtBottomRequestsScroll)
     const kernel::text::TextConsoleUpdate update = console.newline();
 
     EXPECT_TRUE(update.scroll);
+    EXPECT_EQ(update.line_break, kernel::text::TextConsoleLineBreak::Hard);
+    EXPECT_EQ(update.line_break_row, 2u);
     EXPECT_EQ(console.cursor_column(), 0u);
     EXPECT_EQ(console.cursor_row(), 2u);
 }
@@ -61,8 +66,24 @@ TEST(TextConsoleTest, WritingLastBottomCellRequestsScrollAfterDraw)
     expect_cell(update.cell, 3, 2);
     EXPECT_EQ(update.glyph, 'z');
     EXPECT_TRUE(update.scroll);
+    EXPECT_EQ(update.line_break, kernel::text::TextConsoleLineBreak::SoftWrap);
+    EXPECT_EQ(update.line_break_row, 2u);
     EXPECT_EQ(console.cursor_column(), 0u);
     EXPECT_EQ(console.cursor_row(), 2u);
+}
+
+TEST(TextConsoleTest, WritingLastCellReportsSoftWrap)
+{
+    kernel::text::TextConsole console(4, 3);
+    console.set_cursor(3, 0);
+
+    const kernel::text::TextConsoleUpdate update = console.write_char('z');
+
+    EXPECT_FALSE(update.scroll);
+    EXPECT_EQ(update.line_break, kernel::text::TextConsoleLineBreak::SoftWrap);
+    EXPECT_EQ(update.line_break_row, 1u);
+    EXPECT_EQ(console.cursor_column(), 0u);
+    EXPECT_EQ(console.cursor_row(), 1u);
 }
 
 TEST(TextConsoleTest, ClearResetsCursor)

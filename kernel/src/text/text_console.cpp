@@ -35,6 +35,8 @@ TextConsoleUpdate TextConsole::write_char(char value)
     {
         const TextConsoleUpdate newline_update = newline();
         update.scroll = newline_update.scroll;
+        update.line_break = TextConsoleLineBreak::SoftWrap;
+        update.line_break_row = newline_update.line_break_row;
     }
 
     return update;
@@ -52,11 +54,16 @@ TextConsoleUpdate TextConsole::newline()
     {
         TextConsoleUpdate update = {};
         update.scroll = true;
+        update.line_break = TextConsoleLineBreak::Hard;
+        update.line_break_row = cursor_row_;
         return update;
     }
 
     ++cursor_row_;
-    return {};
+    TextConsoleUpdate update = {};
+    update.line_break = TextConsoleLineBreak::Hard;
+    update.line_break_row = cursor_row_;
+    return update;
 }
 
 void TextConsole::carriage_return()

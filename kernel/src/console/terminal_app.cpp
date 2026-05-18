@@ -34,6 +34,22 @@ bool should_preserve_text(TerminalResizePolicy policy)
     return policy == TerminalResizePolicy::PreserveVisibleContent;
 }
 
+bool line_break_is_continuation(text::TextConsoleLineBreak line_break)
+{
+    return line_break == text::TextConsoleLineBreak::SoftWrap;
+}
+
+void apply_line_break_metadata(text::TextBuffer & buffer, text::TextConsoleUpdate update)
+{
+    if (update.line_break == text::TextConsoleLineBreak::None)
+    {
+        return;
+    }
+
+    buffer.set_row_continuation(update.line_break_row,
+                                line_break_is_continuation(update.line_break));
+}
+
 } // namespace
 
 bool TerminalApp::reset(display::AppSurface app_surface,
@@ -149,11 +165,11 @@ bool TerminalApp::replace_surface(display::AppSurface app_surface, TerminalResiz
     text::TextBuffer::ResizeResult resize_result;
     if (preserve_text)
     {
-        resize_result = text_buffer_.resize_preserving_visible_content(resize_snapshot_,
-                                                                       capacity.columns,
-                                                                       capacity.rows,
-                                                                       previous_cursor_column,
-                                                                       previous_cursor_row);
+        resize_result = text_buffer_.resize_reflowing_visible_content(resize_snapshot_,
+                                                                      capacity.columns,
+                                                                      capacity.rows,
+                                                                      previous_cursor_column,
+                                                                      previous_cursor_row);
     }
     else
     {
@@ -505,8 +521,13 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
             }
             else
             {
+                apply_line_break_metadata(text_buffer_, update);
                 record_pending_scroll();
             }
+        }
+        else
+        {
+            apply_line_break_metadata(text_buffer_, update);
         }
         return {};
     }
@@ -566,6 +587,7 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
             apply_repaint_request(repaint_.record_dirty(bounds()));
             return {};
         }
+        apply_line_break_metadata(text_buffer_, update);
 
         if (can_scroll_backing && update_scope_active())
         {
@@ -587,6 +609,7 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
         return {};
     }
 
+    apply_line_break_metadata(text_buffer_, update);
     return dirty_rect;
 }
 
@@ -650,6 +673,10 @@ void TerminalApp::clear_row_from(uint64_t column, uint64_t row)
     }
 
     const display::Rect dirty_rect = row_tail_rect(column, row);
+    if (column == 0)
+    {
+        text_buffer_.set_row_continuation(row, false);
+    }
     while (column < console_.columns())
     {
         text_buffer_.clear_cell(column, row);
@@ -669,6 +696,11 @@ void TerminalApp::draw_char_at(uint64_t column, uint64_t row, char value)
     text_buffer_.put(column, row, value);
     render_text_cell(column, row, value);
     record_console_dirty(cell_rect(column, row));
+}
+
+void TerminalApp::set_row_continuation(uint64_t row, bool continuation)
+{
+    text_buffer_.set_row_continuation(row, continuation);
 }
 
 void TerminalApp::set_cursor(uint64_t column, uint64_t row)

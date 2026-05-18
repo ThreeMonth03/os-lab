@@ -23,11 +23,11 @@ public:
     TextBuffer() = default;
 
     [[nodiscard]] bool reset(uint64_t columns, uint64_t rows);
-    [[nodiscard]] ResizeResult resize_preserving_visible_content(const TextBuffer & previous,
-                                                                 uint64_t columns,
-                                                                 uint64_t rows,
-                                                                 uint64_t cursor_column,
-                                                                 uint64_t cursor_row);
+    [[nodiscard]] ResizeResult resize_reflowing_visible_content(const TextBuffer & previous,
+                                                                uint64_t columns,
+                                                                uint64_t rows,
+                                                                uint64_t cursor_column,
+                                                                uint64_t cursor_row);
     void clear();
 
     bool ready() const { return columns_ > 0 && rows_ > 0; }
@@ -39,13 +39,16 @@ public:
     bool put(uint64_t column, uint64_t row, char glyph);
     bool clear_cell(uint64_t column, uint64_t row);
     bool scroll_up();
+    bool set_row_continuation(uint64_t row, bool continuation);
     char glyph_at(uint64_t column, uint64_t row) const;
+    bool row_continues_from_previous(uint64_t row) const;
 
 private:
     bool in_bounds(uint64_t column, uint64_t row) const;
     size_t index_of(uint64_t column, uint64_t row) const;
 
     char cells_[kTextBufferMaxColumns * kTextBufferMaxRows] = {};
+    bool row_continuation_[kTextBufferMaxRows] = {};
     uint64_t columns_ = 0;
     uint64_t rows_ = 0;
 }; // end class TextBuffer

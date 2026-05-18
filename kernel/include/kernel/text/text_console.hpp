@@ -18,12 +18,21 @@ enum class TextConsoleAction
     ClearCell,
 };
 
+enum class TextConsoleLineBreak
+{
+    None,
+    Hard,
+    SoftWrap,
+};
+
 struct TextConsoleUpdate
 {
     TextConsoleAction action = TextConsoleAction::None;
     ConsoleCell cell = {};
     char glyph = '\0';
     bool scroll = false;
+    TextConsoleLineBreak line_break = TextConsoleLineBreak::None;
+    uint64_t line_break_row = 0;
 };
 
 class TextConsole
