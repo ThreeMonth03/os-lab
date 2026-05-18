@@ -45,4 +45,6 @@ design document.
 - keyboard input, Caps Lock prompt indicator, history, and Ctrl shortcuts
 - mouse movement and cursor layering
 - scrolling terminal output with debug overlay and optional GUI panel
-- `GUI_PANEL_VISIBLE=ON` panel drawing and lack of cursor artifacts
+- `GUI_PANEL_VISIBLE=ON` legacy/transitional panel drawing and lack of cursor artifacts
+- `TERMINAL_WINDOW_CHROME=ON TERMINAL_WINDOW_INTERACTION=ON` debug terminal
+  move/edge-resize/close behavior

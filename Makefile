@@ -62,11 +62,11 @@ help:
 		'  make demo      Build in Docker, then boot headless' \
 		'  make gui       Build in Docker, then boot with a QEMU window' \
 		'  make gui GUI_PANEL_VISIBLE=ON' \
-		'                 Debug-only boot with the minimal GUI panel visible' \
+		'                 Legacy debug-only boot with the transitional GUI panel visible' \
 		'  make gui TERMINAL_WINDOW_CHROME=ON' \
 		'                 Debug-only boot with terminal window chrome visible' \
 		'  make gui TERMINAL_WINDOW_CHROME=ON TERMINAL_WINDOW_INTERACTION=ON' \
-		'                 Debug-only boot with terminal chrome resize/close interaction' \
+		'                 Debug-only boot with terminal chrome move/resize/close interaction' \
 		'  make profile-gui' \
 		'                 Boot GUI with profiling, scripted input, and serial log capture' \
 		'  make profile-summary' \

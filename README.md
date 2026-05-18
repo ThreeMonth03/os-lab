@@ -76,6 +76,9 @@ are not managed yet.
 make demo
 make gui
 make gui GUI_PANEL_VISIBLE=ON
+make gui TERMINAL_WINDOW_CHROME=ON
+make gui TERMINAL_WINDOW_CHROME=ON TERMINAL_WINDOW_INTERACTION=ON
+make profile-gui
 make test
 make unit
 make format
@@ -92,8 +95,11 @@ make clean
 `EXCEPTION_SMOKE` accepts `invalid_opcode`, `page_fault`, or `divide_error`.
 Normal `make demo` and `make gui` always build with exception triggers disabled.
 
-`GUI_PANEL_VISIBLE=ON` is a debug-only build option for showing the minimal GUI
-panel. It is off by default.
+`make gui` is the stable default path. `TERMINAL_WINDOW_CHROME=ON` and
+`TERMINAL_WINDOW_INTERACTION=ON` are debug-only terminal app/window experiments
+for the future desktop path. `GUI_PANEL_VISIBLE=ON` is a legacy transitional
+panel flag; it remains available for comparison but should not be a dependency
+for new window interaction work.
 
 ## Native Toolchain
 
