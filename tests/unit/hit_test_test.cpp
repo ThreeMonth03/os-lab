@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "kernel/display/debug_overlay.hpp"
+#include "kernel/display/desktop_bar.hpp"
 #include "kernel/display/hit_test.hpp"
 
 namespace
@@ -145,6 +146,21 @@ TEST(HitTestTest, VisibleGuiPanelHitsInsideBounds)
     EXPECT_EQ(result.target_kind, kernel::display::DisplayTargetKind::GuiSurface);
     EXPECT_EQ(result.surface_id, kernel::display::display_surface_id_for(1));
     EXPECT_EQ(result.gui_surface_id, 1);
+}
+
+TEST(HitTestTest, VisibleDesktopBarHitsAsSystemUiSurface)
+{
+    HitTestFixture fixture;
+    fixture.register_gui_surface(kernel::display::desktop_bar::kGuiSurfaceId,
+                                 {0, 688, 1280, 32},
+                                 true);
+
+    const kernel::display::HitTestResult result =
+        kernel::display::hit_test(fixture.targets, fixture.app_surfaces, fixture.gui_surfaces, 20, 700);
+
+    ASSERT_TRUE(result.hit());
+    EXPECT_EQ(result.target_kind, kernel::display::DisplayTargetKind::GuiSurface);
+    EXPECT_EQ(result.gui_surface_id, kernel::display::desktop_bar::kGuiSurfaceId);
 }
 
 TEST(HitTestTest, AppSurfaceWinsWhenItOverlapsGuiSurface)

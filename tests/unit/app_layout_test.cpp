@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "kernel/display/app_layout.hpp"
+#include "kernel/display/desktop_bar.hpp"
 
 namespace
 {
@@ -65,6 +66,24 @@ TEST(AppLayoutTest, VisiblePanelPlacesTerminalBelowPanel)
         });
 
     expect_rect(bounds, 16, 88, 1248, 656);
+}
+
+TEST(AppLayoutTest, TerminalBoundsUseDesktopBarWorkArea)
+{
+    const kernel::display::desktop_bar::Layout desktop_layout =
+        kernel::display::desktop_bar::layout_for({0, 0, 1280, 760}, {32, true});
+    const kernel::display::Rect bounds =
+        kernel::display::DesktopAppLayout::primary_app_bounds_for({
+            desktop_layout.work_area,
+            {},
+            false,
+            0,
+            16,
+            8,
+            16,
+        });
+
+    expect_rect(bounds, 0, 16, 1280, 712);
 }
 
 TEST(AppLayoutTest, InvalidPanelLayoutFallsBackToSafeHiddenPanelBounds)

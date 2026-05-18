@@ -5,6 +5,7 @@ add_executable(os_lab_unit_tests
     composited_surface_test.cpp
     containers_test.cpp
     cursor_geometry_test.cpp
+    desktop_bar_test.cpp
     desktop_background_test.cpp
     debug_overlay_test.cpp
     display_compositor_test.cpp
