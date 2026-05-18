@@ -28,6 +28,7 @@ set(OS_LAB_HOST_LOGIC_DISPLAY_SOURCES
     ${PROJECT_SOURCE_DIR}/kernel/src/display/terminal_render_cache.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/terminal_repaint_state.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/terminal_renderer.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/display/window_chrome.cpp
 )
 
 set(OS_LAB_HOST_LOGIC_ARCH_X86_64_SOURCES
