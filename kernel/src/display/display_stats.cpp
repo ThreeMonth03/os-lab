@@ -44,12 +44,22 @@ CompositorRuntimeStats delta(CompositorRuntimeStats before, CompositorRuntimeSta
 {
     return {
         saturating_subtract(after.scene_compose_pixels, before.scene_compose_pixels),
+        saturating_subtract(after.scene_compose_from_backing_pixels,
+                            before.scene_compose_from_backing_pixels),
         saturating_subtract(after.scene_preflight_pixels, before.scene_preflight_pixels),
         saturating_subtract(after.scene_scroll_copy_pixels, before.scene_scroll_copy_pixels),
         saturating_subtract(after.scene_scroll_count, before.scene_scroll_count),
         saturating_subtract(after.repaint_plan_count, before.repaint_plan_count),
         saturating_subtract(after.repaint_plan_fallback_count,
                             before.repaint_plan_fallback_count),
+    };
+}
+
+DisplayRuntimeStats delta(DisplayRuntimeStats before, DisplayRuntimeStats after)
+{
+    return {
+        saturating_subtract(after.terminal_backing_copy_pixels,
+                            before.terminal_backing_copy_pixels),
     };
 }
 
@@ -67,6 +77,7 @@ DisplayPipelineStats display_stats_delta(DisplayStatsSnapshot before,
         delta(before.pipeline.frame, after.pipeline.frame),
         delta(before.pipeline.presenter, after.pipeline.presenter),
         delta(before.pipeline.compositor, after.pipeline.compositor),
+        delta(before.pipeline.runtime, after.pipeline.runtime),
         saturating_subtract(after.pipeline.elapsed_ticks, before.pipeline.elapsed_ticks),
     };
 }

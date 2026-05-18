@@ -49,6 +49,9 @@ bool TerminalApp::reset(display::AppSurface app_surface,
     repaint_sink_ = repaint_sink;
     repaint_.reset(app_surface_.bounds);
     cursor_.reset();
+    update_depth_ = 0;
+    pending_scroll_rows_ = 0;
+    pending_dirty_after_scroll_ = {};
     return renderer_.ready();
 }
 
@@ -153,8 +156,131 @@ display::Rect TerminalApp::row_tail_rect(uint64_t column, uint64_t row) const
     };
 }
 
+void TerminalApp::begin_update()
+{
+    if (ready())
+    {
+        ++update_depth_;
+    }
+}
+
+void TerminalApp::end_update()
+{
+    if (update_depth_ == 0)
+    {
+        return;
+    }
+
+    --update_depth_;
+    if (update_depth_ == 0)
+    {
+        flush_pending_backing_scroll();
+    }
+}
+
+void TerminalApp::record_pending_dirty(display::Rect rect)
+{
+    rect = display::intersect_rect(rect, text_grid_rect());
+    if (!rect.empty())
+    {
+        pending_dirty_after_scroll_ = display::bounding_rect(pending_dirty_after_scroll_, rect);
+    }
+}
+
+void TerminalApp::record_pending_scroll()
+{
+    if (pending_scroll_rows_ < text_buffer_.rows())
+    {
+        ++pending_scroll_rows_;
+    }
+
+    const uint64_t distance = pending_scroll_rows_ * kCellHeight;
+    record_pending_dirty(display::exposed_scroll_region({text_grid_rect(), distance}));
+}
+
+void TerminalApp::flush_pending_backing_scroll()
+{
+    if (!pending_backing_scroll())
+    {
+        return;
+    }
+
+    const uint64_t rows = pending_scroll_rows_;
+    const display::Rect pending_dirty = pending_dirty_after_scroll_;
+    pending_scroll_rows_ = 0;
+    pending_dirty_after_scroll_ = {};
+
+    if (!render_cache_.valid() || rows >= text_buffer_.rows())
+    {
+        repaint_text_layer();
+        apply_repaint_request(repaint_.record_dirty(bounds()));
+        return;
+    }
+
+    const display::Rect scroll_dirty = scroll_backing_text_grid_up(rows);
+    if (scroll_dirty.empty())
+    {
+        repaint_text_layer();
+        apply_repaint_request(repaint_.record_dirty(bounds()));
+        return;
+    }
+
+    render_cache_.scroll_up(rows);
+    const uint64_t distance = rows * kCellHeight;
+    const display::Rect exposed = display::exposed_scroll_region({text_grid_rect(), distance});
+    const display::Rect rendered_dirty =
+        render_text_cells_in_rect(display::bounding_rect(pending_dirty, exposed));
+
+    display::FrameDamage damage;
+    if (!damage.append_scroll({scroll_dirty, distance}) ||
+        !damage.append_dirty(exposed, true) ||
+        !damage.append_dirty(rendered_dirty))
+    {
+        apply_repaint_request(repaint_.record_dirty(bounds()));
+        return;
+    }
+
+    if (repaint_sink_.submit_terminal_damage != nullptr)
+    {
+        repaint_sink_.submit_terminal_damage(damage);
+    }
+}
+
 display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
 {
+    if (pending_backing_scroll())
+    {
+        display::Rect dirty_rect;
+        switch (update.action)
+        {
+        case text::TextConsoleAction::DrawGlyph:
+            text_buffer_.put(update.cell.column, update.cell.row, update.glyph);
+            dirty_rect = cell_rect(update.cell.column, update.cell.row);
+            break;
+        case text::TextConsoleAction::ClearCell:
+            text_buffer_.clear_cell(update.cell.column, update.cell.row);
+            dirty_rect = cell_rect(update.cell.column, update.cell.row);
+            break;
+        case text::TextConsoleAction::None:
+            break;
+        }
+
+        record_pending_dirty(dirty_rect);
+        if (update.scroll)
+        {
+            if (!text_buffer_.scroll_up())
+            {
+                render_cache_.invalidate();
+                record_pending_dirty(bounds());
+            }
+            else
+            {
+                record_pending_scroll();
+            }
+        }
+        return {};
+    }
+
     display::Rect dirty_rect;
     const bool can_scroll_backing = update.scroll && render_cache_.valid();
     const bool can_render_backing_cell = !update.scroll && render_cache_.valid();
@@ -199,7 +325,7 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
             pre_scroll_dirty = display::bounding_rect(pre_scroll_dirty, render_text_repaint(false));
         }
 
-        if (!pre_scroll_dirty.empty())
+        if (!update_scope_active() && !pre_scroll_dirty.empty())
         {
             apply_repaint_request(repaint_.record_dirty(pre_scroll_dirty));
         }
@@ -211,7 +337,13 @@ display::Rect TerminalApp::apply_console_update(text::TextConsoleUpdate update)
             return {};
         }
 
-        const display::Rect scroll_dirty = can_scroll_backing ? scroll_backing_text_grid_up()
+        if (can_scroll_backing && update_scope_active())
+        {
+            record_pending_scroll();
+            return {};
+        }
+
+        const display::Rect scroll_dirty = can_scroll_backing ? scroll_backing_text_grid_up(1)
                                                               : display::Rect{};
         if (scroll_dirty.empty())
         {

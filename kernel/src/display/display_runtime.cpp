@@ -30,6 +30,8 @@ struct DisplayRuntimeState
     display::SceneBuffer scene;
     display::FramebufferPresenter presenter;
     display::DisplayFrame frame;
+    display::LayerDamageAccumulator terminal_damage;
+    display::DisplayRuntimeStats stats;
     display::DisplayTargetRegistry targets;
     display::AppSurfaceRegistry app_surfaces;
     display::GuiSurfaceRegistry gui_surfaces;
@@ -135,6 +137,8 @@ bool reset_display_runtime_state(const limine_framebuffer & framebuffer)
     display::compositor::set_scene_buffer(g_state.scene);
     display::compositor::set_presenter(g_state.presenter);
     g_state.frame.reset(bounds);
+    g_state.terminal_damage.reset(bounds);
+    g_state.stats = {};
     return true;
 }
 
@@ -231,6 +235,7 @@ bool init_terminal_app_layer(const limine_framebuffer & framebuffer,
     }
 
     g_state.terminal_app_surface = *registered_app;
+    g_state.terminal_damage.reset(g_state.terminal_app_surface.bounds);
     g_state.terminal_foreground = color_for(framebuffer, palette.terminal_foreground);
     g_state.terminal_background = color_for(framebuffer, palette.terminal_background);
 
@@ -354,6 +359,7 @@ DisplayPipelineStats stats()
         g_state.frame.stats(),
         g_state.presenter.stats(),
         display::compositor::stats(),
+        g_state.stats,
     };
 }
 
@@ -362,6 +368,7 @@ void reset_stats()
     g_state.frame.reset_stats();
     g_state.presenter.reset_stats();
     display::compositor::reset_stats();
+    g_state.stats = {};
 }
 
 void begin_frame()
@@ -377,11 +384,38 @@ void present_scene_operations(const display::PresentOperationList & operations)
     display::compositor::present_scene_operations(operations);
 }
 
+void submit_present_operations_to_frame(const display::PresentOperationList & operations)
+{
+    const DisplayFrameSubmit submit = g_state.frame.submit(operations);
+    if (submit.immediate)
+    {
+        present_scene_operations(submit.present_operations);
+    }
+}
+
+void flush_terminal_damage_into_frame()
+{
+    if (g_state.terminal_damage.empty())
+    {
+        return;
+    }
+
+    const display::PresentOperationList present_operations =
+        display::compositor::update_scene_from_layer_damage(display::LayerKind::AppSurface,
+                                                            g_state.terminal_damage.flush());
+    submit_present_operations_to_frame(present_operations);
+}
+
 void end_frame()
 {
     if (!ready())
     {
         return;
+    }
+
+    if (g_state.frame.depth() == 1)
+    {
+        flush_terminal_damage_into_frame();
     }
 
     const DisplayFrameFlush flush = g_state.frame.end();
@@ -409,13 +443,20 @@ void refresh_debug_overlay_if_due()
 
 void submit_terminal_app_damage(FrameDamage damage)
 {
+    if (g_state.frame.in_frame())
+    {
+        g_state.terminal_damage.record(damage);
+        return;
+    }
+
     const display::PresentOperationList present_operations =
         display::compositor::update_scene_from_layer_damage(display::LayerKind::AppSurface, damage);
-    const DisplayFrameSubmit submit = g_state.frame.submit(present_operations);
-    if (submit.immediate)
-    {
-        present_scene_operations(submit.present_operations);
-    }
+    submit_present_operations_to_frame(present_operations);
+}
+
+void record_terminal_backing_copy_pixels(uint64_t pixels)
+{
+    g_state.stats.terminal_backing_copy_pixels += pixels;
 }
 
 bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback)

@@ -12,7 +12,9 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
     before.presenter.fast_path_copy_pixels = 100;
     before.presenter.front_scroll_copy_pixels = 40;
     before.compositor.scene_compose_pixels = 20;
+    before.compositor.scene_compose_from_backing_pixels = 11;
     before.compositor.scene_preflight_pixels = 7;
+    before.runtime.terminal_backing_copy_pixels = 30;
     before.elapsed_ticks = 2;
 
     kernel::display::DisplayPipelineStats after;
@@ -23,7 +25,9 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
     after.presenter.fast_path_copy_pixels = 180;
     after.presenter.front_scroll_copy_pixels = 100;
     after.compositor.scene_compose_pixels = 35;
+    after.compositor.scene_compose_from_backing_pixels = 25;
     after.compositor.scene_preflight_pixels = 7;
+    after.runtime.terminal_backing_copy_pixels = 90;
     after.elapsed_ticks = 9;
 
     const kernel::display::DisplayPipelineStats delta =
@@ -38,7 +42,9 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
     EXPECT_EQ(delta.presenter.fast_path_copy_pixels, 80u);
     EXPECT_EQ(delta.presenter.front_scroll_copy_pixels, 60u);
     EXPECT_EQ(delta.compositor.scene_compose_pixels, 15u);
+    EXPECT_EQ(delta.compositor.scene_compose_from_backing_pixels, 14u);
     EXPECT_EQ(delta.compositor.scene_preflight_pixels, 0u);
+    EXPECT_EQ(delta.runtime.terminal_backing_copy_pixels, 60u);
     EXPECT_EQ(delta.elapsed_ticks, 7u);
 }
 
@@ -48,11 +54,13 @@ TEST(DisplayStatsTest, DeltaSaturatesWhenCountersReset)
     before.frame.total_presented_pixels = 100;
     before.presenter.overlay_blend_pixels = 50;
     before.compositor.repaint_plan_count = 4;
+    before.runtime.terminal_backing_copy_pixels = 12;
 
     kernel::display::DisplayPipelineStats after;
     after.frame.total_presented_pixels = 10;
     after.presenter.overlay_blend_pixels = 5;
     after.compositor.repaint_plan_count = 1;
+    after.runtime.terminal_backing_copy_pixels = 3;
 
     const kernel::display::DisplayPipelineStats delta =
         kernel::display::display_stats_delta(
@@ -62,4 +70,5 @@ TEST(DisplayStatsTest, DeltaSaturatesWhenCountersReset)
     EXPECT_EQ(delta.frame.total_presented_pixels, 0u);
     EXPECT_EQ(delta.presenter.overlay_blend_pixels, 0u);
     EXPECT_EQ(delta.compositor.repaint_plan_count, 0u);
+    EXPECT_EQ(delta.runtime.terminal_backing_copy_pixels, 0u);
 }

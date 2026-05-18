@@ -276,6 +276,7 @@ bool paint_source_region(const kernel::display::LayerPixelSource & source,
         {
             const uint64_t x = rect.x + column;
             ++g_stats.scene_compose_pixels;
+            ++g_stats.scene_compose_from_backing_pixels;
             const kernel::display::PixelSample sample = source.read(source, x, y);
             if (sample.opaque())
             {
@@ -392,6 +393,7 @@ bool compose_backed_region_from(kernel::display::LayerKind base_layer,
             const uint64_t x = dirty_rect.x + column;
             kernel::display::Color color;
             ++g_stats.scene_compose_pixels;
+            ++g_stats.scene_compose_from_backing_pixels;
             if (kernel::display::final_pixel_at(sources, source_count, base_layer, x, y, color))
             {
                 g_scene_buffer->put_pixel(x, y, color);

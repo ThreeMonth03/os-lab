@@ -100,6 +100,7 @@ struct LayerPixelSource
 struct CompositorRuntimeStats
 {
     uint64_t scene_compose_pixels = 0;
+    uint64_t scene_compose_from_backing_pixels = 0;
     uint64_t scene_preflight_pixels = 0;
     uint64_t scene_scroll_copy_pixels = 0;
     uint64_t scene_scroll_count = 0;

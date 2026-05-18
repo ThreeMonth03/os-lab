@@ -204,6 +204,92 @@ FrameDamage DamageAccumulator::flush()
     return damage;
 }
 
+void LayerDamageAccumulator::reset(Rect bounds)
+{
+    accumulator_.reset(bounds);
+    clear();
+}
+
+void LayerDamageAccumulator::clear()
+{
+    accumulator_.clear();
+    scroll_union_ = {};
+    scroll_step_count_ = 0;
+}
+
+void LayerDamageAccumulator::record_dirty(Rect rect)
+{
+    accumulator_.mark_dirty(rect);
+}
+
+void LayerDamageAccumulator::record_scroll(Rect rect, uint64_t distance)
+{
+    rect = intersect_rect(accumulator_.bounds(), rect);
+    if (rect.empty() || distance == 0)
+    {
+        return;
+    }
+
+    accumulator_.record_scroll(rect, distance);
+    scroll_union_ = bounding_rect(scroll_union_, rect);
+    ++scroll_step_count_;
+}
+
+void LayerDamageAccumulator::record(FrameDamage damage)
+{
+    if (damage.empty())
+    {
+        return;
+    }
+
+    if (damage.has_steps())
+    {
+        for (size_t index = 0; index < damage.step_count; ++index)
+        {
+            const FrameDamageStep & step = damage.steps[index];
+            if (step.dirty())
+            {
+                record_dirty(step.rect);
+            }
+            else if (step.scroll())
+            {
+                record_scroll(step.rect, step.distance);
+            }
+        }
+        return;
+    }
+
+    if (damage.has_scroll())
+    {
+        record_scroll(damage.scroll.rect, damage.scroll.distance);
+    }
+    if (damage.has_dirty())
+    {
+        record_dirty(damage.dirty_rect);
+    }
+}
+
+FrameDamage LayerDamageAccumulator::flush()
+{
+    FrameDamage damage = accumulator_.flush();
+    const Rect scroll_union = scroll_union_;
+    const uint64_t scroll_step_count = scroll_step_count_;
+    scroll_union_ = {};
+    scroll_step_count_ = 0;
+
+    if (scroll_step_count <= 1 || scroll_union.empty())
+    {
+        return damage;
+    }
+
+    FrameDamage final_damage;
+    if (!final_damage.append_dirty(bounding_rect(scroll_union, damage.dirty_rect)))
+    {
+        return damage;
+    }
+    return final_damage;
+}
+
 Rect exposed_scroll_region(ScrollDamage scroll)
 {
     if (!scroll.valid())

@@ -17,6 +17,7 @@ public:
     void invalidate();
     void clear_rendered();
     void synchronize_from(const text::TextBuffer & logical);
+    void scroll_up(uint64_t rows);
 
     bool valid() const { return valid_; }
     bool ready() const { return columns_ > 0 && rows_ > 0; }

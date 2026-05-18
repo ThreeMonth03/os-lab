@@ -54,6 +54,36 @@ void TerminalRenderCache::synchronize_from(const text::TextBuffer & logical)
     valid_ = true;
 }
 
+void TerminalRenderCache::scroll_up(uint64_t rows)
+{
+    if (!valid_ || !ready() || rows == 0)
+    {
+        return;
+    }
+
+    if (rows >= rows_)
+    {
+        clear_rendered();
+        return;
+    }
+
+    for (uint64_t row = 0; row < rows_ - rows; ++row)
+    {
+        for (uint64_t column = 0; column < columns_; ++column)
+        {
+            cells_[index_of(column, row)] = cells_[index_of(column, row + rows)];
+        }
+    }
+
+    for (uint64_t row = rows_ - rows; row < rows_; ++row)
+    {
+        for (uint64_t column = 0; column < columns_; ++column)
+        {
+            cells_[index_of(column, row)] = text::kTextBufferBlank;
+        }
+    }
+}
+
 bool TerminalRenderCache::mark_rendered(uint64_t column, uint64_t row, char glyph)
 {
     if (!valid_ || !in_bounds(column, row))

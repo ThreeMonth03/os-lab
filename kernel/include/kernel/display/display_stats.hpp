@@ -7,11 +7,17 @@
 namespace kernel::display
 {
 
+struct DisplayRuntimeStats
+{
+    uint64_t terminal_backing_copy_pixels = 0;
+};
+
 struct DisplayPipelineStats
 {
     DisplayFrameStats frame;
     FramebufferPresenterStats presenter;
     CompositorRuntimeStats compositor;
+    DisplayRuntimeStats runtime;
     uint64_t elapsed_ticks = 0;
 };
 

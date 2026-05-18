@@ -18,6 +18,7 @@ namespace kernel::console
 struct TerminalRepaintSink
 {
     void (*submit_terminal_damage)(display::FrameDamage damage) = nullptr;
+    void (*record_backing_copy_pixels)(uint64_t pixels) = nullptr;
 
     bool ready() const { return submit_terminal_damage != nullptr; }
 };
@@ -65,6 +66,9 @@ public:
     uint64_t cursor_column() const { return console_.cursor_column(); }
     uint64_t cursor_row() const { return console_.cursor_row(); }
 
+    void begin_update();
+    void end_update();
+
     display::PixelSample sample_pixel(uint64_t x, uint64_t y) const;
     display::PixelSample sample_caret_pixel(uint64_t x, uint64_t y) const;
     display::Rect caret_bounds() const;
@@ -95,10 +99,16 @@ private:
     void repaint_text_layer();
     void render_text_cell(uint64_t column, uint64_t row, char glyph);
     void render_buffer_cell(uint64_t column, uint64_t row);
-    display::Rect scroll_backing_text_grid_up();
+    display::Rect scroll_backing_text_grid_up(uint64_t rows);
+    display::Rect render_text_cells_in_rect(display::Rect rect);
     display::Rect render_dirty_text_cells();
     display::Rect render_text_repaint(bool repaint_entire_layer);
     bool allocate_backing_surface();
+    bool update_scope_active() const { return update_depth_ > 0; }
+    bool pending_backing_scroll() const { return pending_scroll_rows_ > 0; }
+    void record_pending_dirty(display::Rect rect);
+    void record_pending_scroll();
+    void flush_pending_backing_scroll();
     void apply_repaint(display::FrameDamage damage);
     void apply_repaint_request(display::TerminalRepaintRequest request);
     void record_console_dirty(display::Rect dirty_rect);
@@ -117,6 +127,9 @@ private:
     TerminalCursorState cursor_;
     uint32_t * backing_memory_ = nullptr;
     size_t backing_bytes_ = 0;
+    uint32_t update_depth_ = 0;
+    uint64_t pending_scroll_rows_ = 0;
+    display::Rect pending_dirty_after_scroll_;
 };
 
 } // namespace kernel::console

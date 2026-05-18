@@ -39,6 +39,26 @@ TEST(PresentOperationListTest, MergesOnlyAdjacentRectOperations)
     EXPECT_EQ(operations.at(2).rect.x, 8u);
 }
 
+TEST(PresentOperationListTest, DoesNotMergeRectsSeparatedOnOneAxis)
+{
+    kernel::display::PresentOperationList operations({0, 0, 1000, 1000});
+
+    EXPECT_EQ(operations.append_rect({0, 0, 80, 8}),
+              kernel::display::PresentOperationAppendResult::Queued);
+    EXPECT_EQ(operations.append_rect({0, 32, 80, 8}),
+              kernel::display::PresentOperationAppendResult::Queued);
+    EXPECT_EQ(operations.append_rect({160, 32, 8, 8}),
+              kernel::display::PresentOperationAppendResult::Queued);
+    EXPECT_EQ(operations.append_rect({192, 32, 8, 8}),
+              kernel::display::PresentOperationAppendResult::Queued);
+
+    ASSERT_EQ(operations.count(), 4u);
+    EXPECT_EQ(operations.at(0).rect.height, 8u);
+    EXPECT_EQ(operations.at(1).rect.y, 32u);
+    EXPECT_EQ(operations.at(2).rect.x, 160u);
+    EXPECT_EQ(operations.at(3).rect.x, 192u);
+}
+
 TEST(PresentOperationListTest, CoalescesRepeatedScrollWithScrollAftermathRects)
 {
     kernel::display::PresentOperationList operations({0, 0, 1000, 1000});

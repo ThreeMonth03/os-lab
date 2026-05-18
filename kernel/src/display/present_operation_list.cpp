@@ -23,7 +23,7 @@ bool same_vertical_span(Rect lhs, Rect rhs)
 
 bool adjacent_or_overlapping(Rect lhs, Rect rhs)
 {
-    if (intersect_rect(lhs, rhs).width > 0 || intersect_rect(lhs, rhs).height > 0)
+    if (!intersect_rect(lhs, rhs).empty())
     {
         return true;
     }

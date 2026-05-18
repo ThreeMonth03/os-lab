@@ -12,6 +12,8 @@ TEST(DisplayProfileTest, CommandProfileDeltaIsReportedAfterFinish)
     before.frame.present_rect_count = 2;
     before.presenter.fast_path_copy_pixels = 10;
     before.compositor.scene_compose_pixels = 20;
+    before.compositor.scene_compose_from_backing_pixels = 12;
+    before.runtime.terminal_backing_copy_pixels = 8;
 
     kernel::display::DisplayPipelineStats after = before;
     after.frame.frame_flush_count = 2;
@@ -22,9 +24,11 @@ TEST(DisplayProfileTest, CommandProfileDeltaIsReportedAfterFinish)
     after.presenter.largest_present_rect_area = 64;
     after.presenter.fast_path_copy_pixels = 40;
     after.compositor.scene_compose_pixels = 35;
+    after.compositor.scene_compose_from_backing_pixels = 30;
     after.compositor.scene_scroll_count = 2;
     after.compositor.repaint_plan_count = 3;
     after.compositor.repaint_plan_fallback_count = 1;
+    after.runtime.terminal_backing_copy_pixels = 48;
 
     tracker.begin("input", before);
     const kernel::display::CommandProfileDelta delta = tracker.finish(after);
@@ -39,9 +43,11 @@ TEST(DisplayProfileTest, CommandProfileDeltaIsReportedAfterFinish)
     EXPECT_EQ(delta.delta.presenter.largest_present_rect_area, 64u);
     EXPECT_EQ(delta.delta.presenter.fast_path_copy_pixels, 30u);
     EXPECT_EQ(delta.delta.compositor.scene_compose_pixels, 15u);
+    EXPECT_EQ(delta.delta.compositor.scene_compose_from_backing_pixels, 18u);
     EXPECT_EQ(delta.delta.compositor.scene_scroll_count, 2u);
     EXPECT_EQ(delta.delta.compositor.repaint_plan_count, 3u);
     EXPECT_EQ(delta.delta.compositor.repaint_plan_fallback_count, 1u);
+    EXPECT_EQ(delta.delta.runtime.terminal_backing_copy_pixels, 40u);
     EXPECT_FALSE(tracker.pending());
 }
 

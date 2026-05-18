@@ -44,7 +44,9 @@ void write_display_profile_delta(StringView command, display::DisplayPipelineSta
     write_stat("largest present rect area", delta.frame.largest_present_rect_area);
     write_stat("presenter largest present rect area", delta.presenter.largest_present_rect_area);
     write_stat("large fallback count", delta.frame.large_present_fallback_count);
+    write_stat("terminal backing copy pixels", delta.runtime.terminal_backing_copy_pixels);
     write_stat("scene compose pixels", delta.compositor.scene_compose_pixels);
+    write_stat("scene compose from backing pixels", delta.compositor.scene_compose_from_backing_pixels);
     write_stat("scene preflight pixels", delta.compositor.scene_preflight_pixels);
     write_stat("scene scroll copy pixels", delta.compositor.scene_scroll_copy_pixels);
     write_stat("scene scroll count", delta.compositor.scene_scroll_count);

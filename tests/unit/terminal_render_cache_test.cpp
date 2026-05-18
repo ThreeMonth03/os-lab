@@ -64,3 +64,21 @@ TEST(TerminalRenderCacheTest, ClearRenderedResetsCacheToBlank)
     ASSERT_TRUE(logical.clear_cell(0, 0));
     EXPECT_EQ(cache.count_dirty_cells(logical), 0u);
 }
+
+TEST(TerminalRenderCacheTest, ScrollUpMovesRenderedRowsAndBlanksExposedRows)
+{
+    kernel::display::TerminalRenderCache cache;
+    ASSERT_TRUE(cache.reset(3, 3));
+    cache.clear_rendered();
+    ASSERT_TRUE(cache.mark_rendered(0, 0, 'a'));
+    ASSERT_TRUE(cache.mark_rendered(1, 0, 'b'));
+    ASSERT_TRUE(cache.mark_rendered(0, 1, 'c'));
+    ASSERT_TRUE(cache.mark_rendered(0, 2, 'd'));
+
+    cache.scroll_up(1);
+
+    EXPECT_EQ(cache.glyph_at(0, 0), 'c');
+    EXPECT_EQ(cache.glyph_at(1, 0), kernel::text::kTextBufferBlank);
+    EXPECT_EQ(cache.glyph_at(0, 1), 'd');
+    EXPECT_EQ(cache.glyph_at(0, 2), kernel::text::kTextBufferBlank);
+}

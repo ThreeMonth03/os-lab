@@ -257,6 +257,7 @@ void write_display_stats()
 
     terminal::write_line("  compositor:");
     write_stat("scene compose pixels", stats.compositor.scene_compose_pixels);
+    write_stat("scene compose from backing pixels", stats.compositor.scene_compose_from_backing_pixels);
     write_stat("scene preflight pixels", stats.compositor.scene_preflight_pixels);
     write_stat("scene scroll copy pixels", stats.compositor.scene_scroll_copy_pixels);
     write_stat("scene scroll count", stats.compositor.scene_scroll_count);
@@ -272,6 +273,9 @@ void write_display_stats()
     write_stat("fast-copy pixels", stats.presenter.fast_path_copy_pixels);
     write_stat("front-scroll pixels", stats.presenter.front_scroll_copy_pixels);
     write_stat("overlay blend pixels", stats.presenter.overlay_blend_pixels);
+
+    terminal::write_line("  runtime:");
+    write_stat("terminal backing copy pixels", stats.runtime.terminal_backing_copy_pixels);
 
     display_runtime::reset_stats();
 }

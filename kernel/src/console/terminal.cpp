@@ -41,6 +41,7 @@ bool init()
     const display::runtime::TerminalAppConfig config = display::runtime::terminal_app_config();
     const TerminalRepaintSink repaint_sink{
         display::runtime::submit_terminal_app_damage,
+        display::runtime::record_terminal_backing_copy_pixels,
     };
     if (!config.valid() ||
         !g_terminal_app.reset(config.app_surface, config.foreground, config.background, repaint_sink))
@@ -67,6 +68,7 @@ ScopedUpdate::ScopedUpdate()
     }
 
     display::runtime::begin_frame();
+    g_terminal_app.begin_update();
     active_ = true;
 }
 
@@ -77,6 +79,7 @@ ScopedUpdate::~ScopedUpdate()
         return;
     }
 
+    g_terminal_app.end_update();
     display::runtime::end_frame();
 }
 

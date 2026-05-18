@@ -28,6 +28,7 @@ void begin_frame();
 void end_frame();
 void refresh_desktop();
 void submit_terminal_app_damage(FrameDamage damage);
+void record_terminal_backing_copy_pixels(uint64_t pixels);
 [[nodiscard]] bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback);
 [[nodiscard]] bool register_terminal_caret(compositor::LayerPixelCallback pixel_callback,
                                            compositor::LayerBoundsCallback bounds_callback);

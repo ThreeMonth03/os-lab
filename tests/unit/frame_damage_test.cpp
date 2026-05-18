@@ -102,3 +102,48 @@ TEST(FrameDamageTest, ExposedScrollRegionIsBottomSlice)
 
     expect_rect(exposed, 4, 36, 20, 12);
 }
+
+TEST(FrameDamageTest, LayerAccumulatorCollapsesMultipleScrollsToFinalDirtyRegion)
+{
+    kernel::display::LayerDamageAccumulator accumulator({0, 0, 100, 100});
+
+    kernel::display::FrameDamage first;
+    ASSERT_TRUE(first.append_dirty({0, 70, 80, 10}));
+    ASSERT_TRUE(first.append_scroll({{0, 10, 80, 80}, 10}));
+    ASSERT_TRUE(first.append_dirty({0, 80, 80, 10}, true));
+    accumulator.record(first);
+
+    kernel::display::FrameDamage second;
+    ASSERT_TRUE(second.append_dirty({8, 70, 12, 10}));
+    ASSERT_TRUE(second.append_scroll({{0, 10, 80, 80}, 10}));
+    ASSERT_TRUE(second.append_dirty({0, 80, 80, 10}, true));
+    accumulator.record(second);
+
+    const kernel::display::FrameDamage flush = accumulator.flush();
+
+    EXPECT_FALSE(flush.has_scroll());
+    ASSERT_TRUE(flush.has_dirty());
+    expect_rect(flush.dirty_rect, 0, 10, 80, 80);
+    ASSERT_EQ(flush.step_count, 1u);
+    EXPECT_EQ(flush.steps[0].kind, kernel::display::FrameDamageStepKind::DirtyRect);
+}
+
+TEST(FrameDamageTest, LayerAccumulatorPreservesSingleScrollOrdering)
+{
+    kernel::display::LayerDamageAccumulator accumulator({0, 0, 100, 100});
+
+    kernel::display::FrameDamage damage;
+    ASSERT_TRUE(damage.append_dirty({0, 70, 80, 10}));
+    ASSERT_TRUE(damage.append_scroll({{0, 10, 80, 80}, 10}));
+    ASSERT_TRUE(damage.append_dirty({0, 80, 80, 10}, true));
+    accumulator.record(damage);
+
+    const kernel::display::FrameDamage flush = accumulator.flush();
+
+    ASSERT_TRUE(flush.has_scroll());
+    ASSERT_EQ(flush.step_count, 3u);
+    EXPECT_EQ(flush.steps[0].kind, kernel::display::FrameDamageStepKind::DirtyRect);
+    EXPECT_EQ(flush.steps[1].kind, kernel::display::FrameDamageStepKind::Scroll);
+    EXPECT_EQ(flush.steps[2].kind, kernel::display::FrameDamageStepKind::DirtyRect);
+    EXPECT_TRUE(accumulator.empty());
+}

@@ -76,6 +76,29 @@ private:
     bool final_dirty_fallback_ = false;
 };
 
+class LayerDamageAccumulator
+{
+public:
+    LayerDamageAccumulator() = default;
+    explicit LayerDamageAccumulator(Rect bounds) { reset(bounds); }
+
+    void reset(Rect bounds);
+    void clear();
+    void record(FrameDamage damage);
+    [[nodiscard]] FrameDamage flush();
+
+    Rect bounds() const { return accumulator_.bounds(); }
+    bool empty() const { return accumulator_.empty(); }
+
+private:
+    void record_dirty(Rect rect);
+    void record_scroll(Rect rect, uint64_t distance);
+
+    DamageAccumulator accumulator_;
+    Rect scroll_union_;
+    uint64_t scroll_step_count_ = 0;
+};
+
 [[nodiscard]] Rect exposed_scroll_region(ScrollDamage scroll);
 
 } // namespace kernel::display
