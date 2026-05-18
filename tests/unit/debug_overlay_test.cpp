@@ -42,6 +42,34 @@ TEST(DebugOverlayTest, ClampsBoundsToSmallSurface)
     expect_rect(kernel::display::debug_overlay::bounds_for(4, 40, config), 0, 0, 0, 0);
 }
 
+TEST(DebugOverlayTest, MovesBelowAvoidBoundsWhenPreferredUpperRightOverlaps)
+{
+    const kernel::display::debug_overlay::Config config{200, 20, 4, 25};
+
+    expect_rect(kernel::display::debug_overlay::bounds_for(800,
+                                                           600,
+                                                           {0, 16, 800, 20},
+                                                           config),
+                596,
+                40,
+                200,
+                20);
+}
+
+TEST(DebugOverlayTest, KeepsPreferredBoundsWhenAvoidBoundsDoNotOverlap)
+{
+    const kernel::display::debug_overlay::Config config{200, 20, 4, 25};
+
+    expect_rect(kernel::display::debug_overlay::bounds_for(800,
+                                                           600,
+                                                           {0, 100, 800, 20},
+                                                           config),
+                596,
+                4,
+                200,
+                20);
+}
+
 TEST(DebugOverlayTest, RefreshesOnIntervalOrCounterWrap)
 {
     EXPECT_FALSE(kernel::display::debug_overlay::should_refresh(100, 124, 25));

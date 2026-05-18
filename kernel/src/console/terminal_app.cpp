@@ -16,9 +16,7 @@ namespace
 
 display::WindowFrameConfig terminal_window_frame_config()
 {
-    display::WindowFrameConfig config;
-    config.visible = OS_LAB_TERMINAL_WINDOW_CHROME != 0;
-    return config;
+    return display::terminal_window_frame_config(OS_LAB_TERMINAL_WINDOW_CHROME != 0);
 }
 
 display::Rect text_grid_rect_for(display::Rect viewport, display::AppCellCapacity capacity)

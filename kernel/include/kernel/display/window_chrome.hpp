@@ -27,6 +27,13 @@ struct WindowFrameConfig
     uint64_t resize_handle_size = 12;
 };
 
+constexpr WindowFrameConfig terminal_window_frame_config(bool visible)
+{
+    WindowFrameConfig config;
+    config.visible = visible;
+    return config;
+}
+
 struct WindowFrameMetrics
 {
     Rect outer_bounds;

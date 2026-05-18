@@ -121,6 +121,26 @@ kernel::StringView pointer_target_name(kernel::display::DisplayTargetKind kind)
     return "unknown";
 }
 
+kernel::StringView app_chrome_region_name(kernel::display::WindowChromeHitRegion region)
+{
+    switch (region)
+    {
+    case kernel::display::WindowChromeHitRegion::None:
+        return "none";
+    case kernel::display::WindowChromeHitRegion::Border:
+        return "border";
+    case kernel::display::WindowChromeHitRegion::TitleBar:
+        return "title bar";
+    case kernel::display::WindowChromeHitRegion::Content:
+        return "content";
+    case kernel::display::WindowChromeHitRegion::CloseButton:
+        return "close button";
+    case kernel::display::WindowChromeHitRegion::ResizeHandle:
+        return "resize handle";
+    }
+    return "unknown";
+}
+
 kernel::StringView heap_validation_error_name(kernel::memory::HeapValidationError error)
 {
     switch (error)
@@ -218,6 +238,8 @@ void write_input_stats()
     if (pointer_target.target_kind == kernel::display::DisplayTargetKind::AppSurface)
     {
         write_stat("pointer app surface id", pointer_target.app_surface_id);
+        terminal::write_string("  pointer app region: ");
+        terminal::write_line(app_chrome_region_name(pointer_target.app_chrome_region));
     }
     if (pointer_target.target_kind == kernel::display::DisplayTargetKind::GuiSurface)
     {

@@ -8,6 +8,11 @@ uint64_t min_u64(uint64_t lhs, uint64_t rhs)
     return lhs < rhs ? lhs : rhs;
 }
 
+bool rects_overlap(kernel::display::Rect lhs, kernel::display::Rect rhs)
+{
+    return !kernel::display::intersect_rect(lhs, rhs).empty();
+}
+
 void append_char(char * buffer, size_t capacity, size_t & index, char value)
 {
     if (capacity == 0 || index + 1 >= capacity)
@@ -96,6 +101,33 @@ Rect bounds_for(uint64_t surface_width, uint64_t surface_height, Config config)
     }
 
     return {surface_width - config.margin - width, config.margin, width, height};
+}
+
+Rect bounds_for(uint64_t surface_width, uint64_t surface_height, Rect avoid_bounds, Config config)
+{
+    const Rect preferred = bounds_for(surface_width, surface_height, config);
+    if (preferred.empty() || avoid_bounds.empty() || !rects_overlap(preferred, avoid_bounds))
+    {
+        return preferred;
+    }
+
+    const uint64_t bottom_limit =
+        surface_height > config.margin ? surface_height - config.margin : 0;
+    const uint64_t below_y = avoid_bounds.y + avoid_bounds.height + config.margin;
+    if (below_y < bottom_limit && preferred.height <= bottom_limit - below_y)
+    {
+        return {preferred.x, below_y, preferred.width, preferred.height};
+    }
+
+    if (avoid_bounds.x > config.margin + preferred.width)
+    {
+        return {avoid_bounds.x - config.margin - preferred.width,
+                preferred.y,
+                preferred.width,
+                preferred.height};
+    }
+
+    return preferred;
 }
 
 bool should_refresh(uint64_t last_ticks, uint64_t current_ticks, uint64_t refresh_interval_ticks)

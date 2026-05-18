@@ -92,6 +92,44 @@ TEST(HitTestTest, VisibleAppSurfaceHitsInsideBounds)
               kernel::display::app_surface_display_id_for(kernel::display::kTerminalAppSurfaceId));
     EXPECT_EQ(result.app_surface_id, kernel::display::kTerminalAppSurfaceId);
     EXPECT_EQ(result.gui_surface_id, kernel::display::kInvalidGuiSurfaceId);
+    EXPECT_EQ(result.app_chrome_region, kernel::display::WindowChromeHitRegion::Content);
+}
+
+TEST(HitTestTest, AppSurfaceHitTestReportsWindowChromeRegion)
+{
+    HitTestFixture fixture;
+    fixture.register_terminal_app({10, 20, 320, 200});
+    const kernel::display::WindowFrameConfig chrome =
+        kernel::display::terminal_window_frame_config(true);
+
+    const kernel::display::HitTestResult close =
+        kernel::display::hit_test(fixture.targets,
+                                  fixture.app_surfaces,
+                                  fixture.gui_surfaces,
+                                  318,
+                                  30,
+                                  chrome);
+    const kernel::display::HitTestResult resize =
+        kernel::display::hit_test(fixture.targets,
+                                  fixture.app_surfaces,
+                                  fixture.gui_surfaces,
+                                  325,
+                                  215,
+                                  chrome);
+    const kernel::display::HitTestResult title =
+        kernel::display::hit_test(fixture.targets,
+                                  fixture.app_surfaces,
+                                  fixture.gui_surfaces,
+                                  20,
+                                  30,
+                                  chrome);
+
+    ASSERT_TRUE(close.hit());
+    EXPECT_EQ(close.app_chrome_region, kernel::display::WindowChromeHitRegion::CloseButton);
+    ASSERT_TRUE(resize.hit());
+    EXPECT_EQ(resize.app_chrome_region, kernel::display::WindowChromeHitRegion::ResizeHandle);
+    ASSERT_TRUE(title.hit());
+    EXPECT_EQ(title.app_chrome_region, kernel::display::WindowChromeHitRegion::TitleBar);
 }
 
 TEST(HitTestTest, VisibleGuiPanelHitsInsideBounds)

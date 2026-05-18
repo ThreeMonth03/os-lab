@@ -25,10 +25,12 @@ bool HitTestResult::hit() const
 
 HitTester::HitTester(const DisplayTargetRegistry & targets,
                      const AppSurfaceRegistry & app_surfaces,
-                     const GuiSurfaceRegistry & gui_surfaces)
+                     const GuiSurfaceRegistry & gui_surfaces,
+                     WindowFrameConfig app_chrome_config)
     : targets_(targets)
     , app_surfaces_(app_surfaces)
     , gui_surfaces_(gui_surfaces)
+    , app_chrome_config_(app_chrome_config)
 {
 }
 
@@ -68,12 +70,15 @@ HitTestResult HitTester::hit_app_surfaces(uint64_t x, uint64_t y) const
             continue;
         }
 
-        return {
-            target->id,
-            target->kind,
-            surface->id,
-            kInvalidGuiSurfaceId,
-        };
+        const WindowFrameMetrics metrics =
+            WindowChrome::metrics_for(surface->bounds, app_chrome_config_);
+        const WindowChromeHitRegion chrome_region = WindowChrome::hit_test(metrics, x, y);
+        if (chrome_region == WindowChromeHitRegion::None)
+        {
+            continue;
+        }
+
+        return {target->id, target->kind, surface->id, kInvalidGuiSurfaceId, chrome_region};
     }
 
     return {};
@@ -97,12 +102,11 @@ HitTestResult HitTester::hit_gui_surfaces(uint64_t x, uint64_t y) const
             continue;
         }
 
-        return {
-            target->id,
-            target->kind,
-            kInvalidAppSurfaceId,
-            surface->id,
-        };
+        return {target->id,
+                target->kind,
+                kInvalidAppSurfaceId,
+                surface->id,
+                WindowChromeHitRegion::None};
     }
 
     return {};
@@ -123,9 +127,10 @@ HitTestResult hit_test(const DisplayTargetRegistry & targets,
                        const AppSurfaceRegistry & app_surfaces,
                        const GuiSurfaceRegistry & gui_surfaces,
                        uint64_t x,
-                       uint64_t y)
+                       uint64_t y,
+                       WindowFrameConfig app_chrome_config)
 {
-    return HitTester(targets, app_surfaces, gui_surfaces).hit_test(x, y);
+    return HitTester(targets, app_surfaces, gui_surfaces, app_chrome_config).hit_test(x, y);
 }
 
 } // namespace kernel::display
