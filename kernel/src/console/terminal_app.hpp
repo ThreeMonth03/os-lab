@@ -51,6 +51,7 @@ struct TerminalCursorState
 enum class TerminalResizePolicy
 {
     Clear,
+    PreserveVisibleContent,
 };
 
 class TerminalApp
@@ -66,7 +67,8 @@ public:
                display::Color background,
                TerminalRepaintSink repaint_sink);
     bool resize(display::AppSurface app_surface,
-                TerminalResizePolicy policy = TerminalResizePolicy::Clear);
+                TerminalResizePolicy policy = TerminalResizePolicy::PreserveVisibleContent);
+    void sync_surface_state(display::AppSurface app_surface);
 
     bool ready() const;
     display::Rect bounds() const { return app_surface_.bounds; }
@@ -122,7 +124,7 @@ private:
                                       size_t & bytes,
                                       display::BackingSurface & backing_storage,
                                       display::ScrollMappedSurface & backing) const;
-    bool replace_surface(display::AppSurface app_surface);
+    bool replace_surface(display::AppSurface app_surface, TerminalResizePolicy policy);
     bool update_scope_active() const { return update_depth_ > 0; }
     bool pending_backing_scroll() const { return pending_scroll_rows_ > 0; }
     void record_pending_dirty(display::Rect rect);
@@ -146,6 +148,7 @@ private:
     display::Color background_;
     text::TextConsole console_;
     text::TextBuffer text_buffer_;
+    text::TextBuffer resize_snapshot_;
     display::TerminalRenderCache render_cache_;
     display::TerminalRepaintState repaint_;
     TerminalCursorState cursor_;

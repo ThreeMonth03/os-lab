@@ -29,6 +29,11 @@ display::Rect text_grid_rect_for(display::Rect viewport, display::AppCellCapacit
     };
 }
 
+bool should_preserve_text(TerminalResizePolicy policy)
+{
+    return policy == TerminalResizePolicy::PreserveVisibleContent;
+}
+
 } // namespace
 
 bool TerminalApp::reset(display::AppSurface app_surface,
@@ -56,7 +61,7 @@ bool TerminalApp::reset(display::AppSurface app_surface,
     repaint_sink_ = repaint_sink;
     foreground_ = foreground;
     background_ = background;
-    return replace_surface(app_surface);
+    return replace_surface(app_surface, TerminalResizePolicy::Clear);
 }
 
 bool TerminalApp::ready() const
@@ -96,7 +101,7 @@ bool TerminalApp::allocate_backing_surface_for(display::AppSurface app_surface,
     return backing.ready();
 }
 
-bool TerminalApp::replace_surface(display::AppSurface app_surface)
+bool TerminalApp::replace_surface(display::AppSurface app_surface, TerminalResizePolicy policy)
 {
     const display::WindowFrameMetrics metrics = frame_metrics_for(app_surface.bounds);
     const display::AppCellCapacity capacity = cell_capacity_for(app_surface);
@@ -115,6 +120,15 @@ bool TerminalApp::replace_surface(display::AppSurface app_surface)
         return false;
     }
 
+    const bool preserve_text = should_preserve_text(policy) && text_buffer_.ready();
+    const uint64_t previous_cursor_column = console_.cursor_column();
+    const uint64_t previous_cursor_row = console_.cursor_row();
+    const bool previous_cursor_visible = cursor_.visible;
+    if (preserve_text)
+    {
+        resize_snapshot_ = text_buffer_;
+    }
+
     if (backing_memory_ != nullptr && !kernel::memory::heap::free(backing_memory_))
     {
         if (!kernel::memory::heap::free(new_memory))
@@ -131,32 +145,51 @@ bool TerminalApp::replace_surface(display::AppSurface app_surface)
     backing_bytes_ = new_bytes;
     backing_storage_ = new_storage;
     backing_.reset(backing_storage_, text_grid_rect_for(text_viewport_, capacity));
-    if (!text_buffer_.reset(capacity.columns, capacity.rows) ||
-        !render_cache_.reset(capacity.columns, capacity.rows))
+
+    text::TextBuffer::ResizeResult resize_result;
+    if (preserve_text)
+    {
+        resize_result = text_buffer_.resize_preserving_visible_content(resize_snapshot_,
+                                                                       capacity.columns,
+                                                                       capacity.rows,
+                                                                       previous_cursor_column,
+                                                                       previous_cursor_row);
+    }
+    else
+    {
+        resize_result.resized = text_buffer_.reset(capacity.columns, capacity.rows);
+    }
+
+    if (!resize_result.resized || !render_cache_.reset(capacity.columns, capacity.rows))
     {
         return false;
     }
     console_.reset(capacity.columns, capacity.rows);
+    console_.set_cursor(resize_result.cursor_column, resize_result.cursor_row);
     renderer_.reset(backing_, text_viewport_, foreground_, background_);
     repaint_.reset(app_surface_.bounds);
     cursor_.reset();
+    if (previous_cursor_visible && app_surface_.visible())
+    {
+        cursor_.show(console_.cursor_column(), console_.cursor_row());
+    }
     update_depth_ = 0;
     pending_scroll_rows_ = 0;
     pending_dirty_after_scroll_ = {};
     paint_window_chrome();
     renderer_.clear_screen();
-    render_cache_.clear_rendered();
+    repaint_text_layer();
     return renderer_.ready();
 }
 
 bool TerminalApp::resize(display::AppSurface app_surface, TerminalResizePolicy policy)
 {
-    if (!ready() || policy != TerminalResizePolicy::Clear || !repaint_sink_.ready())
+    if (!ready() || !repaint_sink_.ready())
     {
         return false;
     }
 
-    if (!replace_surface(app_surface))
+    if (!replace_surface(app_surface, policy))
     {
         return false;
     }
@@ -164,21 +197,36 @@ bool TerminalApp::resize(display::AppSurface app_surface, TerminalResizePolicy p
     return true;
 }
 
+void TerminalApp::sync_surface_state(display::AppSurface app_surface)
+{
+    if (!app_surface.valid())
+    {
+        return;
+    }
+
+    app_surface_ = app_surface;
+    if (!app_surface_.visible() || app_surface_.closed())
+    {
+        cursor_.hide();
+    }
+}
+
 display::PixelSample TerminalApp::sample_pixel(uint64_t x, uint64_t y) const
 {
-    return ready() ? backing_.sample(x, y) : display::transparent_pixel();
+    return ready() && app_surface_.visible() ? backing_.sample(x, y) : display::transparent_pixel();
 }
 
 display::PixelSample TerminalApp::sample_caret_pixel(uint64_t x, uint64_t y) const
 {
-    return ready() && cursor_.visible && !display::intersect_rect(caret_bounds(), {x, y, 1, 1}).empty()
+    return ready() && app_surface_.visible() && cursor_.visible &&
+                   !display::intersect_rect(caret_bounds(), {x, y, 1, 1}).empty()
                ? display::opaque_pixel(renderer_.foreground())
                : display::transparent_pixel();
 }
 
 const uint32_t * TerminalApp::row_pixels(uint64_t y) const
 {
-    return ready() ? backing_.row_pixels(y) : nullptr;
+    return ready() && app_surface_.visible() ? backing_.row_pixels(y) : nullptr;
 }
 
 uint64_t TerminalApp::text_grid_width() const
@@ -315,7 +363,8 @@ display::Rect TerminalApp::caret_rect(uint64_t column, uint64_t row) const
 
 display::Rect TerminalApp::caret_bounds() const
 {
-    return ready() && cursor_.visible ? caret_rect(cursor_.column, cursor_.row) : display::Rect{};
+    return ready() && app_surface_.visible() && cursor_.visible ? caret_rect(cursor_.column, cursor_.row)
+                                                                : display::Rect{};
 }
 
 display::Rect TerminalApp::row_tail_rect(uint64_t column, uint64_t row) const

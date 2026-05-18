@@ -13,9 +13,21 @@ inline constexpr char kTextBufferBlank = '\0';
 class TextBuffer
 {
 public:
+    struct ResizeResult
+    {
+        bool resized = false;
+        uint64_t cursor_column = 0;
+        uint64_t cursor_row = 0;
+    };
+
     TextBuffer() = default;
 
     [[nodiscard]] bool reset(uint64_t columns, uint64_t rows);
+    [[nodiscard]] ResizeResult resize_preserving_visible_content(const TextBuffer & previous,
+                                                                 uint64_t columns,
+                                                                 uint64_t rows,
+                                                                 uint64_t cursor_column,
+                                                                 uint64_t cursor_row);
     void clear();
 
     bool ready() const { return columns_ > 0 && rows_ > 0; }
