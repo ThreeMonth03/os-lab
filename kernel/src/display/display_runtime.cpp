@@ -15,7 +15,17 @@
 #include "kernel/display/framebuffer_presenter.hpp"
 #include "kernel/display/gui_surface.hpp"
 #include "kernel/display/scene_buffer.hpp"
+#include "kernel/display/window_chrome.hpp"
+#include "kernel/display/window_interaction.hpp"
 #include "kernel/memory/heap.hpp"
+
+#ifndef OS_LAB_TERMINAL_WINDOW_CHROME
+#define OS_LAB_TERMINAL_WINDOW_CHROME 0
+#endif
+
+#ifndef OS_LAB_TERMINAL_WINDOW_INTERACTION
+#define OS_LAB_TERMINAL_WINDOW_INTERACTION 0
+#endif
 
 namespace
 {
@@ -24,6 +34,26 @@ namespace debug_overlay = kernel::display::debug_overlay;
 namespace desktop_background = kernel::display::desktop_background;
 namespace display = kernel::display;
 namespace gui_panel = kernel::display::gui_panel;
+
+enum class TerminalWindowInteractionMode
+{
+    None,
+    Resize,
+    Close,
+};
+
+struct TerminalWindowInteractionState
+{
+    bool previous_primary_down = false;
+    TerminalWindowInteractionMode mode = TerminalWindowInteractionMode::None;
+    display::WindowResizeDrag resize_drag;
+
+    void reset()
+    {
+        mode = TerminalWindowInteractionMode::None;
+        resize_drag = {};
+    }
+};
 
 struct DisplayRuntimeState
 {
@@ -41,9 +71,12 @@ struct DisplayRuntimeState
     display::Color app_foreground;
     display::Color app_background;
     display::HitTestResult pointer_target;
+    TerminalWindowInteractionState terminal_window_interaction;
     display::runtime::AppSurfaceResizeCallback app_resize_callback = nullptr;
     uint32_t * scene_memory = nullptr;
     size_t scene_bytes = 0;
+    uint64_t terminal_cell_width = 0;
+    uint64_t terminal_cell_height = 0;
 };
 
 DisplayRuntimeState g_state;
@@ -84,6 +117,23 @@ display::Color color_for(const limine_framebuffer & framebuffer, display::RgbCol
 display::Rect framebuffer_bounds(const limine_framebuffer & framebuffer)
 {
     return {0, 0, framebuffer.width, framebuffer.height};
+}
+
+display::WindowFrameConfig terminal_frame_config()
+{
+    return display::terminal_window_frame_config(OS_LAB_TERMINAL_WINDOW_CHROME != 0);
+}
+
+bool terminal_window_interaction_enabled()
+{
+    return OS_LAB_TERMINAL_WINDOW_CHROME != 0 && OS_LAB_TERMINAL_WINDOW_INTERACTION != 0;
+}
+
+display::Rect debug_overlay_avoid_bounds(display::Rect app_bounds)
+{
+    const display::WindowFrameMetrics metrics =
+        display::WindowChrome::metrics_for(app_bounds, terminal_frame_config());
+    return metrics.visible ? metrics.title_bar_bounds : display::Rect{};
 }
 
 display::Rect primary_app_bounds_for(const limine_framebuffer & framebuffer,
@@ -323,6 +373,16 @@ void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
     }
 }
 
+display::WindowResizeConstraints terminal_resize_constraints()
+{
+    return {
+        g_state.scene.bounds(),
+        g_state.terminal_cell_width,
+        g_state.terminal_cell_height,
+        terminal_frame_config(),
+    };
+}
+
 } // namespace
 
 namespace kernel::display::runtime
@@ -350,6 +410,8 @@ bool init(uint64_t terminal_cell_width, uint64_t terminal_cell_height)
 
     const gui_panel::Config panel_config = gui_panel::default_config();
     constexpr display::DisplayPalette palette = display::default_display_palette();
+    g_state.terminal_cell_width = terminal_cell_width;
+    g_state.terminal_cell_height = terminal_cell_height;
     if (!init_desktop_background_layer(*framebuffer, palette))
     {
         return false;
@@ -367,10 +429,12 @@ bool init(uint64_t terminal_cell_width, uint64_t terminal_cell_height)
         return false;
     }
 
-    init_optional_debug_overlay_layer(
-        *framebuffer,
-        palette,
-        debug_overlay::bounds_for(framebuffer->width, framebuffer->height));
+    init_optional_debug_overlay_layer(*framebuffer,
+                                      palette,
+                                      debug_overlay::bounds_for(
+                                          framebuffer->width,
+                                          framebuffer->height,
+                                          debug_overlay_avoid_bounds(g_state.primary_app_surface.bounds)));
 
     return true;
 }
@@ -657,8 +721,89 @@ void update_pointer_target(uint64_t x, uint64_t y)
         return;
     }
 
-    g_state.pointer_target =
-        display::hit_test(g_state.targets, g_state.app_surfaces, g_state.gui_surfaces, x, y);
+    g_state.pointer_target = display::hit_test(g_state.targets,
+                                               g_state.app_surfaces,
+                                               g_state.gui_surfaces,
+                                               x,
+                                               y,
+                                               terminal_frame_config());
+}
+
+TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
+                                                               uint64_t y,
+                                                               bool primary_down)
+{
+    TerminalWindowInteractionResult result;
+    if (!ready() || !terminal_window_interaction_enabled())
+    {
+        g_state.terminal_window_interaction.previous_primary_down = primary_down;
+        return result;
+    }
+
+    const bool pressed = primary_down && !g_state.terminal_window_interaction.previous_primary_down;
+    const bool released = !primary_down && g_state.terminal_window_interaction.previous_primary_down;
+
+    if (pressed && g_state.pointer_target.target_kind == display::DisplayTargetKind::AppSurface &&
+        g_state.pointer_target.app_surface_id == display::kTerminalAppSurfaceId)
+    {
+        if (g_state.pointer_target.app_chrome_region == display::WindowChromeHitRegion::ResizeHandle)
+        {
+            g_state.terminal_window_interaction.mode = TerminalWindowInteractionMode::Resize;
+            g_state.terminal_window_interaction.resize_drag =
+                display::WindowResizeDrag::begin(g_state.primary_app_surface.bounds,
+                                                 x,
+                                                 y,
+                                                 terminal_resize_constraints());
+            result.handled = true;
+        }
+        else if (g_state.pointer_target.app_chrome_region ==
+                 display::WindowChromeHitRegion::CloseButton)
+        {
+            g_state.terminal_window_interaction.mode = TerminalWindowInteractionMode::Close;
+            result.handled = true;
+        }
+    }
+
+    if (primary_down && g_state.terminal_window_interaction.mode != TerminalWindowInteractionMode::None)
+    {
+        result.handled = true;
+    }
+
+    if (released)
+    {
+        if (g_state.terminal_window_interaction.mode == TerminalWindowInteractionMode::Resize)
+        {
+            const display::Rect resized_bounds =
+                g_state.terminal_window_interaction.resize_drag.bounds_for(x, y);
+            result.handled = true;
+            if (!resized_bounds.empty())
+            {
+                const bool resized =
+                    resize_app_surface(display::kTerminalAppSurfaceId, resized_bounds);
+                if (resized)
+                {
+                    update_pointer_target(x, y);
+                }
+            }
+        }
+        else if (g_state.terminal_window_interaction.mode == TerminalWindowInteractionMode::Close)
+        {
+            result.handled = true;
+            if (g_state.pointer_target.target_kind == display::DisplayTargetKind::AppSurface &&
+                g_state.pointer_target.app_surface_id == display::kTerminalAppSurfaceId &&
+                g_state.pointer_target.app_chrome_region == display::WindowChromeHitRegion::CloseButton)
+            {
+                result.clear_keyboard_focus =
+                    set_app_surface_visible(display::kTerminalAppSurfaceId, false);
+                update_pointer_target(x, y);
+            }
+        }
+
+        g_state.terminal_window_interaction.reset();
+    }
+
+    g_state.terminal_window_interaction.previous_primary_down = primary_down;
+    return result;
 }
 
 } // namespace kernel::display::runtime

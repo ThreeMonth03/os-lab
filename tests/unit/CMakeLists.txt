@@ -38,6 +38,7 @@ add_executable(os_lab_unit_tests
     text_buffer_test.cpp
     text_console_test.cpp
     window_chrome_test.cpp
+    window_interaction_test.cpp
 )
 target_link_libraries(os_lab_unit_tests PRIVATE
     os_lab_host_logic

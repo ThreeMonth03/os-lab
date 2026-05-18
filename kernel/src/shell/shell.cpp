@@ -302,8 +302,15 @@ void handle_mouse_move_event(const kernel::input::MouseMoveEvent & event)
     if (!event.x_overflow && !event.y_overflow)
     {
         mouse_cursor::move_by(event.delta_x, event.delta_y);
-        const mouse_cursor::Position position = mouse_cursor::position();
-        display_runtime::update_pointer_target(position.x, position.y);
+    }
+
+    const mouse_cursor::Position position = mouse_cursor::position();
+    display_runtime::update_pointer_target(position.x, position.y);
+    const display_runtime::TerminalWindowInteractionResult window_result =
+        display_runtime::handle_terminal_window_pointer(position.x, position.y, event.left_button);
+    if (window_result.clear_keyboard_focus)
+    {
+        kernel::input::set_focus(kernel::input::InputFocus::None);
     }
 }
 

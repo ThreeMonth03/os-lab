@@ -47,6 +47,8 @@ mapfile -d '' sources < <(
         "${project_root}/kernel/src/display/scroll_mapped_surface.cpp" \
         "${project_root}/kernel/src/display/terminal_render_cache.cpp" \
         "${project_root}/kernel/src/display/terminal_repaint_state.cpp" \
+        "${project_root}/kernel/src/display/window_chrome.cpp" \
+        "${project_root}/kernel/src/display/window_interaction.cpp" \
         "${project_root}/kernel/src/input/input_router.cpp" \
         "${project_root}/kernel/src/input/keyboard_decoder.cpp" \
         "${project_root}/kernel/src/input/mouse_packet_decoder.cpp" \
