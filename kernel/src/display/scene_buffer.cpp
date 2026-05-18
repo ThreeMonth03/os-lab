@@ -33,6 +33,11 @@ void SceneBuffer::put_pixel(uint64_t x, uint64_t y, Color color)
     backing_.put_pixel(x, y, color);
 }
 
+void SceneBuffer::put_pixels(uint64_t x, uint64_t y, const uint32_t * pixels, uint64_t count)
+{
+    backing_.put_pixels(x, y, pixels, count);
+}
+
 void SceneBuffer::fill_rect(Rect rect, Color color)
 {
     backing_.fill_rect(rect, color);

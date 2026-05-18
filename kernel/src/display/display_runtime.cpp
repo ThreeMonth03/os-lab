@@ -454,14 +454,14 @@ void submit_terminal_app_damage(FrameDamage damage)
     submit_present_operations_to_frame(present_operations);
 }
 
-void record_terminal_backing_copy_pixels(uint64_t pixels)
-{
-    g_state.stats.terminal_backing_copy_pixels += pixels;
-}
-
 bool register_terminal_app_pixel_source(compositor::LayerPixelCallback callback)
 {
     return display::compositor::register_layer_pixel_callback(display::LayerKind::AppSurface, callback);
+}
+
+bool register_terminal_app_row_source(compositor::LayerRowCallback callback)
+{
+    return display::compositor::register_layer_row_callback(display::LayerKind::AppSurface, callback);
 }
 
 bool register_terminal_caret(compositor::LayerPixelCallback pixel_callback,

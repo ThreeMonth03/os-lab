@@ -19,6 +19,12 @@ struct LayerBoundsCallbackSlot
     kernel::display::compositor::LayerBoundsCallback callback = nullptr;
 };
 
+struct LayerRowCallbackSlot
+{
+    kernel::display::LayerKind kind = kernel::display::LayerKind::None;
+    kernel::display::compositor::LayerRowCallback callback = nullptr;
+};
+
 constexpr kernel::display::LayerKind kTopDownLayerOrder[] = {
     kernel::display::LayerKind::MouseCursor,
     kernel::display::LayerKind::TerminalCaret,
@@ -30,6 +36,7 @@ constexpr kernel::display::LayerKind kTopDownLayerOrder[] = {
 
 LayerPixelCallbackSlot g_layer_pixel_callbacks[kernel::display::kMaxCompositorLayers] = {};
 LayerBoundsCallbackSlot g_layer_bounds_callbacks[kernel::display::kMaxCompositorLayers] = {};
+LayerRowCallbackSlot g_layer_row_callbacks[kernel::display::kMaxCompositorLayers] = {};
 kernel::display::SceneBuffer * g_scene_buffer = nullptr;
 kernel::display::FramebufferPresenter * g_presenter = nullptr;
 kernel::display::CompositorRuntimeStats g_stats;
@@ -186,6 +193,18 @@ kernel::display::compositor::LayerBoundsCallback layer_bounds_callback_for(
     return nullptr;
 }
 
+kernel::display::compositor::LayerRowCallback layer_row_callback_for(kernel::display::LayerKind kind)
+{
+    for (auto & slot : g_layer_row_callbacks)
+    {
+        if (slot.kind == kind)
+        {
+            return slot.callback;
+        }
+    }
+    return nullptr;
+}
+
 bool presenter_overlay_layer(kernel::display::LayerKind kind)
 {
     return kind == kernel::display::LayerKind::MouseCursor ||
@@ -218,6 +237,17 @@ kernel::display::PixelSample layer_pixel_reader(const kernel::display::LayerPixe
         return kernel::display::transparent_pixel();
     }
     return callback(x, y);
+}
+
+const uint32_t * layer_row_reader(const kernel::display::LayerPixelSource & source, uint64_t y)
+{
+    const kernel::display::compositor::LayerRowCallback callback =
+        layer_row_callback_for(source.kind);
+    if (callback == nullptr)
+    {
+        return nullptr;
+    }
+    return callback(y);
 }
 
 const kernel::display::LayerPixelSource * pixel_source_for(
@@ -253,6 +283,7 @@ size_t collect_pixel_sources(kernel::display::LayerPixelSource (&sources)[kernel
             layer->occlusion,
             nullptr,
             layer_pixel_reader,
+            layer_row_callback_for(kind) == nullptr ? nullptr : layer_row_reader,
             layer->visible,
         };
     }
@@ -269,6 +300,24 @@ bool paint_source_region(const kernel::display::LayerPixelSource & source,
     }
 
     bool complete = true;
+    if (source.occlusion == kernel::display::LayerOcclusion::Opaque && source.read_row != nullptr)
+    {
+        for (uint64_t row = 0; row < rect.height; ++row)
+        {
+            const uint64_t y = rect.y + row;
+            const uint32_t * pixels = source.read_row(source, y);
+            if (pixels == nullptr)
+            {
+                complete = false;
+                break;
+            }
+            g_scene_buffer->put_pixels(rect.x, y, pixels + (rect.x - source.bounds.x), rect.width);
+            g_stats.scene_compose_pixels += rect.width;
+            g_stats.scene_compose_from_backing_pixels += rect.width;
+        }
+        return complete;
+    }
+
     for (uint64_t row = 0; row < rect.height; ++row)
     {
         const uint64_t y = rect.y + row;
@@ -523,6 +572,10 @@ void init(Rect bounds)
     {
         slot = {};
     }
+    for (auto & slot : g_layer_row_callbacks)
+    {
+        slot = {};
+    }
 }
 
 void set_scene_buffer(SceneBuffer & scene_buffer)
@@ -570,6 +623,34 @@ bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback)
             {
                 refresh_presenter_overlays();
             }
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool register_layer_row_callback(LayerKind kind, LayerRowCallback callback)
+{
+    if (kind == LayerKind::None || callback == nullptr)
+    {
+        return false;
+    }
+
+    for (auto & slot : g_layer_row_callbacks)
+    {
+        if (slot.kind == kind)
+        {
+            slot.callback = callback;
+            return true;
+        }
+    }
+
+    for (auto & slot : g_layer_row_callbacks)
+    {
+        if (slot.kind == LayerKind::None)
+        {
+            slot = {kind, callback};
             return true;
         }
     }

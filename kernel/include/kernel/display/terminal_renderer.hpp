@@ -2,8 +2,8 @@
 
 #include <stdint.h>
 
-#include "kernel/display/backing_surface.hpp"
 #include "kernel/display/display.hpp"
+#include "kernel/display/scroll_mapped_surface.hpp"
 #include "kernel/text/font5x7.hpp"
 
 namespace kernel::display
@@ -18,7 +18,7 @@ public:
 
     TerminalRenderer() = default;
 
-    void reset(BackingSurface & surface, Rect viewport, Color foreground, Color background);
+    void reset(ScrollMappedSurface & surface, Rect viewport, Color foreground, Color background);
 
     bool ready() const { return surface_ != nullptr && surface_->ready() && !viewport_.empty(); }
     Rect viewport() const { return viewport_; }
@@ -32,7 +32,7 @@ public:
 private:
     void fill_rect(uint64_t x, uint64_t y, uint64_t width, uint64_t height, Color color);
 
-    BackingSurface * surface_ = nullptr;
+    ScrollMappedSurface * surface_ = nullptr;
     Rect viewport_;
     Color foreground_;
     Color background_;

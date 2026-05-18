@@ -28,6 +28,7 @@ add_library(os_lab_kernel_display OBJECT
     mouse_cursor.cpp
     present_operation_list.cpp
     scene_buffer.cpp
+    scroll_mapped_surface.cpp
     terminal_render_cache.cpp
     terminal_repaint_state.cpp
     terminal_renderer.cpp

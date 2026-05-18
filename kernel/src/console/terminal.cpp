@@ -16,6 +16,11 @@ kernel::display::PixelSample sample_terminal_pixel(uint64_t x, uint64_t y)
     return g_terminal_app.sample_pixel(x, y);
 }
 
+const uint32_t * terminal_row_pixels(uint64_t y)
+{
+    return g_terminal_app.row_pixels(y);
+}
+
 kernel::display::PixelSample sample_terminal_caret_pixel(uint64_t x, uint64_t y)
 {
     return g_terminal_app.sample_caret_pixel(x, y);
@@ -39,10 +44,7 @@ bool init()
     }
 
     const display::runtime::TerminalAppConfig config = display::runtime::terminal_app_config();
-    const TerminalRepaintSink repaint_sink{
-        display::runtime::submit_terminal_app_damage,
-        display::runtime::record_terminal_backing_copy_pixels,
-    };
+    const TerminalRepaintSink repaint_sink{display::runtime::submit_terminal_app_damage};
     if (!config.valid() ||
         !g_terminal_app.reset(config.app_surface, config.foreground, config.background, repaint_sink))
     {
@@ -50,6 +52,7 @@ bool init()
     }
 
     if (!display::runtime::register_terminal_app_pixel_source(sample_terminal_pixel) ||
+        !display::runtime::register_terminal_app_row_source(terminal_row_pixels) ||
         !display::runtime::register_terminal_caret(sample_terminal_caret_pixel, terminal_caret_bounds))
     {
         return false;

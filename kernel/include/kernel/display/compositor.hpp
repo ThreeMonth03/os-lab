@@ -84,14 +84,49 @@ struct LayerRepaintPlan
 struct LayerPixelSource;
 
 using LayerPixelReader = PixelSample (*)(const LayerPixelSource & source, uint64_t x, uint64_t y);
+using LayerRowReader = const uint32_t * (*)(const LayerPixelSource & source, uint64_t y);
 
 struct LayerPixelSource
 {
+    LayerPixelSource() = default;
+    constexpr LayerPixelSource(LayerKind next_kind,
+                               Rect next_bounds,
+                               LayerOcclusion next_occlusion,
+                               const void * next_context,
+                               LayerPixelReader next_read,
+                               bool next_visible)
+        : kind(next_kind)
+        , bounds(next_bounds)
+        , occlusion(next_occlusion)
+        , context(next_context)
+        , read(next_read)
+        , visible(next_visible)
+    {
+    }
+
+    constexpr LayerPixelSource(LayerKind next_kind,
+                               Rect next_bounds,
+                               LayerOcclusion next_occlusion,
+                               const void * next_context,
+                               LayerPixelReader next_read,
+                               LayerRowReader next_read_row,
+                               bool next_visible)
+        : kind(next_kind)
+        , bounds(next_bounds)
+        , occlusion(next_occlusion)
+        , context(next_context)
+        , read(next_read)
+        , read_row(next_read_row)
+        , visible(next_visible)
+    {
+    }
+
     LayerKind kind = LayerKind::None;
     Rect bounds;
     LayerOcclusion occlusion = LayerOcclusion::Transparent;
     const void * context = nullptr;
     LayerPixelReader read = nullptr;
+    LayerRowReader read_row = nullptr;
     bool visible = true;
 
     [[nodiscard]] bool valid() const;
@@ -174,6 +209,7 @@ namespace compositor
 {
 
 using LayerPixelCallback = PixelSample (*)(uint64_t x, uint64_t y);
+using LayerRowCallback = const uint32_t * (*)(uint64_t y);
 using LayerBoundsCallback = Rect (*)();
 
 void init(Rect bounds);
@@ -181,6 +217,7 @@ void set_scene_buffer(SceneBuffer & scene_buffer);
 void set_presenter(FramebufferPresenter & presenter);
 [[nodiscard]] bool register_surface(CompositedSurfaceDescriptor surface);
 [[nodiscard]] bool register_layer_pixel_callback(LayerKind kind, LayerPixelCallback callback);
+[[nodiscard]] bool register_layer_row_callback(LayerKind kind, LayerRowCallback callback);
 [[nodiscard]] bool register_layer_bounds_callback(LayerKind kind, LayerBoundsCallback callback);
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
 [[nodiscard]] PresentOperationList update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage);

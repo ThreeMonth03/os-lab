@@ -29,6 +29,7 @@ add_executable(os_lab_unit_tests
     pointer_state_test.cpp
     present_operation_list_test.cpp
     shell_command_test.cpp
+    scroll_mapped_surface_test.cpp
     string_view_test.cpp
     terminal_render_cache_test.cpp
     terminal_renderer_test.cpp

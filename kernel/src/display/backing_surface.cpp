@@ -174,6 +174,42 @@ void BackingSurface::put_pixel(uint64_t x, uint64_t y, Color color)
     pixels_[(local_y * stride_pixels_) + local_x] = color.value;
 }
 
+void BackingSurface::put_pixels(uint64_t x, uint64_t y, const uint32_t * pixels, uint64_t count)
+{
+    if (!ready() || pixels == nullptr || count == 0 || y < bounds_.y ||
+        y >= bounds_.y + bounds_.height)
+    {
+        return;
+    }
+
+    uint64_t source_offset = 0;
+    if (x < bounds_.x)
+    {
+        source_offset = bounds_.x - x;
+        if (source_offset >= count)
+        {
+            return;
+        }
+        count -= source_offset;
+        x = bounds_.x;
+    }
+
+    const uint64_t right = bounds_.x + bounds_.width;
+    if (x >= right)
+    {
+        return;
+    }
+    if (count > right - x)
+    {
+        count = right - x;
+    }
+
+    const uint64_t local_x = x - bounds_.x;
+    const uint64_t local_y = y - bounds_.y;
+    uint32_t * destination = pixels_ + (local_y * stride_pixels_) + local_x;
+    memmove(destination, pixels + source_offset, count * sizeof(uint32_t));
+}
+
 void BackingSurface::fill_rect(Rect rect, Color color)
 {
     rect = intersect_rect(bounds_, rect);

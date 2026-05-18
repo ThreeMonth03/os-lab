@@ -123,6 +123,21 @@ TEST(DisplayTest, BackingSurfaceUsesAbsoluteBounds)
     EXPECT_EQ(surface.sample(11, 21).color.value, 7u);
 }
 
+TEST(DisplayTest, BackingSurfacePutPixelsWritesClippedRows)
+{
+    uint32_t pixels[12] = {};
+    const uint32_t row[] = {1, 2, 3, 4, 5};
+    kernel::display::BackingSurface surface(pixels, {10, 20, 4, 3}, 4);
+
+    surface.put_pixels(9, 21, row, 5);
+
+    EXPECT_EQ(surface.pixel(10, 21).value, 2u);
+    EXPECT_EQ(surface.pixel(11, 21).value, 3u);
+    EXPECT_EQ(surface.pixel(12, 21).value, 4u);
+    EXPECT_EQ(surface.pixel(13, 21).value, 5u);
+    EXPECT_EQ(surface.pixel(10, 20).value, 0u);
+}
+
 TEST(DisplayTest, ComputesBackingSurfaceStorageBytes)
 {
     size_t bytes = 0;

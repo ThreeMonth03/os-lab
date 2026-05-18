@@ -22,6 +22,7 @@ set(OS_LAB_HOST_LOGIC_DISPLAY_SOURCES
     ${PROJECT_SOURCE_DIR}/kernel/src/display/image_view.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/present_operation_list.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/scene_buffer.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/display/scroll_mapped_surface.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/terminal_render_cache.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/terminal_repaint_state.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/terminal_renderer.cpp

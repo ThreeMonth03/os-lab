@@ -5,6 +5,7 @@ namespace kernel::console
 
 void TerminalApp::repaint_text_layer()
 {
+    backing_.reset_scroll();
     renderer_.clear_screen();
     for (uint64_t row = 0; row < text_buffer_.rows(); ++row)
     {
@@ -51,22 +52,13 @@ display::Rect TerminalApp::scroll_backing_text_grid_up(uint64_t rows)
 
     if (rows >= text_buffer_.rows())
     {
+        backing_.reset_scroll();
         renderer_.clear_rect(grid);
         return grid;
     }
 
     const uint64_t distance = rows * kCellHeight;
-    const display::Rect source = {
-        grid.x,
-        grid.y + distance,
-        grid.width,
-        grid.height - distance,
-    };
-    const display::Rect moved = backing_.copy_rect(source, grid.x, grid.y);
-    if (repaint_sink_.record_backing_copy_pixels != nullptr)
-    {
-        repaint_sink_.record_backing_copy_pixels(moved.width * moved.height);
-    }
+    backing_.scroll_up(distance);
 
     const display::Rect exposed = {
         grid.x,
@@ -75,7 +67,7 @@ display::Rect TerminalApp::scroll_backing_text_grid_up(uint64_t rows)
         distance,
     };
     renderer_.clear_rect(exposed);
-    return display::bounding_rect(moved, exposed);
+    return grid;
 }
 
 display::Rect TerminalApp::render_text_cells_in_rect(display::Rect rect)

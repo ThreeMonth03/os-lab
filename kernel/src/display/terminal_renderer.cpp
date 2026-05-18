@@ -3,7 +3,7 @@
 namespace kernel::display
 {
 
-void TerminalRenderer::reset(BackingSurface & surface, Rect viewport, Color foreground, Color background)
+void TerminalRenderer::reset(ScrollMappedSurface & surface, Rect viewport, Color foreground, Color background)
 {
     surface_ = &surface;
     viewport_ = intersect_rect(viewport, surface.bounds());

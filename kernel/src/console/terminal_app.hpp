@@ -6,6 +6,7 @@
 #include "kernel/base/string_view.hpp"
 #include "kernel/display/app_surface.hpp"
 #include "kernel/display/display.hpp"
+#include "kernel/display/scroll_mapped_surface.hpp"
 #include "kernel/display/terminal_render_cache.hpp"
 #include "kernel/display/terminal_renderer.hpp"
 #include "kernel/display/terminal_repaint_state.hpp"
@@ -18,7 +19,6 @@ namespace kernel::console
 struct TerminalRepaintSink
 {
     void (*submit_terminal_damage)(display::FrameDamage damage) = nullptr;
-    void (*record_backing_copy_pixels)(uint64_t pixels) = nullptr;
 
     bool ready() const { return submit_terminal_damage != nullptr; }
 };
@@ -71,6 +71,7 @@ public:
 
     display::PixelSample sample_pixel(uint64_t x, uint64_t y) const;
     display::PixelSample sample_caret_pixel(uint64_t x, uint64_t y) const;
+    const uint32_t * row_pixels(uint64_t y) const;
     display::Rect caret_bounds() const;
 
     void clear();
@@ -117,7 +118,8 @@ private:
     void write_tab();
 
     display::AppSurface app_surface_;
-    display::BackingSurface backing_;
+    display::BackingSurface backing_storage_;
+    display::ScrollMappedSurface backing_;
     display::TerminalRenderer renderer_;
     TerminalRepaintSink repaint_sink_;
     text::TextConsole console_;

@@ -20,6 +20,7 @@ bool TerminalApp::reset(display::AppSurface app_surface,
         }
         backing_memory_ = nullptr;
         backing_bytes_ = 0;
+        backing_storage_ = {};
         backing_ = {};
     }
 
@@ -76,7 +77,9 @@ bool TerminalApp::allocate_backing_surface()
 
     backing_memory_ = static_cast<uint32_t *>(memory);
     backing_bytes_ = bytes;
-    backing_ = display::BackingSurface(backing_memory_, app_surface_.bounds, app_surface_.bounds.width);
+    backing_storage_ =
+        display::BackingSurface(backing_memory_, app_surface_.bounds, app_surface_.bounds.width);
+    backing_.reset(backing_storage_, text_grid_rect());
     return backing_.ready();
 }
 
@@ -90,6 +93,11 @@ display::PixelSample TerminalApp::sample_caret_pixel(uint64_t x, uint64_t y) con
     return ready() && cursor_.visible && !display::intersect_rect(caret_bounds(), {x, y, 1, 1}).empty()
                ? display::opaque_pixel(renderer_.foreground())
                : display::transparent_pixel();
+}
+
+const uint32_t * TerminalApp::row_pixels(uint64_t y) const
+{
+    return ready() ? backing_.row_pixels(y) : nullptr;
 }
 
 uint64_t TerminalApp::text_grid_width() const
@@ -392,6 +400,7 @@ void TerminalApp::clear()
     }
 
     cursor_.hide();
+    backing_.reset_scroll();
     renderer_.clear_screen();
     console_.clear();
     text_buffer_.clear();
