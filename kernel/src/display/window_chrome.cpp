@@ -8,6 +8,11 @@ uint64_t min_u64(uint64_t lhs, uint64_t rhs)
     return lhs < rhs ? lhs : rhs;
 }
 
+uint64_t max_u64(uint64_t lhs, uint64_t rhs)
+{
+    return lhs > rhs ? lhs : rhs;
+}
+
 bool contains(kernel::display::Rect rect, uint64_t x, uint64_t y)
 {
     return !rect.empty() && x >= rect.x && y >= rect.y && x < rect.x + rect.width &&
@@ -37,6 +42,29 @@ kernel::display::Rect close_button_bounds(kernel::display::Rect title_bar,
         title_bar.y + ((title_bar.height - size) / 2),
         size,
         size,
+    };
+}
+
+kernel::display::Rect close_button_icon_bounds(kernel::display::Rect button)
+{
+    const uint64_t size = min_u64(button.width, button.height);
+    if (size < 5)
+    {
+        return {};
+    }
+
+    const uint64_t inset = size >= 8 ? 2 : 1;
+    if (size <= inset * 2)
+    {
+        return {};
+    }
+
+    const uint64_t icon_size = size - (inset * 2);
+    return {
+        button.x + ((button.width - icon_size) / 2),
+        button.y + ((button.height - icon_size) / 2),
+        icon_size,
+        icon_size,
     };
 }
 
@@ -71,6 +99,12 @@ uint64_t resize_handle_size(kernel::display::WindowFrameMetrics metrics)
                    : metrics.resize_handle_bounds.height;
     }
     return metrics.border_thickness;
+}
+
+bool distance_less_than(uint64_t lhs, uint64_t rhs, uint64_t distance)
+{
+    const uint64_t delta = lhs > rhs ? lhs - rhs : rhs - lhs;
+    return delta < max_u64(distance, 1);
 }
 
 } // namespace
@@ -198,6 +232,24 @@ WindowChromeHitRegion WindowChrome::hit_test(WindowFrameMetrics metrics, uint64_
         return WindowChromeHitRegion::TitleBar;
     }
     return WindowChromeHitRegion::Border;
+}
+
+bool WindowChrome::close_button_icon_contains_pixel(WindowFrameMetrics metrics,
+                                                    uint64_t x,
+                                                    uint64_t y)
+{
+    const Rect icon = close_button_icon_bounds(metrics.close_button_bounds);
+    if (!contains(icon, x, y))
+    {
+        return false;
+    }
+
+    const uint64_t local_x = x - icon.x;
+    const uint64_t local_y = y - icon.y;
+    const uint64_t edge = min_u64(icon.width, icon.height) - 1;
+    const uint64_t stroke = edge >= 5 ? 2 : 1;
+    return distance_less_than(local_x, local_y, stroke) ||
+           distance_less_than(local_x + local_y, edge, stroke);
 }
 
 } // namespace kernel::display

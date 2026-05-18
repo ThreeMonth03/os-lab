@@ -117,3 +117,40 @@ TEST(WindowChromeTest, HitTestPrioritizesControlsAndContent)
     EXPECT_EQ(kernel::display::WindowChrome::hit_test(metrics, 400, 400),
               kernel::display::WindowChromeHitRegion::None);
 }
+
+TEST(WindowChromeTest, CloseButtonIconDrawsAnXInsideButtonBounds)
+{
+    kernel::display::WindowFrameConfig config;
+    config.visible = true;
+    const kernel::display::WindowFrameMetrics metrics =
+        kernel::display::WindowChrome::metrics_for({10, 20, 320, 200}, config);
+
+    const kernel::display::Rect close = metrics.close_button_bounds;
+    ASSERT_FALSE(close.empty());
+
+    EXPECT_TRUE(kernel::display::WindowChrome::close_button_icon_contains_pixel(
+        metrics,
+        close.x + 2,
+        close.y + 2));
+    EXPECT_TRUE(kernel::display::WindowChrome::close_button_icon_contains_pixel(
+        metrics,
+        close.x + close.width - 3,
+        close.y + 2));
+    EXPECT_TRUE(kernel::display::WindowChrome::close_button_icon_contains_pixel(
+        metrics,
+        close.x + 2,
+        close.y + close.height - 3));
+    EXPECT_TRUE(kernel::display::WindowChrome::close_button_icon_contains_pixel(
+        metrics,
+        close.x + close.width - 3,
+        close.y + close.height - 3));
+
+    EXPECT_FALSE(kernel::display::WindowChrome::close_button_icon_contains_pixel(
+        metrics,
+        close.x,
+        close.y));
+    EXPECT_FALSE(kernel::display::WindowChrome::close_button_icon_contains_pixel(
+        metrics,
+        close.x + (close.width / 2),
+        close.y + 2));
+}

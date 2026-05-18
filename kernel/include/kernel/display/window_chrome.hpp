@@ -59,6 +59,7 @@ class WindowChrome
 public:
     static WindowFrameMetrics metrics_for(Rect outer_bounds, WindowFrameConfig config);
     static WindowChromeHitRegion hit_test(WindowFrameMetrics metrics, uint64_t x, uint64_t y);
+    static bool close_button_icon_contains_pixel(WindowFrameMetrics metrics, uint64_t x, uint64_t y);
 };
 
 } // namespace kernel::display

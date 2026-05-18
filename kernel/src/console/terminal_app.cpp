@@ -379,6 +379,21 @@ void TerminalApp::paint_window_chrome()
                             border,
                             close.height},
                            foreground_);
+
+        for (uint64_t y = 0; y < close.height; ++y)
+        {
+            for (uint64_t x = 0; x < close.width; ++x)
+            {
+                const uint64_t pixel_x = close.x + x;
+                const uint64_t pixel_y = close.y + y;
+                if (display::WindowChrome::close_button_icon_contains_pixel(frame_metrics_,
+                                                                            pixel_x,
+                                                                            pixel_y))
+                {
+                    backing_.put_pixel(pixel_x, pixel_y, foreground_);
+                }
+            }
+        }
     }
 
     const display::Rect handle = frame_metrics_.resize_handle_bounds;
