@@ -78,6 +78,7 @@ make gui
 make gui GUI_PANEL_VISIBLE=ON
 make gui TERMINAL_WINDOW_CHROME=ON
 make gui TERMINAL_WINDOW_CHROME=ON TERMINAL_WINDOW_INTERACTION=ON
+make gui GUI_PANEL_VISIBLE=ON TERMINAL_WINDOW_CHROME=ON TERMINAL_WINDOW_INTERACTION=ON DESKTOP_BAR_DEBUG_ACTIONS=ON
 make profile-gui
 make test
 make unit
@@ -100,6 +101,8 @@ Normal `make demo` and `make gui` always build with exception triggers disabled.
 for the future desktop path. `GUI_PANEL_VISIBLE=ON` is a legacy transitional
 flag that now shows the desktop shell/bar surface; it remains available for
 comparison but should not be a dependency for new window interaction work.
+`DESKTOP_BAR_DEBUG_ACTIONS=ON` adds an opt-in desktop bar terminal reopen button
+for lifecycle testing; it is not a formal taskbar or launcher.
 
 ## Native Toolchain
 
