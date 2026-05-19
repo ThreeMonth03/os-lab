@@ -189,6 +189,30 @@ TEST(WindowInteractionTest, ControllerCommitsMoveOnRelease)
     expect_rect(release.proposed_bounds, 60, 70, 320, 200);
 }
 
+TEST(WindowInteractionTest, ControllerKeepsMoveActiveOutsideTitleBar)
+{
+    kernel::display::WindowInteractionController controller;
+
+    ASSERT_TRUE(controller.update(event(kernel::display::WindowChromeHitRegion::TitleBar,
+                                        30,
+                                        40,
+                                        true))
+                    .handled);
+
+    const kernel::display::WindowInteractionResult drag =
+        controller.update(event(kernel::display::WindowChromeHitRegion::None, 90, 110, true));
+    EXPECT_TRUE(drag.handled);
+    EXPECT_FALSE(drag.commit_move);
+    EXPECT_EQ(drag.mode, kernel::display::WindowInteractionMode::Move);
+    expect_rect(drag.proposed_bounds, 70, 90, 320, 200);
+
+    const kernel::display::WindowInteractionResult release =
+        controller.update(event(kernel::display::WindowChromeHitRegion::None, 90, 110, false));
+    EXPECT_TRUE(release.handled);
+    EXPECT_TRUE(release.commit_move);
+    expect_rect(release.proposed_bounds, 70, 90, 320, 200);
+}
+
 TEST(WindowInteractionTest, ControllerRequestsFocusForContentClick)
 {
     kernel::display::WindowInteractionController controller;
@@ -226,6 +250,30 @@ TEST(WindowInteractionTest, ControllerCommitsResizeOnRelease)
     EXPECT_TRUE(release.handled);
     EXPECT_TRUE(release.commit_resize);
     expect_rect(release.proposed_bounds, 10, 20, 420, 250);
+}
+
+TEST(WindowInteractionTest, ControllerKeepsResizeActiveOutsideResizeHandle)
+{
+    kernel::display::WindowInteractionController controller;
+
+    ASSERT_TRUE(controller.update(event(kernel::display::WindowChromeHitRegion::ResizeBottomRight,
+                                        329,
+                                        219,
+                                        true))
+                    .handled);
+
+    const kernel::display::WindowInteractionResult drag =
+        controller.update(event(kernel::display::WindowChromeHitRegion::None, 460, 290, true));
+    EXPECT_TRUE(drag.handled);
+    EXPECT_FALSE(drag.commit_resize);
+    EXPECT_EQ(drag.mode, kernel::display::WindowInteractionMode::Resize);
+    expect_rect(drag.proposed_bounds, 10, 20, 451, 271);
+
+    const kernel::display::WindowInteractionResult release =
+        controller.update(event(kernel::display::WindowChromeHitRegion::None, 460, 290, false));
+    EXPECT_TRUE(release.handled);
+    EXPECT_TRUE(release.commit_resize);
+    expect_rect(release.proposed_bounds, 10, 20, 451, 271);
 }
 
 TEST(WindowInteractionTest, ControllerCloseRequiresReleaseOverCloseButton)

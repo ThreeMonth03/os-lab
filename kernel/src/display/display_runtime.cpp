@@ -76,6 +76,10 @@ struct DisplayRuntimeState
     display::Color app_background;
     display::HitTestResult pointer_target;
     display::WindowInteractionController terminal_window_interaction;
+    display::WindowSessionId active_window_interaction_session_id =
+        display::kInvalidWindowSessionId;
+    display::AppSurfaceId active_window_interaction_app_surface_id =
+        display::kInvalidAppSurfaceId;
     display::PointerCursorShape pointer_cursor_shape = display::PointerCursorShape::Arrow;
     display::runtime::AppSurfaceResizeCallback app_resize_callback = nullptr;
     display::runtime::AppSurfaceStateCallback app_state_callback = nullptr;
@@ -210,6 +214,27 @@ display::WindowSessionId window_session_id_for_app_surface(display::AppSurfaceId
     }
 }
 
+void clear_active_window_interaction_target()
+{
+    g_state.active_window_interaction_session_id = display::kInvalidWindowSessionId;
+    g_state.active_window_interaction_app_surface_id = display::kInvalidAppSurfaceId;
+}
+
+bool active_window_interaction_target_valid()
+{
+    return g_state.active_window_interaction_session_id != display::kInvalidWindowSessionId &&
+           g_state.active_window_interaction_app_surface_id != display::kInvalidAppSurfaceId;
+}
+
+display::WindowSessionId pointer_window_session_id()
+{
+    if (g_state.pointer_target.target_kind != display::DisplayTargetKind::AppSurface)
+    {
+        return display::kInvalidWindowSessionId;
+    }
+    return window_session_id_for_app_surface(g_state.pointer_target.app_surface_id);
+}
+
 display::WindowSessionBounds window_session_bounds_for(display::Rect outer_bounds)
 {
     const display::WindowFrameMetrics metrics =
@@ -244,6 +269,43 @@ void repaint_desktop_bar_if_visible()
     if (!bounds.empty())
     {
         display::compositor::repaint_layers_from(display::LayerKind::GuiSurface, bounds);
+    }
+}
+
+void repaint_window_bounds(display::WindowSessionId id)
+{
+    const display::WindowSession * session = g_state.window_host.find(id);
+    if (session != nullptr && !session->bounds.outer.empty())
+    {
+        display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground,
+                                                 session->bounds.outer);
+    }
+}
+
+bool stack_visual_state_changed(const display::WindowStackEntry & previous,
+                                const display::WindowStackEntry & current)
+{
+    return previous.visible() != current.visible() || previous.focused != current.focused ||
+           previous.active != current.active || previous.closed() != current.closed();
+}
+
+void repaint_changed_window_visual_states(const display::WindowStack & previous,
+                                          const display::WindowStack & current)
+{
+    for (size_t index = 0; index < previous.size(); ++index)
+    {
+        const display::WindowStackEntry * previous_entry = previous.at(index);
+        if (previous_entry == nullptr)
+        {
+            continue;
+        }
+
+        const display::WindowStackEntry * current_entry = current.find(previous_entry->id);
+        if (current_entry != nullptr &&
+            stack_visual_state_changed(*previous_entry, *current_entry))
+        {
+            repaint_window_bounds(previous_entry->id);
+        }
     }
 }
 
@@ -1151,6 +1213,7 @@ bool commit_window_manager_result(display::WindowManagerResult result,
         display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground,
                                                  mutation.repaint_bounds);
     }
+    repaint_changed_window_visual_states(result.previous_stack, result.current_stack);
     if (previous_item.app_visible != current_item.app_visible ||
         previous_item.app_focused != current_item.app_focused ||
         previous_item.app_active != current_item.app_active ||
@@ -1684,48 +1747,74 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     if (!ready() || !terminal_window_interaction_enabled())
     {
         g_state.terminal_window_interaction.reset();
+        clear_active_window_interaction_target();
         g_state.pressed_desktop_shell_action = desktop_bar::DesktopShellAction::None;
         g_state.pointer_cursor_shape = display::PointerCursorShape::Arrow;
         return result;
     }
 
-    if (handle_desktop_bar_pointer(x, y, primary_down, result))
+    if (!g_state.terminal_window_interaction.active() &&
+        handle_desktop_bar_pointer(x, y, primary_down, result))
     {
         return result;
     }
 
-    const bool app_target =
-        g_state.pointer_target.target_kind == display::DisplayTargetKind::AppSurface &&
-        window_session_id_for_app_surface(g_state.pointer_target.app_surface_id) !=
-            display::kInvalidWindowSessionId;
-    const display::WindowSessionId target_session_id =
-        app_target ? window_session_id_for_app_surface(g_state.pointer_target.app_surface_id)
-                   : display::kInvalidWindowSessionId;
+    const bool controller_was_active = g_state.terminal_window_interaction.active();
+    const display::WindowSessionId pointer_session_id = pointer_window_session_id();
+    const bool pointer_app_target = pointer_session_id != display::kInvalidWindowSessionId;
+    const display::WindowSessionId event_session_id =
+        controller_was_active && active_window_interaction_target_valid()
+            ? g_state.active_window_interaction_session_id
+            : pointer_session_id;
+    const bool pointer_targets_event_session =
+        pointer_app_target && pointer_session_id == event_session_id;
     const display::WindowSession * target_session =
-        app_target ? g_state.window_manager.find_window(target_session_id) : nullptr;
+        event_session_id == display::kInvalidWindowSessionId
+            ? nullptr
+            : g_state.window_manager.find_window(event_session_id);
+    const display::WindowChromeHitRegion hit_region =
+        pointer_targets_event_session ? g_state.pointer_target.app_chrome_region
+                                      : display::WindowChromeHitRegion::None;
     const display::WindowInteractionResult interaction =
         g_state.terminal_window_interaction.update({
             target_session == nullptr ? display::Rect{} : target_session->bounds.outer,
-            app_target ? g_state.pointer_target.app_chrome_region : display::WindowChromeHitRegion::None,
+            hit_region,
             x,
             y,
             primary_down,
             terminal_resize_constraints(),
         });
+    if (!controller_was_active && interaction.mode != display::WindowInteractionMode::None &&
+        pointer_app_target)
+    {
+        g_state.active_window_interaction_session_id = pointer_session_id;
+        g_state.active_window_interaction_app_surface_id = g_state.pointer_target.app_surface_id;
+    }
     g_state.pointer_cursor_shape = interaction.cursor_shape;
     result.handled = interaction.handled;
 
-    if (app_target && interaction.focus_requested &&
-        focus_window_from_pointer(target_session_id, result))
+    const display::WindowSessionId interaction_session_id =
+        active_window_interaction_target_valid() ? g_state.active_window_interaction_session_id
+                                                 : pointer_session_id;
+    const display::AppSurfaceId interaction_app_surface_id =
+        active_window_interaction_target_valid() ? g_state.active_window_interaction_app_surface_id
+                                                 : g_state.pointer_target.app_surface_id;
+
+    if (interaction_session_id != display::kInvalidWindowSessionId &&
+        interaction.focus_requested && focus_window_from_pointer(interaction_session_id, result))
     {
         result.handled = true;
         update_pointer_target(x, y);
     }
 
-    if (interaction.commit_move)
+    if (interaction.mode == display::WindowInteractionMode::Move &&
+        !interaction.proposed_bounds.empty())
     {
-        const bool moved = move_app_surface(g_state.pointer_target.app_surface_id,
-                                            interaction.proposed_bounds);
+        const display::WindowSession * session =
+            g_state.window_manager.find_window(interaction_session_id);
+        const bool moved =
+            session != nullptr && !same_rect(session->bounds.outer, interaction.proposed_bounds) &&
+            move_app_surface(interaction_app_surface_id, interaction.proposed_bounds);
         if (moved)
         {
             result.app_moved = true;
@@ -1734,7 +1823,7 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     }
     else if (interaction.commit_resize)
     {
-        const bool resized = resize_app_surface(g_state.pointer_target.app_surface_id,
+        const bool resized = resize_app_surface(interaction_app_surface_id,
                                                 interaction.proposed_bounds);
         if (resized)
         {
@@ -1745,9 +1834,14 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     else if (interaction.close_requested)
     {
         result.clear_keyboard_focus =
-            set_app_surface_visible(g_state.pointer_target.app_surface_id, false) &&
-            g_state.pointer_target.app_surface_id == display::kTerminalAppSurfaceId;
+            set_app_surface_visible(interaction_app_surface_id, false) &&
+            interaction_app_surface_id == display::kTerminalAppSurfaceId;
         update_pointer_target(x, y);
+    }
+
+    if (!primary_down && controller_was_active)
+    {
+        clear_active_window_interaction_target();
     }
 
     return result;
