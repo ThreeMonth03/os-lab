@@ -319,3 +319,59 @@ TEST(WindowInteractionTest, ResetClearsActiveMode)
         controller.update(event(kernel::display::WindowChromeHitRegion::Content, 50, 50, false));
     EXPECT_FALSE(result.handled);
 }
+
+TEST(WindowInteractionTest, ReplayProfilesMoveAsPreviewThenSingleCommit)
+{
+    const kernel::display::WindowInteractionReplay replay(
+        {0, 0, 800, 600},
+        kernel::display::terminal_window_frame_config(true));
+
+    const kernel::display::WindowInteractionReplayStats stats =
+        replay.profile_preview_then_commit({
+            kernel::display::WindowInteractionReplayKind::Move,
+            {10, 20, 320, 200},
+            kernel::display::WindowChromeHitRegion::TitleBar,
+            30,
+            40,
+            12,
+            6,
+            10,
+            constraints(),
+        });
+
+    EXPECT_EQ(stats.pointer_event_count, 12u);
+    EXPECT_EQ(stats.preview_update_count, 10u);
+    EXPECT_EQ(stats.commit_count, 1u);
+    EXPECT_GT(stats.preview_repaint_pixels, 0u);
+    EXPECT_GT(stats.commit_repaint_pixels, 0u);
+    EXPECT_EQ(stats.full_screen_fallback_count, 0u);
+    EXPECT_LT(stats.largest_repaint_area, 800u * 600u);
+}
+
+TEST(WindowInteractionTest, ReplayProfilesResizeAsPreviewThenSingleCommit)
+{
+    const kernel::display::WindowInteractionReplay replay(
+        {0, 0, 800, 600},
+        kernel::display::terminal_window_frame_config(true));
+
+    const kernel::display::WindowInteractionReplayStats stats =
+        replay.profile_preview_then_commit({
+            kernel::display::WindowInteractionReplayKind::Resize,
+            {10, 20, 320, 200},
+            kernel::display::WindowChromeHitRegion::ResizeBottomRight,
+            329,
+            219,
+            9,
+            5,
+            8,
+            constraints(),
+        });
+
+    EXPECT_EQ(stats.pointer_event_count, 10u);
+    EXPECT_EQ(stats.preview_update_count, 8u);
+    EXPECT_EQ(stats.commit_count, 1u);
+    EXPECT_GT(stats.preview_repaint_pixels, 0u);
+    EXPECT_GT(stats.commit_repaint_pixels, 0u);
+    EXPECT_EQ(stats.full_screen_fallback_count, 0u);
+    EXPECT_LT(stats.largest_repaint_area, 800u * 600u);
+}

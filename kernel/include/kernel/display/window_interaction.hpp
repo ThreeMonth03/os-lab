@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
 #include "kernel/display/display.hpp"
 #include "kernel/display/pointer_cursor_shape.hpp"
@@ -58,6 +59,50 @@ struct WindowInteractionResult
     Rect proposed_bounds;
     WindowInteractionMode mode = WindowInteractionMode::None;
     PointerCursorShape cursor_shape = PointerCursorShape::Arrow;
+};
+
+enum class WindowInteractionReplayKind
+{
+    Move,
+    Resize,
+};
+
+struct WindowInteractionReplayConfig
+{
+    WindowInteractionReplayKind kind = WindowInteractionReplayKind::Move;
+    Rect start_bounds;
+    WindowChromeHitRegion press_region = WindowChromeHitRegion::None;
+    uint64_t press_x = 0;
+    uint64_t press_y = 0;
+    uint64_t step_delta_x = 0;
+    uint64_t step_delta_y = 0;
+    size_t step_count = 0;
+    WindowResizeConstraints constraints;
+};
+
+struct WindowInteractionReplayStats
+{
+    uint64_t pointer_event_count = 0;
+    uint64_t preview_update_count = 0;
+    uint64_t commit_count = 0;
+    uint64_t preview_repaint_pixels = 0;
+    uint64_t commit_repaint_pixels = 0;
+    uint64_t largest_repaint_area = 0;
+    uint64_t full_screen_fallback_count = 0;
+};
+
+class WindowInteractionReplay
+{
+public:
+    WindowInteractionReplay() = default;
+    WindowInteractionReplay(Rect desktop_bounds, WindowFrameConfig frame_config);
+
+    [[nodiscard]] WindowInteractionReplayStats profile_preview_then_commit(
+        WindowInteractionReplayConfig config) const;
+
+private:
+    Rect desktop_bounds_;
+    WindowFrameConfig frame_config_;
 };
 
 WindowResizeEdge resize_edges_for_hit_region(WindowChromeHitRegion region);

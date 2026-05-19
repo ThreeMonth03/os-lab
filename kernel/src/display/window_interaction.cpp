@@ -1,5 +1,7 @@
 #include "kernel/display/window_interaction.hpp"
 
+#include "kernel/display/window_repaint_planner.hpp"
+
 namespace
 {
 
@@ -69,6 +71,33 @@ uint64_t outer_height_for_client(display::WindowResizeConstraints constraints)
 bool hit_region_is_resize(display::WindowChromeHitRegion region)
 {
     return display::resize_edges_for_hit_region(region) != display::WindowResizeEdge::None;
+}
+
+void record_repaint_regions(display::WindowInteractionReplayStats & stats,
+                            const display::WindowRepaintRegionList & regions,
+                            bool commit)
+{
+    if (regions.full_screen_fallback())
+    {
+        ++stats.full_screen_fallback_count;
+    }
+    for (size_t index = 0; index < regions.count(); ++index)
+    {
+        const display::Rect rect = regions.at(index);
+        const uint64_t area = rect.width * rect.height;
+        if (commit)
+        {
+            stats.commit_repaint_pixels += area;
+        }
+        else
+        {
+            stats.preview_repaint_pixels += area;
+        }
+        if (area > stats.largest_repaint_area)
+        {
+            stats.largest_repaint_area = area;
+        }
+    }
 }
 
 } // namespace
@@ -424,6 +453,87 @@ void WindowInteractionController::reset()
     active_cursor_shape_ = PointerCursorShape::Arrow;
     move_drag_ = {};
     resize_drag_ = {};
+}
+
+WindowInteractionReplay::WindowInteractionReplay(Rect desktop_bounds,
+                                                 WindowFrameConfig frame_config)
+    : desktop_bounds_(desktop_bounds)
+    , frame_config_(frame_config)
+{
+}
+
+WindowInteractionReplayStats WindowInteractionReplay::profile_preview_then_commit(
+    WindowInteractionReplayConfig config) const
+{
+    WindowInteractionReplayStats stats;
+    if (desktop_bounds_.empty() || config.start_bounds.empty() || config.step_count == 0)
+    {
+        return stats;
+    }
+
+    WindowInteractionController controller;
+    WindowRepaintPlanner planner(desktop_bounds_, frame_config_);
+    Rect preview_bounds;
+    const WindowInteractionResult press = controller.update({
+        config.start_bounds,
+        config.press_region,
+        config.press_x,
+        config.press_y,
+        true,
+        config.constraints,
+    });
+    ++stats.pointer_event_count;
+    if (!press.handled)
+    {
+        return stats;
+    }
+
+    Rect proposed_bounds;
+    for (size_t step = 1; step <= config.step_count; ++step)
+    {
+        const uint64_t x = config.press_x + (config.step_delta_x * step);
+        const uint64_t y = config.press_y + (config.step_delta_y * step);
+        const WindowInteractionResult drag = controller.update({
+            config.start_bounds,
+            WindowChromeHitRegion::None,
+            x,
+            y,
+            true,
+            config.constraints,
+        });
+        ++stats.pointer_event_count;
+        if (drag.proposed_bounds.empty())
+        {
+            continue;
+        }
+
+        proposed_bounds = drag.proposed_bounds;
+        ++stats.preview_update_count;
+        record_repaint_regions(stats, planner.visual_state_damage(preview_bounds), false);
+        record_repaint_regions(stats, planner.visual_state_damage(proposed_bounds), false);
+        preview_bounds = proposed_bounds;
+    }
+
+    const uint64_t release_x = config.press_x + (config.step_delta_x * config.step_count);
+    const uint64_t release_y = config.press_y + (config.step_delta_y * config.step_count);
+    const WindowInteractionResult release = controller.update({
+        config.start_bounds,
+        WindowChromeHitRegion::None,
+        release_x,
+        release_y,
+        false,
+        config.constraints,
+    });
+    ++stats.pointer_event_count;
+    const bool committed = (config.kind == WindowInteractionReplayKind::Move && release.commit_move) ||
+                           (config.kind == WindowInteractionReplayKind::Resize &&
+                            release.commit_resize);
+    if (committed && !release.proposed_bounds.empty())
+    {
+        ++stats.commit_count;
+        record_repaint_regions(stats, planner.move_damage(config.start_bounds, release.proposed_bounds), true);
+    }
+    return stats;
 }
 
 } // namespace kernel::display
