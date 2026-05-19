@@ -108,7 +108,10 @@ private:
     display::Rect text_grid_rect() const;
     display::WindowFrameMetrics frame_metrics_for(display::Rect bounds) const;
     display::AppCellCapacity cell_capacity_for(display::AppSurface app_surface) const;
+    display::WindowChromeVisualState chrome_visual_state() const;
     void paint_window_chrome();
+    void paint_chrome_rect(display::Rect rect);
+    bool chrome_stroke_pixel(uint64_t x, uint64_t y) const;
     display::Rect cell_rect(uint64_t column, uint64_t row) const;
     display::Rect row_tail_rect(uint64_t column, uint64_t row) const;
 

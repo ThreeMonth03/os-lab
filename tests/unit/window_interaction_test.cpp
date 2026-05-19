@@ -179,6 +179,7 @@ TEST(WindowInteractionTest, ControllerCommitsMoveOnRelease)
     const kernel::display::WindowInteractionResult press =
         controller.update(event(kernel::display::WindowChromeHitRegion::TitleBar, 30, 40, true));
     EXPECT_TRUE(press.handled);
+    EXPECT_TRUE(press.focus_requested);
     EXPECT_EQ(press.mode, kernel::display::WindowInteractionMode::Move);
 
     const kernel::display::WindowInteractionResult release =
@@ -186,6 +187,22 @@ TEST(WindowInteractionTest, ControllerCommitsMoveOnRelease)
     EXPECT_TRUE(release.handled);
     EXPECT_TRUE(release.commit_move);
     expect_rect(release.proposed_bounds, 60, 70, 320, 200);
+}
+
+TEST(WindowInteractionTest, ControllerRequestsFocusForContentClick)
+{
+    kernel::display::WindowInteractionController controller;
+
+    const kernel::display::WindowInteractionResult hover =
+        controller.update(event(kernel::display::WindowChromeHitRegion::Content, 40, 50, false));
+    EXPECT_FALSE(hover.handled);
+    EXPECT_FALSE(hover.focus_requested);
+
+    const kernel::display::WindowInteractionResult press =
+        controller.update(event(kernel::display::WindowChromeHitRegion::Content, 40, 50, true));
+    EXPECT_TRUE(press.handled);
+    EXPECT_TRUE(press.focus_requested);
+    EXPECT_EQ(press.mode, kernel::display::WindowInteractionMode::None);
 }
 
 TEST(WindowInteractionTest, ControllerCommitsResizeOnRelease)
@@ -198,6 +215,7 @@ TEST(WindowInteractionTest, ControllerCommitsResizeOnRelease)
                                 219,
                                 true));
     EXPECT_TRUE(press.handled);
+    EXPECT_FALSE(press.focus_requested);
     EXPECT_EQ(press.mode, kernel::display::WindowInteractionMode::Resize);
 
     const kernel::display::WindowInteractionResult release =
@@ -214,9 +232,10 @@ TEST(WindowInteractionTest, ControllerCloseRequiresReleaseOverCloseButton)
 {
     kernel::display::WindowInteractionController controller;
 
-    EXPECT_TRUE(controller
-                    .update(event(kernel::display::WindowChromeHitRegion::CloseButton, 318, 30, true))
-                    .handled);
+    const kernel::display::WindowInteractionResult press =
+        controller.update(event(kernel::display::WindowChromeHitRegion::CloseButton, 318, 30, true));
+    EXPECT_TRUE(press.handled);
+    EXPECT_FALSE(press.focus_requested);
     EXPECT_TRUE(controller
                     .update(event(kernel::display::WindowChromeHitRegion::CloseButton, 318, 30, false))
                     .close_requested);

@@ -142,6 +142,7 @@ desktop_bar::TerminalItemState terminal_item_state_for(display::WindowSession se
     return {
         session.visible(),
         session.focused,
+        session.active,
         session.closed(),
     };
 }
@@ -400,6 +401,7 @@ bool init_primary_app_layer(const limine_framebuffer & framebuffer,
                                                          terminal_cell_width,
                                                          terminal_cell_height),
                                   true,
+                                  true,
                                   true);
     if (!g_state.app_surfaces.register_surface(g_state.primary_app_surface))
     {
@@ -435,7 +437,7 @@ bool init_primary_app_layer(const limine_framebuffer & framebuffer,
                                               terminal_frame_config().visible,
                                               registered_app->visible(),
                                               registered_app->focused,
-                                              registered_app->focused);
+                                              registered_app->active);
     if (!g_state.window_sessions.register_session(g_state.primary_window_session))
     {
         return false;
@@ -615,7 +617,7 @@ bool restore_primary_window_session(display::WindowSession previous,
     }
 
     g_state.primary_window_session = previous;
-    g_state.primary_app_surface = previous_app;
+    g_state.primary_app_surface = previous.app_surface();
     g_state.window_stack = previous_stack;
     g_state.app_surface_damage.reset(previous.bounds.outer);
     return sync_primary_window_session_compositor_surface(previous, previous.bounds.outer);
@@ -673,15 +675,16 @@ bool commit_primary_window_session_mutation(display::WindowSessionMutation mutat
         return false;
     }
 
+    const display::AppSurface current_app = mutation.current.app_surface();
     g_state.primary_window_session = mutation.current;
-    g_state.primary_app_surface = mutation.app_surface.current;
+    g_state.primary_app_surface = current_app;
     g_state.app_surface_damage.reset(mutation.current.closed() ? mutation.previous.bounds.outer
                                                                : mutation.current.bounds.outer);
 
     if (resize_terminal_app)
     {
         if (g_state.app_resize_callback == nullptr ||
-            !g_state.app_resize_callback(mutation.app_surface.current))
+            !g_state.app_resize_callback(current_app))
         {
             restore_primary_window_session(mutation.previous,
                                            mutation.app_surface.previous,
@@ -691,7 +694,7 @@ bool commit_primary_window_session_mutation(display::WindowSessionMutation mutat
     }
     else if (g_state.app_state_callback != nullptr)
     {
-        g_state.app_state_callback(mutation.app_surface.current);
+        g_state.app_state_callback(current_app);
     }
     const desktop_bar::TerminalItemState current_item =
         terminal_item_state_for(g_state.primary_window_session);
@@ -705,6 +708,7 @@ bool commit_primary_window_session_mutation(display::WindowSessionMutation mutat
     }
     if (previous_item.app_visible != current_item.app_visible ||
         previous_item.app_focused != current_item.app_focused ||
+        previous_item.app_active != current_item.app_active ||
         previous_item.app_closed != current_item.app_closed)
     {
         repaint_desktop_bar_if_visible();
@@ -1025,6 +1029,13 @@ bool pointer_targets_desktop_shell_action(desktop_bar::DesktopShellAction action
            g_state.pointer_target.desktop_bar_hit.item_enabled;
 }
 
+bool terminal_window_selected()
+{
+    return g_state.primary_window_session.visible() && g_state.primary_window_session.focused &&
+           g_state.primary_window_session.active &&
+           g_state.window_stack.topmost_visible_window() == display::kTerminalWindowSessionId;
+}
+
 bool show_and_focus_terminal_app()
 {
     if (g_state.primary_window_session.closed())
@@ -1039,6 +1050,21 @@ bool show_and_focus_terminal_app()
     }
 
     return focus_app_surface(display::kTerminalAppSurfaceId);
+}
+
+bool focus_terminal_window_from_pointer(TerminalWindowInteractionResult & result)
+{
+    if (terminal_window_selected())
+    {
+        return false;
+    }
+    if (!focus_app_surface(display::kTerminalAppSurfaceId))
+    {
+        return false;
+    }
+
+    result.focus_keyboard_terminal_app = true;
+    return true;
 }
 
 bool dispatch_desktop_shell_action(desktop_bar::DesktopShellAction action,
@@ -1151,6 +1177,13 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
         });
     g_state.pointer_cursor_shape = interaction.cursor_shape;
     result.handled = interaction.handled;
+
+    if (terminal_target && interaction.focus_requested &&
+        focus_terminal_window_from_pointer(result))
+    {
+        result.handled = true;
+        update_pointer_target(x, y);
+    }
 
     if (interaction.commit_move)
     {

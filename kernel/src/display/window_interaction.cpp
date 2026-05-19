@@ -312,6 +312,7 @@ WindowInteractionResult WindowInteractionController::start_interaction(WindowPoi
 
     if (event.hit_region == WindowChromeHitRegion::TitleBar)
     {
+        result.focus_requested = true;
         move_drag_ =
             WindowMoveDrag::begin(event.current_bounds, event.x, event.y, event.constraints.work_area);
         result.handled = move_drag_.valid();
@@ -321,6 +322,13 @@ WindowInteractionResult WindowInteractionController::start_interaction(WindowPoi
             active_cursor_shape_ = PointerCursorShape::Move;
             result.mode = mode_;
         }
+        return result;
+    }
+
+    if (event.hit_region == WindowChromeHitRegion::Content)
+    {
+        result.handled = true;
+        result.focus_requested = true;
         return result;
     }
 

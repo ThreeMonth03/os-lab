@@ -51,6 +51,7 @@ struct WindowPointerEvent
 struct WindowInteractionResult
 {
     bool handled = false;
+    bool focus_requested = false;
     bool commit_move = false;
     bool commit_resize = false;
     bool close_requested = false;

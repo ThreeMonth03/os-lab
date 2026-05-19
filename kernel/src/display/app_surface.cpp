@@ -16,13 +16,14 @@ CompositedSurfaceDescriptor AppSurface::composited_surface() const
     }
 
     const bool surface_visible = visible();
+    const bool surface_active = surface_visible && active;
     const bool surface_focused = surface_visible && focused;
     CompositedSurfaceDescriptor surface =
         make_composited_surface(display_surface_id,
                                 CompositedSurfaceRole::App,
                                 bounds,
                                 surface_visible,
-                                surface_focused,
+                                surface_active,
                                 surface_focused);
     surface.occlusion = LayerOcclusion::Opaque;
     return surface;
@@ -33,7 +34,11 @@ SurfaceDescriptor AppSurface::display_target() const
     return composited_surface().display_target();
 }
 
-AppSurface make_app_surface(AppSurfaceId id, Rect bounds, bool visible, bool focused)
+AppSurface make_app_surface(AppSurfaceId id,
+                            Rect bounds,
+                            bool visible,
+                            bool focused,
+                            bool active)
 {
     return {
         id,
@@ -41,6 +46,7 @@ AppSurface make_app_surface(AppSurfaceId id, Rect bounds, bool visible, bool foc
         bounds,
         visible ? AppSurfaceState::Open : AppSurfaceState::Hidden,
         visible && focused,
+        visible && (active || focused),
     };
 }
 
@@ -94,6 +100,7 @@ bool AppSurfaceRegistry::set_visible(AppSurfaceId id, bool visible)
     if (!visible)
     {
         target->focused = false;
+        target->active = false;
     }
     return true;
 }
@@ -108,6 +115,7 @@ bool AppSurfaceRegistry::set_focused(AppSurfaceId id)
 
     clear_focus();
     target->focused = true;
+    target->active = true;
     return true;
 }
 
@@ -121,6 +129,7 @@ bool AppSurfaceRegistry::close_surface(AppSurfaceId id)
 
     target->state = AppSurfaceState::Closed;
     target->focused = false;
+    target->active = false;
     return true;
 }
 
@@ -129,6 +138,7 @@ void AppSurfaceRegistry::clear_focus()
     for (size_t index = 0; index < count_; ++index)
     {
         surfaces_[index].focused = false;
+        surfaces_[index].active = false;
     }
 }
 

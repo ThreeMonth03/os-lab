@@ -24,6 +24,14 @@ kernel::display::desktop_bar::Palette test_palette()
     return {{1}, {2}, {3}, {4}, {5}, {6}};
 }
 
+kernel::display::desktop_bar::TerminalItemState terminal_state(bool visible,
+                                                               bool focused,
+                                                               bool active,
+                                                               bool closed = false)
+{
+    return {visible, focused, active, closed};
+}
+
 } // namespace
 
 TEST(DesktopBarTest, DefaultConfigKeepsBarHidden)
@@ -158,9 +166,9 @@ TEST(DesktopBarTest, HiddenBarHasNoItemHitTarget)
                                                    config);
 
     const kernel::display::desktop_bar::Item item =
-        kernel::display::desktop_bar::terminal_item_for(bar, config, {false, false});
+        kernel::display::desktop_bar::terminal_item_for(bar, config, terminal_state(false, false, false));
     const kernel::display::desktop_bar::HitTestResult hit =
-        kernel::display::desktop_bar::hit_test(bar, config, {false, false}, 10, 700);
+        kernel::display::desktop_bar::hit_test(bar, config, terminal_state(false, false, false), 10, 700);
 
     EXPECT_FALSE(item.valid());
     EXPECT_EQ(hit.region, kernel::display::desktop_bar::HitRegion::None);
@@ -180,9 +188,9 @@ TEST(DesktopBarTest, VisibleDebugActionsBarComputesTerminalItem)
                                                    config);
 
     const kernel::display::desktop_bar::Item hidden_terminal_item =
-        kernel::display::desktop_bar::terminal_item_for(bar, config, {false, false});
+        kernel::display::desktop_bar::terminal_item_for(bar, config, terminal_state(false, false, false));
     const kernel::display::desktop_bar::Item visible_terminal_item =
-        kernel::display::desktop_bar::terminal_item_for(bar, config, {true, false});
+        kernel::display::desktop_bar::terminal_item_for(bar, config, terminal_state(true, false, false));
 
     ASSERT_TRUE(hidden_terminal_item.valid());
     EXPECT_EQ(hidden_terminal_item.kind, kernel::display::desktop_bar::ItemKind::Terminal);
@@ -195,18 +203,25 @@ TEST(DesktopBarTest, VisibleDebugActionsBarComputesTerminalItem)
 
     ASSERT_TRUE(visible_terminal_item.valid());
     EXPECT_TRUE(visible_terminal_item.enabled);
-    EXPECT_TRUE(visible_terminal_item.active);
+    EXPECT_FALSE(visible_terminal_item.active);
     EXPECT_FALSE(visible_terminal_item.focused);
 
+    const kernel::display::desktop_bar::Item active_terminal_item =
+        kernel::display::desktop_bar::terminal_item_for(bar, config, terminal_state(true, false, true));
+    ASSERT_TRUE(active_terminal_item.valid());
+    EXPECT_TRUE(active_terminal_item.enabled);
+    EXPECT_TRUE(active_terminal_item.active);
+    EXPECT_FALSE(active_terminal_item.focused);
+
     const kernel::display::desktop_bar::Item focused_terminal_item =
-        kernel::display::desktop_bar::terminal_item_for(bar, config, {true, true, false});
+        kernel::display::desktop_bar::terminal_item_for(bar, config, terminal_state(true, true, true));
     ASSERT_TRUE(focused_terminal_item.valid());
     EXPECT_FALSE(focused_terminal_item.enabled);
     EXPECT_TRUE(focused_terminal_item.active);
     EXPECT_TRUE(focused_terminal_item.focused);
 
     const kernel::display::desktop_bar::Item closed_terminal_item =
-        kernel::display::desktop_bar::terminal_item_for(bar, config, {false, false, true});
+        kernel::display::desktop_bar::terminal_item_for(bar, config, terminal_state(false, false, false, true));
     ASSERT_TRUE(closed_terminal_item.valid());
     EXPECT_FALSE(closed_terminal_item.enabled);
     EXPECT_FALSE(closed_terminal_item.active);
@@ -226,9 +241,9 @@ TEST(DesktopBarTest, VisibleBarWithoutDebugActionsHasNoActionableItem)
                                                    config);
 
     const kernel::display::desktop_bar::Item item =
-        kernel::display::desktop_bar::terminal_item_for(bar, config, {false, false});
+        kernel::display::desktop_bar::terminal_item_for(bar, config, terminal_state(false, false, false));
     const kernel::display::desktop_bar::HitTestResult hit =
-        kernel::display::desktop_bar::hit_test(bar, config, {false, false}, 12, 700);
+        kernel::display::desktop_bar::hit_test(bar, config, terminal_state(false, false, false), 12, 700);
 
     EXPECT_FALSE(item.valid());
     EXPECT_EQ(hit.region, kernel::display::desktop_bar::HitRegion::Background);
@@ -248,11 +263,11 @@ TEST(DesktopBarTest, TerminalItemHitTestDistinguishesItemAndBackground)
                                                    config);
 
     const kernel::display::desktop_bar::HitTestResult item =
-        kernel::display::desktop_bar::hit_test(bar, config, {false, false}, 12, 700);
+        kernel::display::desktop_bar::hit_test(bar, config, terminal_state(false, false, false), 12, 700);
     const kernel::display::desktop_bar::HitTestResult background =
-        kernel::display::desktop_bar::hit_test(bar, config, {false, false}, 200, 700);
+        kernel::display::desktop_bar::hit_test(bar, config, terminal_state(false, false, false), 200, 700);
     const kernel::display::desktop_bar::HitTestResult outside =
-        kernel::display::desktop_bar::hit_test(bar, config, {false, false}, 12, 650);
+        kernel::display::desktop_bar::hit_test(bar, config, terminal_state(false, false, false), 12, 650);
 
     EXPECT_EQ(item.region, kernel::display::desktop_bar::HitRegion::Item);
     EXPECT_EQ(item.item_kind, kernel::display::desktop_bar::ItemKind::Terminal);
@@ -276,11 +291,26 @@ TEST(DesktopBarTest, TerminalItemPixelSamplingDrawsAffordance)
                                                    config);
 
     const kernel::display::PixelSample button_border =
-        kernel::display::desktop_bar::sample_pixel(bar, test_palette(), config, {false, false}, 6, 694);
+        kernel::display::desktop_bar::sample_pixel(bar,
+                                                   test_palette(),
+                                                   config,
+                                                   terminal_state(false, false, false),
+                                                   6,
+                                                   694);
     const kernel::display::PixelSample button_fill =
-        kernel::display::desktop_bar::sample_pixel(bar, test_palette(), config, {false, false}, 30, 700);
+        kernel::display::desktop_bar::sample_pixel(bar,
+                                                   test_palette(),
+                                                   config,
+                                                   terminal_state(false, false, false),
+                                                   30,
+                                                   700);
     const kernel::display::PixelSample disabled_fill =
-        kernel::display::desktop_bar::sample_pixel(bar, test_palette(), config, {true, true, false}, 30, 700);
+        kernel::display::desktop_bar::sample_pixel(bar,
+                                                   test_palette(),
+                                                   config,
+                                                   terminal_state(true, true, true),
+                                                   30,
+                                                   700);
 
     ASSERT_TRUE(button_border.opaque());
     EXPECT_EQ(button_border.color.value, 3u);

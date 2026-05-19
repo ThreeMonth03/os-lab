@@ -181,6 +181,9 @@ Item terminal_item_for(const GuiSurface & surface, Config config, TerminalItemSt
         return {};
     }
 
+    const bool selected = terminal.app_visible && terminal.app_focused && terminal.app_active &&
+                          !terminal.app_closed;
+
     return {
         {surface.bounds.x + margin,
          surface.bounds.y + ((surface.bounds.height - button_height) / 2),
@@ -189,8 +192,8 @@ Item terminal_item_for(const GuiSurface & surface, Config config, TerminalItemSt
         ItemKind::Terminal,
         DesktopShellAction::TerminalShowFocus,
         true,
-        !terminal.app_closed && (!terminal.app_visible || !terminal.app_focused),
-        terminal.app_visible && !terminal.app_closed,
+        !terminal.app_closed && !selected,
+        terminal.app_visible && terminal.app_active && !terminal.app_closed,
         terminal.app_focused && terminal.app_visible && !terminal.app_closed,
     };
 }

@@ -16,7 +16,23 @@ bool WindowSession::valid() const
 
 AppSurface WindowSession::app_surface() const
 {
-    return make_app_surface(app_surface_id, bounds.outer, visible(), focused && visible());
+    if (closed())
+    {
+        return {
+            app_surface_id,
+            app_surface_display_id_for(app_surface_id),
+            bounds.outer,
+            AppSurfaceState::Closed,
+            false,
+            false,
+        };
+    }
+
+    return make_app_surface(app_surface_id,
+                            bounds.outer,
+                            visible(),
+                            focused && visible(),
+                            active && visible());
 }
 
 CompositedSurfaceDescriptor WindowSession::composited_surface() const

@@ -192,6 +192,7 @@ bool TerminalApp::replace_surface(display::AppSurface app_surface, TerminalResiz
     update_depth_ = 0;
     pending_scroll_rows_ = 0;
     pending_dirty_after_scroll_ = {};
+    backing_.fill_rect(app_surface_.bounds, background_);
     paint_window_chrome();
     renderer_.clear_screen();
     repaint_text_layer();
@@ -224,6 +225,7 @@ bool TerminalApp::move_surface(display::AppSurface app_surface)
     update_depth_ = 0;
     pending_scroll_rows_ = 0;
     pending_dirty_after_scroll_ = {};
+    backing_.fill_rect(app_surface_.bounds, background_);
     paint_window_chrome();
     renderer_.clear_screen();
     repaint_text_layer();
@@ -264,10 +266,19 @@ void TerminalApp::sync_surface_state(display::AppSurface app_surface)
         }
     }
 
+    const bool chrome_state_changed =
+        ready() &&
+        (app_surface.focused != app_surface_.focused || app_surface.active != app_surface_.active);
     app_surface_ = app_surface;
     if (!app_surface_.visible() || app_surface_.closed())
     {
         cursor_.hide();
+        return;
+    }
+    if (chrome_state_changed && frame_metrics_.visible)
+    {
+        paint_window_chrome();
+        record_console_dirty(frame_metrics_.outer_bounds);
     }
 }
 
@@ -314,6 +325,11 @@ display::AppCellCapacity TerminalApp::cell_capacity_for(display::AppSurface app_
                : display::AppCellCapacity{};
 }
 
+display::WindowChromeVisualState TerminalApp::chrome_visual_state() const
+{
+    return display::WindowChrome::visual_state_for(app_surface_.active, app_surface_.focused);
+}
+
 display::Rect TerminalApp::text_grid_rect() const
 {
     return {
@@ -324,6 +340,41 @@ display::Rect TerminalApp::text_grid_rect() const
     };
 }
 
+bool TerminalApp::chrome_stroke_pixel(uint64_t x, uint64_t y) const
+{
+    switch (chrome_visual_state())
+    {
+    case display::WindowChromeVisualState::Focused:
+        return true;
+    case display::WindowChromeVisualState::Active:
+        return (x % 2) == 0;
+    case display::WindowChromeVisualState::Inactive:
+        return ((x + y) % 2) == 0;
+    }
+    return true;
+}
+
+void TerminalApp::paint_chrome_rect(display::Rect rect)
+{
+    rect = display::intersect_rect(rect, app_surface_.bounds);
+    if (rect.empty())
+    {
+        return;
+    }
+
+    for (uint64_t y = 0; y < rect.height; ++y)
+    {
+        for (uint64_t x = 0; x < rect.width; ++x)
+        {
+            const uint64_t pixel_x = rect.x + x;
+            const uint64_t pixel_y = rect.y + y;
+            backing_.put_pixel(pixel_x,
+                               pixel_y,
+                               chrome_stroke_pixel(pixel_x, pixel_y) ? foreground_ : background_);
+        }
+    }
+}
+
 void TerminalApp::paint_window_chrome()
 {
     if (!backing_.ready())
@@ -331,7 +382,6 @@ void TerminalApp::paint_window_chrome()
         return;
     }
 
-    backing_.fill_rect(app_surface_.bounds, background_);
     if (!frame_metrics_.visible)
     {
         return;
@@ -344,41 +394,24 @@ void TerminalApp::paint_window_chrome()
         return;
     }
 
-    backing_.fill_rect({outer.x, outer.y, outer.width, border}, foreground_);
-    backing_.fill_rect({outer.x,
-                        outer.y + outer.height - border,
-                        outer.width,
-                        border},
-                       foreground_);
-    backing_.fill_rect({outer.x, outer.y, border, outer.height}, foreground_);
-    backing_.fill_rect({outer.x + outer.width - border,
-                        outer.y,
-                        border,
-                        outer.height},
-                       foreground_);
+    paint_chrome_rect({outer.x, outer.y, outer.width, border});
+    paint_chrome_rect({outer.x, outer.y + outer.height - border, outer.width, border});
+    paint_chrome_rect({outer.x, outer.y, border, outer.height});
+    paint_chrome_rect({outer.x + outer.width - border, outer.y, border, outer.height});
 
     const display::Rect title = frame_metrics_.title_bar_bounds;
     if (!title.empty())
     {
-        backing_.fill_rect({title.x, title.y + title.height - border, title.width, border},
-                           foreground_);
+        paint_chrome_rect({title.x, title.y + title.height - border, title.width, border});
     }
 
     const display::Rect close = frame_metrics_.close_button_bounds;
     if (!close.empty())
     {
-        backing_.fill_rect({close.x, close.y, close.width, border}, foreground_);
-        backing_.fill_rect({close.x,
-                            close.y + close.height - border,
-                            close.width,
-                            border},
-                           foreground_);
-        backing_.fill_rect({close.x, close.y, border, close.height}, foreground_);
-        backing_.fill_rect({close.x + close.width - border,
-                            close.y,
-                            border,
-                            close.height},
-                           foreground_);
+        paint_chrome_rect({close.x, close.y, close.width, border});
+        paint_chrome_rect({close.x, close.y + close.height - border, close.width, border});
+        paint_chrome_rect({close.x, close.y, border, close.height});
+        paint_chrome_rect({close.x + close.width - border, close.y, border, close.height});
 
         for (uint64_t y = 0; y < close.height; ++y)
         {
@@ -390,7 +423,10 @@ void TerminalApp::paint_window_chrome()
                                                                             pixel_x,
                                                                             pixel_y))
                 {
-                    backing_.put_pixel(pixel_x, pixel_y, foreground_);
+                    backing_.put_pixel(pixel_x,
+                                       pixel_y,
+                                       chrome_stroke_pixel(pixel_x, pixel_y) ? foreground_
+                                                                             : background_);
                 }
             }
         }
@@ -399,16 +435,8 @@ void TerminalApp::paint_window_chrome()
     const display::Rect handle = frame_metrics_.resize_handle_bounds;
     if (!handle.empty())
     {
-        backing_.fill_rect({handle.x + handle.width - border,
-                            handle.y,
-                            border,
-                            handle.height},
-                           foreground_);
-        backing_.fill_rect({handle.x,
-                            handle.y + handle.height - border,
-                            handle.width,
-                            border},
-                           foreground_);
+        paint_chrome_rect({handle.x + handle.width - border, handle.y, border, handle.height});
+        paint_chrome_rect({handle.x, handle.y + handle.height - border, handle.width, border});
     }
 }
 

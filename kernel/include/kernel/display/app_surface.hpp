@@ -37,6 +37,7 @@ struct AppSurface
     Rect bounds;
     AppSurfaceState state = AppSurfaceState::Closed;
     bool focused = false;
+    bool active = false;
 
     bool valid() const;
     bool open() const { return state == AppSurfaceState::Open; }
@@ -50,7 +51,8 @@ struct AppSurface
 AppSurface make_app_surface(AppSurfaceId id,
                             Rect bounds,
                             bool visible = true,
-                            bool focused = false);
+                            bool focused = false,
+                            bool active = false);
 
 class AppSurfaceRegistry
 {

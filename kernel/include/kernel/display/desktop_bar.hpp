@@ -65,6 +65,7 @@ struct TerminalItemState
 {
     bool app_visible = true;
     bool app_focused = true;
+    bool app_active = true;
     bool app_closed = false;
 };
 

@@ -249,6 +249,19 @@ WindowChromeHitRegion WindowChrome::hit_test(WindowFrameMetrics metrics, uint64_
     return WindowChromeHitRegion::Border;
 }
 
+WindowChromeVisualState WindowChrome::visual_state_for(bool active, bool focused)
+{
+    if (focused)
+    {
+        return WindowChromeVisualState::Focused;
+    }
+    if (active)
+    {
+        return WindowChromeVisualState::Active;
+    }
+    return WindowChromeVisualState::Inactive;
+}
+
 bool WindowChrome::close_button_icon_contains_pixel(WindowFrameMetrics metrics,
                                                     uint64_t x,
                                                     uint64_t y)

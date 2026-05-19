@@ -156,3 +156,15 @@ TEST(WindowChromeTest, CloseButtonIconDrawsAnXInsideButtonBounds)
         close.x + (close.width / 2),
         close.y + 2));
 }
+
+TEST(WindowChromeTest, VisualStatePrefersFocusedThenActive)
+{
+    EXPECT_EQ(kernel::display::WindowChrome::visual_state_for(false, false),
+              kernel::display::WindowChromeVisualState::Inactive);
+    EXPECT_EQ(kernel::display::WindowChrome::visual_state_for(true, false),
+              kernel::display::WindowChromeVisualState::Active);
+    EXPECT_EQ(kernel::display::WindowChrome::visual_state_for(false, true),
+              kernel::display::WindowChromeVisualState::Focused);
+    EXPECT_EQ(kernel::display::WindowChrome::visual_state_for(true, true),
+              kernel::display::WindowChromeVisualState::Focused);
+}
