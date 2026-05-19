@@ -124,6 +124,7 @@ public:
 
     [[nodiscard]] bool ready() const;
     [[nodiscard]] const WindowSession * find(WindowSessionId id) const;
+    [[nodiscard]] bool restore_session(WindowSession previous, AppSurface previous_app_surface);
     [[nodiscard]] bool move_session(WindowSessionId id,
                                     WindowSessionBounds bounds,
                                     WindowSessionMutation & mutation);
@@ -136,7 +137,6 @@ public:
     [[nodiscard]] bool close_session(WindowSessionId id, WindowSessionMutation & mutation);
 
 private:
-    [[nodiscard]] bool restore_session(WindowSession previous, AppSurface previous_app_surface);
     [[nodiscard]] bool update_bounds(WindowSessionId id,
                                      WindowSessionBounds bounds,
                                      WindowSessionMutation & mutation);

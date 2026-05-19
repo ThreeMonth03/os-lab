@@ -3,29 +3,16 @@
 namespace kernel::display::desktop_shell
 {
 
-AppLifecycleMutation ActionHandler::mutation_for(desktop_bar::DesktopShellAction action,
-                                                 const WindowSession & terminal,
-                                                 const WindowStack & windows)
+WindowCommand ActionHandler::command_for(desktop_bar::DesktopShellAction action)
 {
     switch (action)
     {
     case desktop_bar::DesktopShellAction::None:
-        return AppLifecycleMutation::None;
+        return WindowCommand::None;
     case desktop_bar::DesktopShellAction::TerminalShowFocus:
-        if (terminal.closed())
-        {
-            return AppLifecycleMutation::None;
-        }
-        if (!terminal.visible())
-        {
-            return AppLifecycleMutation::ShowFocusAndRaise;
-        }
-        const bool already_selected =
-            terminal.focused && terminal.active && windows.topmost_visible_window() == terminal.id;
-        return already_selected ? AppLifecycleMutation::None
-                                : AppLifecycleMutation::FocusAndRaise;
+        return WindowCommand::TerminalShowFocusRaise;
     }
-    return AppLifecycleMutation::None;
+    return WindowCommand::None;
 }
 
 } // namespace kernel::display::desktop_shell

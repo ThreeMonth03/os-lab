@@ -1,25 +1,20 @@
 #pragma once
 
 #include "kernel/display/desktop_bar.hpp"
-#include "kernel/display/window_session.hpp"
-#include "kernel/display/window_stack.hpp"
 
 namespace kernel::display::desktop_shell
 {
 
-enum class AppLifecycleMutation
+enum class WindowCommand
 {
     None,
-    ShowFocusAndRaise,
-    FocusAndRaise,
+    TerminalShowFocusRaise,
 };
 
 class ActionHandler
 {
 public:
-    static AppLifecycleMutation mutation_for(desktop_bar::DesktopShellAction action,
-                                             const WindowSession & terminal,
-                                             const WindowStack & windows);
+    static WindowCommand command_for(desktop_bar::DesktopShellAction action);
 };
 
 } // namespace kernel::display::desktop_shell
