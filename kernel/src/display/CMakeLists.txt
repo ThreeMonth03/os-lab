@@ -40,6 +40,7 @@ add_library(os_lab_kernel_display OBJECT
     window_chrome.cpp
     window_interaction.cpp
     window_manager.cpp
+    window_repaint_planner.cpp
     window_stack.cpp
     window_session.cpp
 )
