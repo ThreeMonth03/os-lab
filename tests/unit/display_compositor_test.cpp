@@ -65,6 +65,7 @@ kernel::display::PixelSample fixed_sample(const kernel::display::LayerPixelSourc
 }
 
 const kernel::display::BackingSurface * g_runtime_backing = nullptr;
+uint64_t g_runtime_row_without_fast_path = UINT64_MAX;
 
 kernel::display::PixelSample runtime_backing_sample(uint64_t x, uint64_t y)
 {
@@ -75,6 +76,15 @@ kernel::display::PixelSample runtime_backing_sample(uint64_t x, uint64_t y)
 const uint32_t * runtime_backing_row(uint64_t y)
 {
     return g_runtime_backing == nullptr ? nullptr : g_runtime_backing->row_pixels(y);
+}
+
+const uint32_t * runtime_backing_row_with_gap(uint64_t y)
+{
+    if (y == g_runtime_row_without_fast_path)
+    {
+        return nullptr;
+    }
+    return runtime_backing_row(y);
 }
 
 } // namespace
@@ -755,6 +765,57 @@ TEST(DisplayCompositorTest, ScrollMappedLayerCollapsesScrollFrameToFinalBackingD
     {
         EXPECT_EQ(scene_pixels[index], backing_pixels[index]);
     }
+    g_runtime_backing = nullptr;
+}
+
+TEST(DisplayCompositorTest, RowFastPathFallsBackPerRowWithoutWholeRegionPreflight)
+{
+    uint32_t scene_pixels[12] = {};
+    uint32_t backing_pixels[12] = {};
+    for (uint32_t index = 0; index < 12; ++index)
+    {
+        backing_pixels[index] = 300 + index;
+    }
+
+    kernel::display::SceneBuffer scene(scene_pixels, {0, 0, 4, 3}, 4);
+    kernel::display::BackingSurface backing(backing_pixels, {0, 0, 4, 3}, 4);
+    kernel::display::compositor::init({0, 0, 4, 3});
+    kernel::display::compositor::set_scene_buffer(scene);
+    ASSERT_TRUE(kernel::display::compositor::register_surface(kernel::display::make_composited_surface(
+        200,
+        kernel::display::CompositedSurfaceRole::App,
+        {0, 0, 4, 3},
+        true,
+        true,
+        true)));
+
+    g_runtime_backing = &backing;
+    g_runtime_row_without_fast_path = 1;
+    ASSERT_TRUE(kernel::display::compositor::register_layer_pixel_callback(
+        kernel::display::LayerKind::AppSurface,
+        runtime_backing_sample));
+    ASSERT_TRUE(kernel::display::compositor::register_layer_row_callback(
+        kernel::display::LayerKind::AppSurface,
+        runtime_backing_row_with_gap));
+
+    kernel::display::FrameDamage damage;
+    ASSERT_TRUE(damage.append_dirty({0, 0, 4, 3}));
+
+    const kernel::display::PresentOperationList operations =
+        kernel::display::compositor::update_scene_from_layer_damage(
+            kernel::display::LayerKind::AppSurface,
+            damage);
+
+    ASSERT_EQ(operations.count(), 1u);
+    EXPECT_TRUE(operations.at(0).normal_rect_present());
+    expect_rect(operations.at(0).rect, 0, 0, 4, 3);
+    EXPECT_EQ(kernel::display::compositor::stats().scene_preflight_pixels, 0u);
+    EXPECT_EQ(kernel::display::compositor::stats().scene_compose_from_backing_pixels, 12u);
+    for (uint32_t index = 0; index < 12; ++index)
+    {
+        EXPECT_EQ(scene_pixels[index], backing_pixels[index]);
+    }
+    g_runtime_row_without_fast_path = UINT64_MAX;
     g_runtime_backing = nullptr;
 }
 

@@ -71,6 +71,7 @@ struct DisplayRuntimeState
     display::WindowSession dummy_window_session;
     display::AppSurface dummy_app_surface;
     display::Rect app_work_area;
+    display::Rect app_layer_bounds;
     display::Color app_foreground;
     display::Color app_background;
     display::HitTestResult pointer_target;
@@ -380,7 +381,7 @@ display::Rect dummy_app_bounds_for(display::Rect work_area)
     };
 }
 
-display::Rect visible_app_layer_bounds(display::Rect retained_bounds = {})
+display::Rect visible_app_layer_bounds()
 {
     display::Rect bounds;
     for (size_t index = 0; index < g_state.window_stack.size(); ++index)
@@ -399,26 +400,18 @@ display::Rect visible_app_layer_bounds(display::Rect retained_bounds = {})
         bounds = display::bounding_rect(bounds, session->bounds.outer);
     }
 
-    return display::bounding_rect(bounds, retained_bounds);
-}
-
-bool any_app_window_visible()
-{
-    for (size_t index = 0; index < g_state.window_stack.size(); ++index)
-    {
-        const display::WindowStackEntry * entry = g_state.window_stack.at(index);
-        if (entry != nullptr && entry->visible())
-        {
-            return true;
-        }
-    }
-    return false;
+    return bounds;
 }
 
 display::CompositedSurfaceDescriptor aggregate_app_composited_surface(
     display::Rect retained_bounds = {})
 {
-    const display::Rect bounds = visible_app_layer_bounds(retained_bounds);
+    display::Rect bounds = visible_app_layer_bounds();
+    const bool visible = !bounds.empty();
+    if (!visible)
+    {
+        bounds = retained_bounds;
+    }
     if (bounds.empty())
     {
         return {};
@@ -428,7 +421,7 @@ display::CompositedSurfaceDescriptor aggregate_app_composited_surface(
                                                 display::kTerminalAppSurfaceId),
                                             display::CompositedSurfaceRole::App,
                                             bounds,
-                                            any_app_window_visible(),
+                                            visible,
                                             false,
                                             false);
 }
@@ -437,7 +430,12 @@ bool sync_aggregate_app_layer(display::Rect retained_bounds = {})
 {
     const display::CompositedSurfaceDescriptor app_layer =
         aggregate_app_composited_surface(retained_bounds);
-    return app_layer.valid() && display::compositor::update_surface(app_layer);
+    if (!app_layer.valid() || !display::compositor::update_surface(app_layer))
+    {
+        return false;
+    }
+    g_state.app_layer_bounds = app_layer.bounds;
+    return true;
 }
 
 bool runtime_rect_contains(display::Rect rect, uint64_t x, uint64_t y)
@@ -623,6 +621,13 @@ const uint32_t * app_layer_row_pixels(uint64_t y)
         return nullptr;
     }
 
+    const display::WindowSession & terminal = g_state.primary_window_session;
+    if (!terminal.visible() || terminal.closed() ||
+        !same_rect(g_state.app_layer_bounds, terminal.bounds.outer))
+    {
+        return nullptr;
+    }
+
     for (size_t index = 0; index < g_state.window_stack.size(); ++index)
     {
         const display::WindowStackEntry * entry = g_state.window_stack.at(index);
@@ -634,7 +639,11 @@ const uint32_t * app_layer_row_pixels(uint64_t y)
             continue;
         }
 
-        return nullptr;
+        if (y >= session->bounds.outer.y &&
+            y < session->bounds.outer.y + session->bounds.outer.height)
+        {
+            return nullptr;
+        }
     }
 
     return g_state.terminal_app_row_callback(y);

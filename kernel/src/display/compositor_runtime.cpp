@@ -333,14 +333,28 @@ bool paint_source_region(const kernel::display::LayerPixelSource & source,
         {
             const uint64_t y = rect.y + row;
             const uint32_t * pixels = source.read_row(source, y);
-            if (pixels == nullptr)
+            if (pixels != nullptr)
             {
-                complete = false;
-                break;
+                g_scene_buffer->put_pixels(rect.x, y, pixels + (rect.x - source.bounds.x), rect.width);
+                g_stats.scene_compose_pixels += rect.width;
+                g_stats.scene_compose_from_backing_pixels += rect.width;
+                continue;
             }
-            g_scene_buffer->put_pixels(rect.x, y, pixels + (rect.x - source.bounds.x), rect.width);
-            g_stats.scene_compose_pixels += rect.width;
-            g_stats.scene_compose_from_backing_pixels += rect.width;
+
+            for (uint64_t column = 0; column < rect.width; ++column)
+            {
+                const uint64_t x = rect.x + column;
+                ++g_stats.scene_compose_pixels;
+                ++g_stats.scene_compose_from_backing_pixels;
+                const kernel::display::PixelSample sample = source.read(source, x, y);
+                if (sample.opaque())
+                {
+                    g_scene_buffer->put_pixel(x, y, sample.color);
+                    continue;
+                }
+
+                complete = false;
+            }
         }
         return complete;
     }
