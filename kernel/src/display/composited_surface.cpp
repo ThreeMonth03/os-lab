@@ -62,6 +62,8 @@ LayerKind layer_kind_for(CompositedSurfaceRole role)
         return LayerKind::GuiSurface;
     case CompositedSurfaceRole::App:
         return LayerKind::AppSurface;
+    case CompositedSurfaceRole::WindowPreview:
+        return LayerKind::WindowPreview;
     case CompositedSurfaceRole::TextCaret:
         return LayerKind::TerminalCaret;
     case CompositedSurfaceRole::Overlay:
@@ -85,6 +87,7 @@ DisplayTargetKind display_target_kind_for(CompositedSurfaceRole role)
     case CompositedSurfaceRole::Overlay:
         return DisplayTargetKind::DebugOverlay;
     case CompositedSurfaceRole::Background:
+    case CompositedSurfaceRole::WindowPreview:
     case CompositedSurfaceRole::TextCaret:
     case CompositedSurfaceRole::Cursor:
     case CompositedSurfaceRole::None:
@@ -102,6 +105,7 @@ LayerOcclusion default_occlusion_for(CompositedSurfaceRole role)
     case CompositedSurfaceRole::App:
     case CompositedSurfaceRole::Overlay:
         return LayerOcclusion::Opaque;
+    case CompositedSurfaceRole::WindowPreview:
     case CompositedSurfaceRole::TextCaret:
     case CompositedSurfaceRole::Cursor:
     case CompositedSurfaceRole::None:

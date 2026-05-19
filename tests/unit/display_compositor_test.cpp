@@ -153,6 +153,10 @@ TEST(DisplayCompositorTest, OrdersDesktopGuiAppCaretOverlayAndMouseCursorLayers)
                                              kernel::display::LayerKind::DesktopBackground));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::AppSurface,
                                              kernel::display::LayerKind::GuiSurface));
+    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::WindowPreview,
+                                             kernel::display::LayerKind::AppSurface));
+    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::DebugOverlay,
+                                             kernel::display::LayerKind::WindowPreview));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::TerminalCaret,
                                              kernel::display::LayerKind::AppSurface));
     EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::MouseCursor,
@@ -205,6 +209,10 @@ TEST(DisplayCompositorTest, RegistersCompositedSurfaceDescriptors)
         true,
         true)));
     ASSERT_TRUE(compositor.register_surface(kernel::display::make_composited_surface(
+        kernel::display::kWindowPreviewLayerSurfaceId,
+        kernel::display::CompositedSurfaceRole::WindowPreview,
+        {20, 20, 320, 200})));
+    ASSERT_TRUE(compositor.register_surface(kernel::display::make_composited_surface(
         kernel::display::kTerminalCaretLayerSurfaceId,
         kernel::display::CompositedSurfaceRole::TextCaret,
         {0, 0, 800, 600})));
@@ -217,7 +225,7 @@ TEST(DisplayCompositorTest, RegistersCompositedSurfaceDescriptors)
         kernel::display::CompositedSurfaceRole::Cursor,
         {0, 0, 800, 600})));
 
-    EXPECT_EQ(compositor.layer_count(), 6u);
+    EXPECT_EQ(compositor.layer_count(), 7u);
     const kernel::display::Layer * cursor =
         compositor.find_layer(kernel::display::LayerKind::MouseCursor);
     ASSERT_NE(cursor, nullptr);
@@ -226,6 +234,10 @@ TEST(DisplayCompositorTest, RegistersCompositedSurfaceDescriptors)
         compositor.find_layer(kernel::display::LayerKind::TerminalCaret);
     ASSERT_NE(caret, nullptr);
     EXPECT_FALSE(caret->occludes_lower_repaint());
+    const kernel::display::Layer * preview =
+        compositor.find_layer(kernel::display::LayerKind::WindowPreview);
+    ASSERT_NE(preview, nullptr);
+    EXPECT_FALSE(preview->occludes_lower_repaint());
 
     const kernel::display::Layer * top = compositor.top_visible_layer();
     ASSERT_NE(top, nullptr);

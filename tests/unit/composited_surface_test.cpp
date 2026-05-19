@@ -26,6 +26,8 @@ TEST(CompositedSurfaceTest, MapsRolesToLayerOrder)
               kernel::display::LayerKind::GuiSurface);
     EXPECT_EQ(kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::App),
               kernel::display::LayerKind::AppSurface);
+    EXPECT_EQ(kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::WindowPreview),
+              kernel::display::LayerKind::WindowPreview);
     EXPECT_EQ(kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::TextCaret),
               kernel::display::LayerKind::TerminalCaret);
     EXPECT_EQ(kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::Overlay),
@@ -39,6 +41,12 @@ TEST(CompositedSurfaceTest, MapsRolesToLayerOrder)
     EXPECT_TRUE(kernel::display::layer_above(
         kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::App),
         kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::SystemUi)));
+    EXPECT_TRUE(kernel::display::layer_above(
+        kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::WindowPreview),
+        kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::App)));
+    EXPECT_TRUE(kernel::display::layer_above(
+        kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::Overlay),
+        kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::WindowPreview)));
     EXPECT_TRUE(kernel::display::layer_above(
         kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::TextCaret),
         kernel::display::layer_kind_for(kernel::display::CompositedSurfaceRole::App)));
@@ -61,6 +69,9 @@ TEST(CompositedSurfaceTest, MapsRolesToInputPolicy)
               kernel::display::SurfaceInputPolicy::None);
     EXPECT_EQ(kernel::display::default_input_policy_for(kernel::display::CompositedSurfaceRole::App),
               kernel::display::SurfaceInputPolicy::KeyboardFocus);
+    EXPECT_EQ(kernel::display::default_input_policy_for(
+                  kernel::display::CompositedSurfaceRole::WindowPreview),
+              kernel::display::SurfaceInputPolicy::None);
     EXPECT_EQ(kernel::display::default_input_policy_for(kernel::display::CompositedSurfaceRole::Overlay),
               kernel::display::SurfaceInputPolicy::None);
     EXPECT_EQ(kernel::display::default_input_policy_for(kernel::display::CompositedSurfaceRole::TextCaret),
@@ -124,6 +135,25 @@ TEST(CompositedSurfaceTest, BuildsOverlayDescriptor)
     EXPECT_EQ(overlay.occlusion, kernel::display::LayerOcclusion::Opaque);
     EXPECT_EQ(overlay.layer().kind, kernel::display::LayerKind::DebugOverlay);
     EXPECT_EQ(overlay.display_target().kind, kernel::display::DisplayTargetKind::DebugOverlay);
+}
+
+TEST(CompositedSurfaceTest, BuildsWindowPreviewDescriptorAsTransparentNonTargetLayer)
+{
+    const kernel::display::CompositedSurfaceDescriptor preview =
+        kernel::display::make_composited_surface(kernel::display::kWindowPreviewLayerSurfaceId,
+                                                 kernel::display::CompositedSurfaceRole::WindowPreview,
+                                                 {20, 30, 320, 200});
+
+    ASSERT_TRUE(preview.valid());
+    EXPECT_FALSE(preview.accepts_keyboard_focus());
+    EXPECT_EQ(preview.occlusion, kernel::display::LayerOcclusion::Transparent);
+    EXPECT_EQ(preview.layer().kind, kernel::display::LayerKind::WindowPreview);
+    EXPECT_FALSE(preview.layer().occludes_lower_repaint());
+    EXPECT_FALSE(preview.display_target().valid());
+    EXPECT_TRUE(kernel::display::layer_above(preview.layer().kind,
+                                             kernel::display::LayerKind::AppSurface));
+    EXPECT_TRUE(kernel::display::layer_above(kernel::display::LayerKind::DebugOverlay,
+                                             preview.layer().kind));
 }
 
 TEST(CompositedSurfaceTest, BuildsTextCaretDescriptorAsTransparentLayer)
