@@ -19,6 +19,7 @@
 #include "kernel/display/scene_buffer.hpp"
 #include "kernel/display/window_chrome.hpp"
 #include "kernel/display/window_interaction.hpp"
+#include "kernel/display/window_session.hpp"
 #include "kernel/memory/heap.hpp"
 
 #ifndef OS_LAB_TERMINAL_WINDOW_CHROME
@@ -52,7 +53,10 @@ struct DisplayRuntimeState
     display::DisplayTargetRegistry targets;
     display::AppSurfaceRegistry app_surfaces;
     display::AppSurfaceHost app_host;
+    display::WindowSessionRegistry window_sessions;
+    display::WindowSessionHost window_host;
     display::GuiSurfaceRegistry gui_surfaces;
+    display::WindowSession primary_window_session;
     display::AppSurface primary_app_surface;
     display::Rect app_work_area;
     display::Color app_foreground;
@@ -125,12 +129,22 @@ bool desktop_bar_debug_actions_enabled()
     return OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS != 0 && terminal_window_interaction_enabled();
 }
 
-desktop_bar::TerminalItemState terminal_item_state_for(display::AppSurface surface)
+desktop_bar::TerminalItemState terminal_item_state_for(display::WindowSession session)
 {
     return {
-        surface.visible(),
-        surface.focused,
-        surface.closed(),
+        session.visible(),
+        session.focused,
+        session.closed(),
+    };
+}
+
+display::WindowSessionBounds window_session_bounds_for(display::Rect outer_bounds)
+{
+    const display::WindowFrameMetrics metrics =
+        display::WindowChrome::metrics_for(outer_bounds, terminal_frame_config());
+    return {
+        outer_bounds,
+        metrics.valid() ? metrics.client_bounds : display::Rect{},
     };
 }
 
@@ -148,7 +162,7 @@ bool same_rect(display::Rect lhs, display::Rect rhs)
 
 void sync_desktop_bar_terminal_item()
 {
-    desktop_bar::sync_terminal_item_state(terminal_item_state_for(g_state.primary_app_surface));
+    desktop_bar::sync_terminal_item_state(terminal_item_state_for(g_state.primary_window_session));
 }
 
 void repaint_desktop_bar_if_visible()
@@ -167,14 +181,14 @@ display::Rect debug_overlay_avoid_bounds(display::Rect app_bounds)
     return metrics.visible ? metrics.title_bar_bounds : display::Rect{};
 }
 
-display::Rect debug_overlay_app_chrome_avoid_bounds(display::AppSurface surface)
+display::Rect debug_overlay_app_chrome_avoid_bounds(display::WindowSession session)
 {
-    if (!surface.visible() || surface.closed())
+    if (!session.visible() || session.closed())
     {
         return {};
     }
 
-    return debug_overlay_avoid_bounds(surface.bounds);
+    return debug_overlay_avoid_bounds(session.bounds.outer);
 }
 
 display::Rect desktop_bar_terminal_item_bounds()
@@ -188,7 +202,7 @@ display::Rect desktop_bar_terminal_item_bounds()
     const desktop_bar::Item item =
         desktop_bar::terminal_item_for(*bar,
                                        desktop_bar::default_config(),
-                                       terminal_item_state_for(g_state.primary_app_surface));
+                                       terminal_item_state_for(g_state.primary_window_session));
     return item.valid() ? item.bounds : display::Rect{};
 }
 
@@ -198,7 +212,7 @@ display::Rect debug_overlay_bounds_for_current_layout()
         g_state.scene.ready() ? g_state.scene.bounds() : display::Rect{};
     return debug_overlay::desktop_status_bounds_for({
         desktop_bounds,
-        debug_overlay_app_chrome_avoid_bounds(g_state.primary_app_surface),
+        debug_overlay_app_chrome_avoid_bounds(g_state.primary_window_session),
         desktop_bar_bounds(),
         desktop_bar_terminal_item_bounds(),
         {},
@@ -305,6 +319,7 @@ bool reset_display_runtime_state(const limine_framebuffer & framebuffer)
     g_state.frame.reset(bounds);
     g_state.app_surface_damage.reset(bounds);
     g_state.app_host.reset(g_state.app_surfaces, g_state.targets);
+    g_state.window_host.reset(g_state.window_sessions, g_state.app_host);
     g_state.stats = {};
     return true;
 }
@@ -405,6 +420,19 @@ bool init_primary_app_layer(const limine_framebuffer & framebuffer,
     }
 
     g_state.primary_app_surface = *registered_app;
+    g_state.primary_window_session =
+        display::make_terminal_window_session(display::kTerminalWindowSessionId,
+                                              display::kTerminalAppSurfaceId,
+                                              window_session_bounds_for(registered_app->bounds),
+                                              terminal_frame_config().visible,
+                                              registered_app->visible(),
+                                              registered_app->focused,
+                                              registered_app->focused);
+    if (!g_state.window_sessions.register_session(g_state.primary_window_session))
+    {
+        return false;
+    }
+
     g_state.app_surface_damage.reset(g_state.primary_app_surface.bounds);
     g_state.app_foreground = color_for(framebuffer, palette.terminal_foreground);
     g_state.app_background = color_for(framebuffer, palette.terminal_background);
@@ -432,26 +460,27 @@ display::CompositedSurfaceDescriptor text_caret_surface_for(display::Rect app_bo
                                             false);
 }
 
-bool sync_primary_app_compositor_surface(display::AppSurface surface,
-                                         display::Rect previous_bounds)
+bool sync_primary_window_session_compositor_surface(display::WindowSession session,
+                                                    display::Rect previous_bounds)
 {
-    const display::Rect layer_bounds = surface.closed() ? previous_bounds : surface.bounds;
+    const display::Rect layer_bounds = session.closed() ? previous_bounds : session.bounds.outer;
     const display::CompositedSurfaceDescriptor app_surface =
-        surface.closed() ? display::make_composited_surface(surface.display_surface_id,
-                                                            display::CompositedSurfaceRole::App,
-                                                            layer_bounds,
-                                                            false,
-                                                            false,
-                                                            false)
-                         : surface.composited_surface();
+        session.closed() ? display::make_composited_surface(
+                               display::app_surface_display_id_for(session.app_surface_id),
+                               display::CompositedSurfaceRole::App,
+                               layer_bounds,
+                               false,
+                               false,
+                               false)
+                         : session.composited_surface();
     if (!display::compositor::update_surface(app_surface))
     {
         return false;
     }
 
     return display::compositor::update_surface(text_caret_surface_for(layer_bounds,
-                                                                      !surface.closed() &&
-                                                                          surface.visible()));
+                                                                      !session.closed() &&
+                                                                          session.visible()));
 }
 
 void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
@@ -508,7 +537,7 @@ namespace kernel::display::runtime
 bool ready()
 {
     return g_state.surface.ready() && g_state.scene.ready() && g_state.presenter.ready() &&
-           g_state.primary_app_surface.valid() && !g_state.primary_app_surface.closed();
+           g_state.primary_window_session.valid() && !g_state.primary_window_session.closed();
 }
 
 bool init(uint64_t terminal_cell_width, uint64_t terminal_cell_height)
@@ -563,47 +592,52 @@ AppSurfaceHostConfig primary_app_config()
     };
 }
 
-bool restore_primary_app_surface(display::AppSurface previous)
+bool restore_primary_window_session(display::WindowSession previous, display::AppSurface previous_app)
 {
-    if (!g_state.app_host.restore_surface(previous))
+    if (!g_state.app_host.restore_surface(previous_app) ||
+        !g_state.window_sessions.restore_session(previous))
     {
         return false;
     }
 
-    g_state.primary_app_surface = previous;
-    g_state.app_surface_damage.reset(previous.bounds);
-    return sync_primary_app_compositor_surface(previous, previous.bounds);
+    g_state.primary_window_session = previous;
+    g_state.primary_app_surface = previous_app;
+    g_state.app_surface_damage.reset(previous.bounds.outer);
+    return sync_primary_window_session_compositor_surface(previous, previous.bounds.outer);
 }
 
-bool commit_primary_app_mutation(display::AppSurfaceMutation mutation, bool resize_terminal_app)
+bool commit_primary_window_session_mutation(display::WindowSessionMutation mutation,
+                                            bool resize_terminal_app)
 {
     const desktop_bar::TerminalItemState previous_item =
-        terminal_item_state_for(g_state.primary_app_surface);
-    if (!sync_primary_app_compositor_surface(mutation.current, mutation.previous.bounds))
+        terminal_item_state_for(g_state.primary_window_session);
+    if (!sync_primary_window_session_compositor_surface(mutation.current,
+                                                        mutation.previous.bounds.outer))
     {
-        restore_primary_app_surface(mutation.previous);
+        restore_primary_window_session(mutation.previous, mutation.app_surface.previous);
         return false;
     }
 
-    g_state.primary_app_surface = mutation.current;
-    g_state.app_surface_damage.reset(mutation.current.closed() ? mutation.previous.bounds
-                                                               : mutation.current.bounds);
+    g_state.primary_window_session = mutation.current;
+    g_state.primary_app_surface = mutation.app_surface.current;
+    g_state.app_surface_damage.reset(mutation.current.closed() ? mutation.previous.bounds.outer
+                                                               : mutation.current.bounds.outer);
 
     if (resize_terminal_app)
     {
         if (g_state.app_resize_callback == nullptr ||
-            !g_state.app_resize_callback(mutation.current))
+            !g_state.app_resize_callback(mutation.app_surface.current))
         {
-            restore_primary_app_surface(mutation.previous);
+            restore_primary_window_session(mutation.previous, mutation.app_surface.previous);
             return false;
         }
     }
     else if (g_state.app_state_callback != nullptr)
     {
-        g_state.app_state_callback(mutation.current);
+        g_state.app_state_callback(mutation.app_surface.current);
     }
     const desktop_bar::TerminalItemState current_item =
-        terminal_item_state_for(g_state.primary_app_surface);
+        terminal_item_state_for(g_state.primary_window_session);
     sync_desktop_bar_terminal_item();
     relayout_debug_overlay_if_present();
 
@@ -629,13 +663,15 @@ bool resize_app_surface(AppSurfaceId id, Rect bounds)
         return false;
     }
 
-    display::AppSurfaceMutation mutation;
-    if (!g_state.app_host.resize_surface(id, bounds, mutation))
+    display::WindowSessionMutation mutation;
+    if (!g_state.window_host.resize_session(display::kTerminalWindowSessionId,
+                                            window_session_bounds_for(bounds),
+                                            mutation))
     {
         return false;
     }
 
-    return commit_primary_app_mutation(mutation, true);
+    return commit_primary_window_session_mutation(mutation, true);
 }
 
 bool move_app_surface(AppSurfaceId id, Rect bounds)
@@ -645,19 +681,21 @@ bool move_app_surface(AppSurfaceId id, Rect bounds)
         return false;
     }
 
-    if (bounds.width != g_state.primary_app_surface.bounds.width ||
-        bounds.height != g_state.primary_app_surface.bounds.height)
+    if (bounds.width != g_state.primary_window_session.bounds.outer.width ||
+        bounds.height != g_state.primary_window_session.bounds.outer.height)
     {
         return false;
     }
 
-    display::AppSurfaceMutation mutation;
-    if (!g_state.app_host.resize_surface(id, bounds, mutation))
+    display::WindowSessionMutation mutation;
+    if (!g_state.window_host.move_session(display::kTerminalWindowSessionId,
+                                          window_session_bounds_for(bounds),
+                                          mutation))
     {
         return false;
     }
 
-    return commit_primary_app_mutation(mutation, false);
+    return commit_primary_window_session_mutation(mutation, false);
 }
 
 bool set_app_surface_visible(AppSurfaceId id, bool visible)
@@ -667,13 +705,13 @@ bool set_app_surface_visible(AppSurfaceId id, bool visible)
         return false;
     }
 
-    display::AppSurfaceMutation mutation;
-    if (!g_state.app_host.set_visible(id, visible, mutation))
+    display::WindowSessionMutation mutation;
+    if (!g_state.window_host.set_visible(display::kTerminalWindowSessionId, visible, mutation))
     {
         return false;
     }
 
-    return commit_primary_app_mutation(mutation, false);
+    return commit_primary_window_session_mutation(mutation, false);
 }
 
 bool clear_app_surface_focus(AppSurfaceId id)
@@ -683,13 +721,13 @@ bool clear_app_surface_focus(AppSurfaceId id)
         return false;
     }
 
-    display::AppSurfaceMutation mutation;
-    if (!g_state.app_host.clear_focus(id, mutation))
+    display::WindowSessionMutation mutation;
+    if (!g_state.window_host.clear_focus(display::kTerminalWindowSessionId, mutation))
     {
         return false;
     }
 
-    return commit_primary_app_mutation(mutation, false);
+    return commit_primary_window_session_mutation(mutation, false);
 }
 
 bool focus_app_surface(AppSurfaceId id)
@@ -699,13 +737,13 @@ bool focus_app_surface(AppSurfaceId id)
         return false;
     }
 
-    display::AppSurfaceMutation mutation;
-    if (!g_state.app_host.focus_surface(id, mutation))
+    display::WindowSessionMutation mutation;
+    if (!g_state.window_host.focus_session(display::kTerminalWindowSessionId, mutation))
     {
         return false;
     }
 
-    return commit_primary_app_mutation(mutation, false);
+    return commit_primary_window_session_mutation(mutation, false);
 }
 
 bool close_app_surface(AppSurfaceId id)
@@ -715,13 +753,13 @@ bool close_app_surface(AppSurfaceId id)
         return false;
     }
 
-    display::AppSurfaceMutation mutation;
-    if (!g_state.app_host.close_surface(id, mutation))
+    display::WindowSessionMutation mutation;
+    if (!g_state.window_host.close_session(display::kTerminalWindowSessionId, mutation))
     {
         return false;
     }
 
-    return commit_primary_app_mutation(mutation, false);
+    return commit_primary_window_session_mutation(mutation, false);
 }
 
 HitTestResult pointer_target()
@@ -920,12 +958,12 @@ bool pointer_targets_desktop_shell_action(desktop_bar::DesktopShellAction action
 
 bool show_and_focus_terminal_app()
 {
-    if (g_state.primary_app_surface.closed())
+    if (g_state.primary_window_session.closed())
     {
         return false;
     }
 
-    if (!g_state.primary_app_surface.visible() &&
+    if (!g_state.primary_window_session.visible() &&
         !set_app_surface_visible(display::kTerminalAppSurfaceId, true))
     {
         return false;
@@ -938,9 +976,7 @@ bool dispatch_desktop_shell_action(desktop_bar::DesktopShellAction action,
                                    TerminalWindowInteractionResult & result)
 {
     const desktop_shell::AppLifecycleMutation mutation =
-        desktop_shell::ActionHandler::mutation_for(action,
-                                                   terminal_item_state_for(
-                                                       g_state.primary_app_surface));
+        desktop_shell::ActionHandler::mutation_for(action, g_state.primary_window_session);
     switch (mutation)
     {
     case desktop_shell::AppLifecycleMutation::None:
@@ -1034,7 +1070,7 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
         g_state.pointer_target.app_surface_id == display::kTerminalAppSurfaceId;
     const display::WindowInteractionResult interaction =
         g_state.terminal_window_interaction.update({
-            g_state.primary_app_surface.bounds,
+            g_state.primary_window_session.bounds.outer,
             terminal_target ? g_state.pointer_target.app_chrome_region
                             : display::WindowChromeHitRegion::None,
             x,
