@@ -243,7 +243,7 @@ TEST(WindowSessionHostTest, HideClearsFocusAndActive)
     EXPECT_EQ(fixture.sessions.active_session(), nullptr);
 }
 
-TEST(WindowSessionHostTest, ShowAndFocusRestoresVisibleFocusedAndActive)
+TEST(WindowSessionHostTest, ShowAndFocusRestoresVisibleAndFocusedOnly)
 {
     HostFixture fixture;
     ASSERT_TRUE(fixture.register_terminal());
@@ -262,7 +262,7 @@ TEST(WindowSessionHostTest, ShowAndFocusRestoresVisibleFocusedAndActive)
     ASSERT_TRUE(fixture.session_host.focus_session(kernel::display::kTerminalWindowSessionId,
                                                    mutation));
     EXPECT_TRUE(mutation.current.focused);
-    EXPECT_TRUE(mutation.current.active);
+    EXPECT_FALSE(mutation.current.active);
 }
 
 TEST(WindowSessionHostTest, CloseKeepsSemanticsDistinctFromHide)

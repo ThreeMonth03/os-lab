@@ -4,7 +4,8 @@ namespace kernel::display::desktop_shell
 {
 
 AppLifecycleMutation ActionHandler::mutation_for(desktop_bar::DesktopShellAction action,
-                                                 const WindowSession & terminal)
+                                                 const WindowSession & terminal,
+                                                 const WindowStack & windows)
 {
     switch (action)
     {
@@ -17,9 +18,12 @@ AppLifecycleMutation ActionHandler::mutation_for(desktop_bar::DesktopShellAction
         }
         if (!terminal.visible())
         {
-            return AppLifecycleMutation::ShowAndFocus;
+            return AppLifecycleMutation::ShowFocusAndRaise;
         }
-        return terminal.focused ? AppLifecycleMutation::None : AppLifecycleMutation::Focus;
+        const bool already_selected =
+            terminal.focused && terminal.active && windows.topmost_visible_window() == terminal.id;
+        return already_selected ? AppLifecycleMutation::None
+                                : AppLifecycleMutation::FocusAndRaise;
     }
     return AppLifecycleMutation::None;
 }

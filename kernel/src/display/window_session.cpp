@@ -416,7 +416,7 @@ bool WindowSessionHost::focus_session(WindowSessionId id, WindowSessionMutation 
         return false;
     }
 
-    if (!sessions_->set_focused(id) || !sessions_->set_active(id))
+    if (!sessions_->set_focused(id))
     {
         if (!restore_session(previous, app_mutation.previous))
         {
