@@ -219,16 +219,13 @@ bool TerminalApp::move_surface(display::AppSurface app_surface)
     app_surface_ = app_surface;
     frame_metrics_ = metrics;
     text_viewport_ = frame_metrics_.client_bounds;
-    backing_.reset(backing_storage_, text_grid_rect_for(text_viewport_, capacity));
+    if (!backing_.reset_preserving_scroll(backing_storage_,
+                                          text_grid_rect_for(text_viewport_, capacity)))
+    {
+        return false;
+    }
     renderer_.reset(backing_, text_viewport_, foreground_, background_);
     repaint_.reset(app_surface_.bounds);
-    update_depth_ = 0;
-    pending_scroll_rows_ = 0;
-    pending_dirty_after_scroll_ = {};
-    backing_.fill_rect(app_surface_.bounds, background_);
-    paint_window_chrome();
-    renderer_.clear_screen();
-    repaint_text_layer();
     return renderer_.ready();
 }
 

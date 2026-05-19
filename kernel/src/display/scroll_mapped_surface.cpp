@@ -27,6 +27,25 @@ void ScrollMappedSurface::reset(BackingSurface & backing, Rect scroll_region)
     scroll_offset_ = 0;
 }
 
+bool ScrollMappedSurface::reset_preserving_scroll(BackingSurface & backing, Rect scroll_region)
+{
+    const Rect previous_region = scroll_region_;
+    const uint64_t previous_offset = scroll_offset_;
+
+    backing_ = &backing;
+    scroll_region_ = intersect_rect(backing.bounds(), scroll_region);
+    if (scroll_region_.empty() || previous_region.empty() ||
+        scroll_region_.width != previous_region.width ||
+        scroll_region_.height != previous_region.height)
+    {
+        scroll_offset_ = 0;
+        return false;
+    }
+
+    scroll_offset_ = previous_offset % scroll_region_.height;
+    return true;
+}
+
 void ScrollMappedSurface::reset_scroll()
 {
     scroll_offset_ = 0;

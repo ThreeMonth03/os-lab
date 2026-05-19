@@ -18,6 +18,7 @@ public:
     }
 
     void reset(BackingSurface & backing, Rect scroll_region);
+    [[nodiscard]] bool reset_preserving_scroll(BackingSurface & backing, Rect scroll_region);
     void reset_scroll();
     void scroll_up(uint64_t distance);
 

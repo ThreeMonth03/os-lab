@@ -93,6 +93,30 @@ TEST(ScrollMappedSurfaceTest, RowPixelsExposeMappedPhysicalRow)
     EXPECT_EQ(wrapped_row[0], 0u);
 }
 
+TEST(ScrollMappedSurfaceTest, MovePreservesScrollOffsetForSameSizedRegion)
+{
+    uint32_t pixels[16] = {};
+    kernel::display::BackingSurface storage(pixels, {0, 0, 4, 4}, 4);
+    kernel::display::ScrollMappedSurface surface(storage, {0, 0, 4, 4});
+
+    for (uint64_t y = 0; y < 4; ++y)
+    {
+        for (uint64_t x = 0; x < 4; ++x)
+        {
+            storage.put_pixel(x, y, color(static_cast<uint32_t>((y * 10) + x)));
+        }
+    }
+
+    surface.scroll_up(1);
+    ASSERT_TRUE(storage.move_to({20, 30, 4, 4}));
+    EXPECT_TRUE(surface.reset_preserving_scroll(storage, {20, 30, 4, 4}));
+
+    EXPECT_EQ(surface.scroll_offset(), 1u);
+    EXPECT_EQ(surface.pixel(20, 30).value, 10u);
+    EXPECT_EQ(surface.pixel(23, 30).value, 13u);
+    EXPECT_EQ(surface.pixel(20, 33).value, 0u);
+}
+
 TEST(ScrollMappedSurfaceTest, PixelsOutsideScrollRegionRemainDirectMapped)
 {
     uint32_t pixels[25] = {};
