@@ -15,6 +15,11 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
     before.compositor.scene_compose_from_backing_pixels = 11;
     before.compositor.scene_preflight_pixels = 7;
     before.runtime.terminal_backing_copy_pixels = 30;
+    before.runtime.window_repaint_request_count = 2;
+    before.runtime.window_repaint_pixels = 1000;
+    before.runtime.window_largest_repaint_area = 700;
+    before.runtime.window_move_repaint_pixels = 800;
+    before.runtime.window_visual_repaint_pixels = 120;
     before.elapsed_ticks = 2;
 
     kernel::display::DisplayPipelineStats after;
@@ -28,6 +33,11 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
     after.compositor.scene_compose_from_backing_pixels = 25;
     after.compositor.scene_preflight_pixels = 7;
     after.runtime.terminal_backing_copy_pixels = 90;
+    after.runtime.window_repaint_request_count = 5;
+    after.runtime.window_repaint_pixels = 1500;
+    after.runtime.window_largest_repaint_area = 900;
+    after.runtime.window_move_repaint_pixels = 1200;
+    after.runtime.window_visual_repaint_pixels = 240;
     after.elapsed_ticks = 9;
 
     const kernel::display::DisplayPipelineStats delta =
@@ -45,6 +55,11 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
     EXPECT_EQ(delta.compositor.scene_compose_from_backing_pixels, 14u);
     EXPECT_EQ(delta.compositor.scene_preflight_pixels, 0u);
     EXPECT_EQ(delta.runtime.terminal_backing_copy_pixels, 60u);
+    EXPECT_EQ(delta.runtime.window_repaint_request_count, 3u);
+    EXPECT_EQ(delta.runtime.window_repaint_pixels, 500u);
+    EXPECT_EQ(delta.runtime.window_largest_repaint_area, 200u);
+    EXPECT_EQ(delta.runtime.window_move_repaint_pixels, 400u);
+    EXPECT_EQ(delta.runtime.window_visual_repaint_pixels, 120u);
     EXPECT_EQ(delta.elapsed_ticks, 7u);
 }
 
@@ -55,12 +70,14 @@ TEST(DisplayStatsTest, DeltaSaturatesWhenCountersReset)
     before.presenter.overlay_blend_pixels = 50;
     before.compositor.repaint_plan_count = 4;
     before.runtime.terminal_backing_copy_pixels = 12;
+    before.runtime.window_repaint_pixels = 20;
 
     kernel::display::DisplayPipelineStats after;
     after.frame.total_presented_pixels = 10;
     after.presenter.overlay_blend_pixels = 5;
     after.compositor.repaint_plan_count = 1;
     after.runtime.terminal_backing_copy_pixels = 3;
+    after.runtime.window_repaint_pixels = 2;
 
     const kernel::display::DisplayPipelineStats delta =
         kernel::display::display_stats_delta(
@@ -71,4 +88,5 @@ TEST(DisplayStatsTest, DeltaSaturatesWhenCountersReset)
     EXPECT_EQ(delta.presenter.overlay_blend_pixels, 0u);
     EXPECT_EQ(delta.compositor.repaint_plan_count, 0u);
     EXPECT_EQ(delta.runtime.terminal_backing_copy_pixels, 0u);
+    EXPECT_EQ(delta.runtime.window_repaint_pixels, 0u);
 }

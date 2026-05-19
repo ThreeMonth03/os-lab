@@ -60,6 +60,15 @@ DisplayRuntimeStats delta(DisplayRuntimeStats before, DisplayRuntimeStats after)
     return {
         saturating_subtract(after.terminal_backing_copy_pixels,
                             before.terminal_backing_copy_pixels),
+        saturating_subtract(after.window_repaint_request_count,
+                            before.window_repaint_request_count),
+        saturating_subtract(after.window_repaint_pixels, before.window_repaint_pixels),
+        saturating_subtract(after.window_largest_repaint_area,
+                            before.window_largest_repaint_area),
+        saturating_subtract(after.window_move_repaint_pixels,
+                            before.window_move_repaint_pixels),
+        saturating_subtract(after.window_visual_repaint_pixels,
+                            before.window_visual_repaint_pixels),
     };
 }
 

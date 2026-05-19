@@ -15,8 +15,8 @@ function flush_command() {
     if (command == "") {
         return
     }
-    printf "%-10s %8s %8s %8s %14s %14s %14s %14s %14s %8s\n", \
-        command, elapsed, operations, scrolls, pixels, terminal_copy_pixels, scene_scroll_pixels, scene_backing_pixels, front_scroll_pixels, fallback
+    printf "%-10s %8s %8s %8s %14s %14s %14s %14s %14s %14s %8s\n", \
+        command, elapsed, operations, scrolls, pixels, terminal_copy_pixels, scene_scroll_pixels, scene_backing_pixels, front_scroll_pixels, window_repaint_pixels, fallback
 }
 
 {
@@ -24,15 +24,15 @@ function flush_command() {
 }
 
 BEGIN {
-    printf "%-10s %8s %8s %8s %14s %14s %14s %14s %14s %8s\n", \
-        "command", "ticks", "ops", "scrolls", "pixels", "term_copy", "scene_scroll", "scene_backing", "front_scroll", "fallback"
+    printf "%-10s %8s %8s %8s %14s %14s %14s %14s %14s %14s %8s\n", \
+        "command", "ticks", "ops", "scrolls", "pixels", "term_copy", "scene_scroll", "scene_backing", "front_scroll", "window_repaint", "fallback"
 }
 
 /^os-lab display profile: command=/ {
     flush_command()
     command = $0
     sub(/^os-lab display profile: command=/, "", command)
-    elapsed = operations = scrolls = pixels = terminal_copy_pixels = scene_scroll_pixels = scene_backing_pixels = front_scroll_pixels = fallback = 0
+    elapsed = operations = scrolls = pixels = terminal_copy_pixels = scene_scroll_pixels = scene_backing_pixels = front_scroll_pixels = window_repaint_pixels = fallback = 0
     next
 }
 
@@ -73,6 +73,11 @@ BEGIN {
 
 /^  presenter front-scroll pixels:/ {
     front_scroll_pixels = $4
+    next
+}
+
+/^  window repaint pixels:/ {
+    window_repaint_pixels = $4
     next
 }
 

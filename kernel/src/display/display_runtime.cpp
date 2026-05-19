@@ -21,6 +21,7 @@
 #include "kernel/display/window_chrome.hpp"
 #include "kernel/display/window_interaction.hpp"
 #include "kernel/display/window_manager.hpp"
+#include "kernel/display/window_repaint_planner.hpp"
 #include "kernel/display/window_session.hpp"
 #include "kernel/display/window_stack.hpp"
 #include "kernel/memory/heap.hpp"
@@ -257,6 +258,70 @@ bool same_rect(display::Rect lhs, display::Rect rhs)
            lhs.height == rhs.height;
 }
 
+uint64_t rect_area(display::Rect rect)
+{
+    return rect.width * rect.height;
+}
+
+display::WindowRepaintPlanner window_repaint_planner()
+{
+    return {
+        g_state.scene.ready() ? g_state.scene.bounds() : display::Rect{},
+        terminal_frame_config(),
+    };
+}
+
+enum class WindowRepaintReason
+{
+    Generic,
+    Move,
+    VisualState,
+};
+
+void record_window_repaint(display::Rect rect, WindowRepaintReason reason)
+{
+    if (rect.empty())
+    {
+        return;
+    }
+
+    const uint64_t area = rect_area(rect);
+    ++g_state.stats.window_repaint_request_count;
+    g_state.stats.window_repaint_pixels += area;
+    if (area > g_state.stats.window_largest_repaint_area)
+    {
+        g_state.stats.window_largest_repaint_area = area;
+    }
+    if (reason == WindowRepaintReason::Move)
+    {
+        g_state.stats.window_move_repaint_pixels += area;
+    }
+    else if (reason == WindowRepaintReason::VisualState)
+    {
+        g_state.stats.window_visual_repaint_pixels += area;
+    }
+}
+
+void repaint_desktop_from(display::Rect rect, WindowRepaintReason reason)
+{
+    if (rect.empty())
+    {
+        return;
+    }
+
+    record_window_repaint(rect, reason);
+    display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground, rect);
+}
+
+void repaint_desktop_regions(const display::WindowRepaintRegionList & regions,
+                             WindowRepaintReason reason)
+{
+    for (size_t index = 0; index < regions.count(); ++index)
+    {
+        repaint_desktop_from(regions.at(index), reason);
+    }
+}
+
 void sync_desktop_bar_terminal_item()
 {
     desktop_bar::sync_terminal_item_state(terminal_item_state_for(g_state.primary_window_session));
@@ -272,16 +337,6 @@ void repaint_desktop_bar_if_visible()
     }
 }
 
-void repaint_window_bounds(display::WindowSessionId id)
-{
-    const display::WindowSession * session = g_state.window_host.find(id);
-    if (session != nullptr && !session->bounds.outer.empty())
-    {
-        display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground,
-                                                 session->bounds.outer);
-    }
-}
-
 bool stack_visual_state_changed(const display::WindowStackEntry & previous,
                                 const display::WindowStackEntry & current)
 {
@@ -292,6 +347,12 @@ bool stack_visual_state_changed(const display::WindowStackEntry & previous,
 void repaint_changed_window_visual_states(const display::WindowStack & previous,
                                           const display::WindowStack & current)
 {
+    const display::WindowRepaintPlanner planner = window_repaint_planner();
+    repaint_desktop_regions(planner.stack_transition_damage(previous,
+                                                            current,
+                                                            g_state.window_sessions),
+                            WindowRepaintReason::Generic);
+
     for (size_t index = 0; index < previous.size(); ++index)
     {
         const display::WindowStackEntry * previous_entry = previous.at(index);
@@ -304,7 +365,13 @@ void repaint_changed_window_visual_states(const display::WindowStack & previous,
         if (current_entry != nullptr &&
             stack_visual_state_changed(*previous_entry, *current_entry))
         {
-            repaint_window_bounds(previous_entry->id);
+            const display::WindowSession * session =
+                g_state.window_host.find(previous_entry->id);
+            if (session != nullptr && session->visible() && !session->closed())
+            {
+                repaint_desktop_regions(planner.visual_state_damage(session->bounds.outer),
+                                        WindowRepaintReason::VisualState);
+            }
         }
     }
 }
@@ -1208,11 +1275,15 @@ bool commit_window_manager_result(display::WindowManagerResult result,
     sync_desktop_bar_terminal_item();
     relayout_debug_overlay_if_present();
 
-    if (!mutation.repaint_bounds.empty())
-    {
-        display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground,
-                                                 mutation.repaint_bounds);
-    }
+    const display::WindowRepaintRegionList mutation_repaint =
+        window_repaint_planner().mutation_damage(mutation);
+    const WindowRepaintReason mutation_repaint_reason =
+        !same_rect(mutation.previous.bounds.outer, mutation.current.bounds.outer) &&
+                mutation.previous.bounds.outer.width == mutation.current.bounds.outer.width &&
+                mutation.previous.bounds.outer.height == mutation.current.bounds.outer.height
+            ? WindowRepaintReason::Move
+            : WindowRepaintReason::Generic;
+    repaint_desktop_regions(mutation_repaint, mutation_repaint_reason);
     repaint_changed_window_visual_states(result.previous_stack, result.current_stack);
     if (previous_item.app_visible != current_item.app_visible ||
         previous_item.app_focused != current_item.app_focused ||

@@ -10,6 +10,11 @@ namespace kernel::display
 struct DisplayRuntimeStats
 {
     uint64_t terminal_backing_copy_pixels = 0;
+    uint64_t window_repaint_request_count = 0;
+    uint64_t window_repaint_pixels = 0;
+    uint64_t window_largest_repaint_area = 0;
+    uint64_t window_move_repaint_pixels = 0;
+    uint64_t window_visual_repaint_pixels = 0;
 };
 
 struct DisplayPipelineStats
