@@ -32,6 +32,7 @@ set(OS_LAB_HOST_LOGIC_DISPLAY_SOURCES
     ${PROJECT_SOURCE_DIR}/kernel/src/display/terminal_renderer.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/window_chrome.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/window_interaction.cpp
+    ${PROJECT_SOURCE_DIR}/kernel/src/display/window_stack.cpp
     ${PROJECT_SOURCE_DIR}/kernel/src/display/window_session.cpp
 )
 
