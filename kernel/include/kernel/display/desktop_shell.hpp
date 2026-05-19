@@ -9,6 +9,7 @@ enum class WindowCommand
 {
     None,
     TerminalShowFocusRaise,
+    DummyDebugAppShowFocusRaise,
 };
 
 class ActionHandler

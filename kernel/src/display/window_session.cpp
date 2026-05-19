@@ -90,6 +90,25 @@ WindowSession make_terminal_window_session(WindowSessionId id,
                                            bool focused,
                                            bool active)
 {
+    return make_app_window_session(id,
+                                   app_surface_id,
+                                   bounds,
+                                   WindowSessionRole::Terminal,
+                                   chrome_visible,
+                                   visible,
+                                   focused,
+                                   active);
+}
+
+WindowSession make_app_window_session(WindowSessionId id,
+                                      AppSurfaceId app_surface_id,
+                                      WindowSessionBounds bounds,
+                                      WindowSessionRole role,
+                                      bool chrome_visible,
+                                      bool visible,
+                                      bool focused,
+                                      bool active)
+{
     const bool open = visible;
     return {
         id,
@@ -99,7 +118,7 @@ WindowSession make_terminal_window_session(WindowSessionId id,
         open && focused,
         open && active,
         chrome_visible,
-        WindowSessionRole::Terminal,
+        role,
     };
 }
 

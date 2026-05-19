@@ -32,6 +32,18 @@ kernel::display::desktop_bar::TerminalItemState terminal_state(bool visible,
     return {visible, focused, active, closed};
 }
 
+kernel::display::desktop_bar::WindowItemState dummy_state(bool visible,
+                                                          bool focused,
+                                                          bool active,
+                                                          bool closed = false)
+{
+    return {kernel::display::desktop_bar::ItemKind::DummyDebugApp,
+            visible,
+            focused,
+            active,
+            closed};
+}
+
 } // namespace
 
 TEST(DesktopBarTest, DefaultConfigKeepsBarHidden)
@@ -276,6 +288,62 @@ TEST(DesktopBarTest, TerminalItemHitTestDistinguishesItemAndBackground)
     EXPECT_EQ(background.region, kernel::display::desktop_bar::HitRegion::Background);
     EXPECT_EQ(background.item_kind, kernel::display::desktop_bar::ItemKind::None);
     EXPECT_EQ(outside.region, kernel::display::desktop_bar::HitRegion::None);
+}
+
+TEST(DesktopBarTest, ItemListIncludesDummyAppWhenDebugWindowExists)
+{
+    const kernel::display::desktop_bar::Config config{
+        32,
+        true,
+        true,
+    };
+    const kernel::display::GuiSurface bar =
+        kernel::display::desktop_bar::make_surface({0, 0, 1280, 720},
+                                                   kernel::display::desktop_bar::kGuiSurfaceId,
+                                                   config);
+
+    const kernel::display::desktop_bar::ItemList items =
+        kernel::display::desktop_bar::item_list_for(bar,
+                                                    config,
+                                                    terminal_state(true, true, true),
+                                                    dummy_state(false, false, false));
+
+    ASSERT_EQ(items.count, 2u);
+    ASSERT_NE(items.at(0), nullptr);
+    ASSERT_NE(items.at(1), nullptr);
+    EXPECT_EQ(items.at(0)->kind, kernel::display::desktop_bar::ItemKind::Terminal);
+    EXPECT_EQ(items.at(1)->kind, kernel::display::desktop_bar::ItemKind::DummyDebugApp);
+    EXPECT_EQ(items.at(1)->action,
+              kernel::display::desktop_bar::DesktopShellAction::DummyDebugAppShowFocus);
+    EXPECT_TRUE(items.at(1)->enabled);
+    expect_rect(items.at(1)->bounds, 108, 694, 96, 20);
+}
+
+TEST(DesktopBarTest, DummyAppItemHitTestUsesGenericItemRegion)
+{
+    const kernel::display::desktop_bar::Config config{
+        32,
+        true,
+        true,
+    };
+    const kernel::display::GuiSurface bar =
+        kernel::display::desktop_bar::make_surface({0, 0, 1280, 720},
+                                                   kernel::display::desktop_bar::kGuiSurfaceId,
+                                                   config);
+
+    const kernel::display::desktop_bar::HitTestResult hit =
+        kernel::display::desktop_bar::hit_test(bar,
+                                               config,
+                                               terminal_state(true, true, true),
+                                               dummy_state(false, false, false),
+                                               114,
+                                               700);
+
+    EXPECT_EQ(hit.region, kernel::display::desktop_bar::HitRegion::Item);
+    EXPECT_EQ(hit.item_kind, kernel::display::desktop_bar::ItemKind::DummyDebugApp);
+    EXPECT_EQ(hit.action,
+              kernel::display::desktop_bar::DesktopShellAction::DummyDebugAppShowFocus);
+    EXPECT_TRUE(hit.item_enabled);
 }
 
 TEST(DesktopBarTest, TerminalItemPixelSamplingDrawsAffordance)

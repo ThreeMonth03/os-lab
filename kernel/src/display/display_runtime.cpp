@@ -8,6 +8,7 @@
 #include "kernel/boot/limine_support.hpp"
 #include "kernel/display/app_layout.hpp"
 #include "kernel/display/app_surface_host.hpp"
+#include "kernel/display/app_window.hpp"
 #include "kernel/display/composited_surface.hpp"
 #include "kernel/display/desktop_shell.hpp"
 #include "kernel/display/display_frame.hpp"
@@ -36,6 +37,10 @@
 #define OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS 0
 #endif
 
+#ifndef OS_LAB_DESKTOP_DEBUG_DUMMY_APP
+#define OS_LAB_DESKTOP_DEBUG_DUMMY_APP 0
+#endif
+
 namespace
 {
 
@@ -59,9 +64,12 @@ struct DisplayRuntimeState
     display::WindowSessionHost window_host;
     display::WindowStack window_stack;
     display::WindowManager window_manager;
+    display::AppWindowRegistry app_windows;
     display::GuiSurfaceRegistry gui_surfaces;
     display::WindowSession primary_window_session;
     display::AppSurface primary_app_surface;
+    display::WindowSession dummy_window_session;
+    display::AppSurface dummy_app_surface;
     display::Rect app_work_area;
     display::Color app_foreground;
     display::Color app_background;
@@ -70,6 +78,8 @@ struct DisplayRuntimeState
     display::PointerCursorShape pointer_cursor_shape = display::PointerCursorShape::Arrow;
     display::runtime::AppSurfaceResizeCallback app_resize_callback = nullptr;
     display::runtime::AppSurfaceStateCallback app_state_callback = nullptr;
+    display::compositor::LayerPixelCallback terminal_app_pixel_callback = nullptr;
+    display::compositor::LayerRowCallback terminal_app_row_callback = nullptr;
     desktop_bar::DesktopShellAction pressed_desktop_shell_action =
         desktop_bar::DesktopShellAction::None;
     uint32_t * scene_memory = nullptr;
@@ -85,6 +95,7 @@ struct DisplayFeatureConfig
     bool terminal_window_chrome = false;
     bool terminal_window_interaction = false;
     bool desktop_bar_debug_actions = false;
+    bool desktop_debug_dummy_app = false;
 };
 
 constexpr DisplayFeatureConfig display_feature_config()
@@ -93,6 +104,7 @@ constexpr DisplayFeatureConfig display_feature_config()
         OS_LAB_TERMINAL_WINDOW_CHROME != 0,
         OS_LAB_TERMINAL_WINDOW_INTERACTION != 0,
         OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS != 0,
+        OS_LAB_DESKTOP_DEBUG_DUMMY_APP != 0,
     };
 }
 
@@ -150,6 +162,12 @@ bool desktop_bar_debug_actions_enabled()
     return display_feature_config().desktop_bar_debug_actions && terminal_window_interaction_enabled();
 }
 
+bool desktop_debug_dummy_app_enabled()
+{
+    const DisplayFeatureConfig config = display_feature_config();
+    return config.desktop_debug_dummy_app && config.terminal_window_chrome;
+}
+
 desktop_bar::TerminalItemState terminal_item_state_for(display::WindowSession session)
 {
     return {
@@ -158,6 +176,37 @@ desktop_bar::TerminalItemState terminal_item_state_for(display::WindowSession se
         session.active,
         session.closed(),
     };
+}
+
+desktop_bar::WindowItemState dummy_item_state_for(display::WindowSession session)
+{
+    if (!desktop_debug_dummy_app_enabled() || !session.valid())
+    {
+        return {};
+    }
+
+    return {
+        desktop_bar::ItemKind::DummyDebugApp,
+        session.visible(),
+        session.focused,
+        session.active,
+        session.closed(),
+    };
+}
+
+display::WindowSessionId window_session_id_for_app_surface(display::AppSurfaceId id)
+{
+    switch (id)
+    {
+    case display::kTerminalAppSurfaceId:
+        return display::kTerminalWindowSessionId;
+    case display::kDummyDebugAppSurfaceId:
+        return display::kDummyDebugWindowSessionId;
+    case display::kInvalidAppSurfaceId:
+        return display::kInvalidWindowSessionId;
+    default:
+        return display::kInvalidWindowSessionId;
+    }
 }
 
 display::WindowSessionBounds window_session_bounds_for(display::Rect outer_bounds)
@@ -185,6 +234,7 @@ bool same_rect(display::Rect lhs, display::Rect rhs)
 void sync_desktop_bar_terminal_item()
 {
     desktop_bar::sync_terminal_item_state(terminal_item_state_for(g_state.primary_window_session));
+    desktop_bar::sync_dummy_debug_item_state(dummy_item_state_for(g_state.dummy_window_session));
 }
 
 void repaint_desktop_bar_if_visible()
@@ -221,11 +271,17 @@ display::Rect desktop_bar_terminal_item_bounds()
         return {};
     }
 
-    const desktop_bar::Item item =
-        desktop_bar::terminal_item_for(*bar,
-                                       desktop_bar::default_config(),
-                                       terminal_item_state_for(g_state.primary_window_session));
-    return item.valid() ? item.bounds : display::Rect{};
+    const desktop_bar::ItemList items =
+        desktop_bar::item_list_for(*bar,
+                                   desktop_bar::default_config(),
+                                   terminal_item_state_for(g_state.primary_window_session),
+                                   dummy_item_state_for(g_state.dummy_window_session));
+    display::Rect bounds;
+    for (size_t index = 0; index < items.count; ++index)
+    {
+        bounds = display::bounding_rect(bounds, items.items[index].bounds);
+    }
+    return bounds;
 }
 
 display::Rect debug_overlay_bounds_for_current_layout()
@@ -302,6 +358,171 @@ display::Rect primary_app_bounds_for(const limine_framebuffer & framebuffer,
     });
 }
 
+display::Rect dummy_app_bounds_for(display::Rect work_area)
+{
+    if (work_area.empty())
+    {
+        return {};
+    }
+
+    const uint64_t width = work_area.width > 480 ? 360 : (work_area.width * 3) / 5;
+    const uint64_t height = work_area.height > 360 ? 220 : (work_area.height * 3) / 5;
+    if (width < 96 || height < 72)
+    {
+        return {};
+    }
+
+    return {
+        work_area.x + work_area.width - width - 24,
+        work_area.y + 56,
+        width,
+        height,
+    };
+}
+
+display::Rect visible_app_layer_bounds(display::Rect retained_bounds = {})
+{
+    display::Rect bounds;
+    for (size_t index = 0; index < g_state.window_stack.size(); ++index)
+    {
+        const display::WindowStackEntry * entry = g_state.window_stack.at(index);
+        if (entry == nullptr || !entry->visible())
+        {
+            continue;
+        }
+
+        const display::WindowSession * session = g_state.window_host.find(entry->id);
+        if (session == nullptr || !session->visible() || session->closed())
+        {
+            continue;
+        }
+        bounds = display::bounding_rect(bounds, session->bounds.outer);
+    }
+
+    return display::bounding_rect(bounds, retained_bounds);
+}
+
+bool any_app_window_visible()
+{
+    for (size_t index = 0; index < g_state.window_stack.size(); ++index)
+    {
+        const display::WindowStackEntry * entry = g_state.window_stack.at(index);
+        if (entry != nullptr && entry->visible())
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+display::CompositedSurfaceDescriptor aggregate_app_composited_surface(
+    display::Rect retained_bounds = {})
+{
+    const display::Rect bounds = visible_app_layer_bounds(retained_bounds);
+    if (bounds.empty())
+    {
+        return {};
+    }
+
+    return display::make_composited_surface(display::app_surface_display_id_for(
+                                                display::kTerminalAppSurfaceId),
+                                            display::CompositedSurfaceRole::App,
+                                            bounds,
+                                            any_app_window_visible(),
+                                            false,
+                                            false);
+}
+
+bool sync_aggregate_app_layer(display::Rect retained_bounds = {})
+{
+    const display::CompositedSurfaceDescriptor app_layer =
+        aggregate_app_composited_surface(retained_bounds);
+    return app_layer.valid() && display::compositor::update_surface(app_layer);
+}
+
+bool runtime_rect_contains(display::Rect rect, uint64_t x, uint64_t y)
+{
+    return display::rect_contains(rect, x, y);
+}
+
+bool chrome_region_is_border_or_resize(display::WindowChromeHitRegion region)
+{
+    switch (region)
+    {
+    case display::WindowChromeHitRegion::Border:
+    case display::WindowChromeHitRegion::ResizeLeft:
+    case display::WindowChromeHitRegion::ResizeRight:
+    case display::WindowChromeHitRegion::ResizeTop:
+    case display::WindowChromeHitRegion::ResizeBottom:
+    case display::WindowChromeHitRegion::ResizeTopLeft:
+    case display::WindowChromeHitRegion::ResizeTopRight:
+    case display::WindowChromeHitRegion::ResizeBottomLeft:
+    case display::WindowChromeHitRegion::ResizeBottomRight:
+        return true;
+    case display::WindowChromeHitRegion::None:
+    case display::WindowChromeHitRegion::TitleBar:
+    case display::WindowChromeHitRegion::CloseButton:
+    case display::WindowChromeHitRegion::Content:
+        return false;
+    }
+    return false;
+}
+
+display::PixelSample sample_dummy_debug_app_pixel(display::AppSurface surface,
+                                                  uint64_t x,
+                                                  uint64_t y)
+{
+    if (!surface.valid() || !surface.visible() ||
+        !runtime_rect_contains(surface.bounds, x, y))
+    {
+        return display::transparent_pixel();
+    }
+
+    constexpr display::Color kBackground{0x00131924};
+    constexpr display::Color kAccent{0x0048c7ff};
+    constexpr display::Color kCheckerDark{0x001b2a36};
+    constexpr display::Color kCheckerLight{0x00293d4f};
+    constexpr display::Color kText{0x00d7f4ff};
+
+    const display::WindowFrameMetrics metrics =
+        display::WindowChrome::metrics_for(surface.bounds, terminal_frame_config());
+    if (metrics.visible && display::rect_contains(metrics.title_bar_bounds, x, y))
+    {
+        if ((x + y) % 5 == 0)
+        {
+            return display::opaque_pixel(kAccent);
+        }
+        return display::opaque_pixel(kBackground);
+    }
+
+    if (metrics.visible && display::WindowChrome::close_button_icon_contains_pixel(metrics, x, y))
+    {
+        return display::opaque_pixel(kText);
+    }
+
+    const bool border =
+        metrics.visible &&
+        chrome_region_is_border_or_resize(display::WindowChrome::hit_test(metrics, x, y));
+    if (border)
+    {
+        return display::opaque_pixel(surface.active ? kAccent : kText);
+    }
+
+    const display::Rect client = metrics.valid() ? metrics.client_bounds : surface.bounds;
+    if (!display::rect_contains(client, x, y))
+    {
+        return display::opaque_pixel(kBackground);
+    }
+
+    const uint64_t cell_x = (x - client.x) / 16;
+    const uint64_t cell_y = (y - client.y) / 16;
+    if (((cell_x + cell_y) % 2) == 0)
+    {
+        return display::opaque_pixel(kCheckerLight);
+    }
+    return display::opaque_pixel(kCheckerDark);
+}
+
 bool reset_display_runtime_state(const limine_framebuffer & framebuffer)
 {
     uint32_t * old_scene_memory = g_state.scene_memory;
@@ -345,6 +566,78 @@ bool reset_display_runtime_state(const limine_framebuffer & framebuffer)
     g_state.window_manager.reset(g_state.window_host, g_state.window_stack);
     g_state.stats = {};
     return true;
+}
+
+display::PixelSample sample_app_window_pixel(display::WindowSession session,
+                                             uint64_t x,
+                                             uint64_t y)
+{
+    if (!session.visible() || session.closed() ||
+        !runtime_rect_contains(session.bounds.outer, x, y))
+    {
+        return display::transparent_pixel();
+    }
+
+    switch (session.role)
+    {
+    case display::WindowSessionRole::Terminal:
+        return g_state.terminal_app_pixel_callback == nullptr
+                   ? display::transparent_pixel()
+                   : g_state.terminal_app_pixel_callback(x, y);
+    case display::WindowSessionRole::DummyDebugApp:
+        return sample_dummy_debug_app_pixel(session.app_surface(), x, y);
+    }
+    return display::transparent_pixel();
+}
+
+display::PixelSample sample_app_layer_pixel(uint64_t x, uint64_t y)
+{
+    for (size_t offset = 0; offset < g_state.window_stack.size(); ++offset)
+    {
+        const size_t index = g_state.window_stack.size() - offset - 1;
+        const display::WindowStackEntry * entry = g_state.window_stack.at(index);
+        if (entry == nullptr || !entry->visible())
+        {
+            continue;
+        }
+
+        const display::WindowSession * session = g_state.window_host.find(entry->id);
+        if (session == nullptr)
+        {
+            continue;
+        }
+
+        const display::PixelSample sample = sample_app_window_pixel(*session, x, y);
+        if (sample.opaque())
+        {
+            return sample;
+        }
+    }
+    return display::transparent_pixel();
+}
+
+const uint32_t * app_layer_row_pixels(uint64_t y)
+{
+    if (g_state.terminal_app_row_callback == nullptr)
+    {
+        return nullptr;
+    }
+
+    for (size_t index = 0; index < g_state.window_stack.size(); ++index)
+    {
+        const display::WindowStackEntry * entry = g_state.window_stack.at(index);
+        const display::WindowSession * session =
+            entry == nullptr ? nullptr : g_state.window_host.find(entry->id);
+        if (session == nullptr || !session->visible() ||
+            session->role == display::WindowSessionRole::Terminal)
+        {
+            continue;
+        }
+
+        return nullptr;
+    }
+
+    return g_state.terminal_app_row_callback(y);
 }
 
 bool init_desktop_background_layer(const limine_framebuffer & framebuffer,
@@ -456,6 +749,11 @@ bool init_primary_app_layer(const limine_framebuffer & framebuffer,
     {
         return false;
     }
+    if (!g_state.app_windows.register_window(
+            display::app_window_for_session(g_state.primary_window_session)))
+    {
+        return false;
+    }
     if (!g_state.window_stack.register_window(g_state.primary_window_session))
     {
         return false;
@@ -477,6 +775,56 @@ bool init_primary_app_layer(const limine_framebuffer & framebuffer,
     return display::compositor::register_surface(caret_surface);
 }
 
+bool init_dummy_debug_app_layer()
+{
+    if (!desktop_debug_dummy_app_enabled())
+    {
+        return true;
+    }
+
+    const display::Rect bounds = dummy_app_bounds_for(g_state.app_work_area);
+    if (bounds.empty())
+    {
+        return false;
+    }
+
+    g_state.dummy_app_surface =
+        display::make_app_surface(display::kDummyDebugAppSurfaceId, bounds, true, false, false);
+    if (!g_state.app_surfaces.register_surface(g_state.dummy_app_surface))
+    {
+        return false;
+    }
+
+    const display::AppSurface * registered_app =
+        g_state.app_surfaces.find(display::kDummyDebugAppSurfaceId);
+    if (registered_app == nullptr ||
+        !g_state.targets.register_target(registered_app->display_target()))
+    {
+        return false;
+    }
+
+    g_state.dummy_app_surface = *registered_app;
+    g_state.dummy_window_session =
+        display::make_app_window_session(display::kDummyDebugWindowSessionId,
+                                         display::kDummyDebugAppSurfaceId,
+                                         window_session_bounds_for(registered_app->bounds),
+                                         display::WindowSessionRole::DummyDebugApp,
+                                         terminal_frame_config().visible,
+                                         registered_app->visible(),
+                                         registered_app->focused,
+                                         registered_app->active);
+    if (!g_state.window_sessions.register_session(g_state.dummy_window_session))
+    {
+        return false;
+    }
+    if (!g_state.app_windows.register_window(
+            display::app_window_for_session(g_state.dummy_window_session)))
+    {
+        return false;
+    }
+    return g_state.window_stack.register_window(g_state.dummy_window_session);
+}
+
 display::CompositedSurfaceDescriptor text_caret_surface_for(display::Rect app_bounds,
                                                             bool app_visible)
 {
@@ -492,16 +840,15 @@ bool sync_primary_window_session_compositor_surface(display::WindowSession sessi
                                                     display::Rect previous_bounds)
 {
     const display::Rect layer_bounds = session.closed() ? previous_bounds : session.bounds.outer;
-    const display::CompositedSurfaceDescriptor app_surface =
-        display::retained_app_composited_surface_for_window_session(session, previous_bounds);
-    if (!display::compositor::update_surface(app_surface))
+    if (!sync_aggregate_app_layer(previous_bounds))
     {
         return false;
     }
 
     return display::compositor::update_surface(text_caret_surface_for(layer_bounds,
                                                                       !session.closed() &&
-                                                                          session.visible()));
+                                                                          session.visible() &&
+                                                                          session.focused));
 }
 
 void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
@@ -595,6 +942,14 @@ bool init(uint64_t terminal_cell_width, uint64_t terminal_cell_height)
     {
         return false;
     }
+    if (!init_dummy_debug_app_layer())
+    {
+        return false;
+    }
+    if (!sync_aggregate_app_layer())
+    {
+        return false;
+    }
     sync_desktop_bar_terminal_item();
 
     init_optional_debug_overlay_layer(*framebuffer,
@@ -624,13 +979,96 @@ bool restore_primary_window_session(display::WindowSession previous,
 
     g_state.primary_window_session = previous;
     g_state.primary_app_surface = previous.app_surface();
+    if (!g_state.app_windows.sync_session(previous))
+    {
+        return false;
+    }
     g_state.window_stack = previous_stack;
     g_state.app_surface_damage.reset(previous.bounds.outer);
     return sync_primary_window_session_compositor_surface(previous, previous.bounds.outer);
 }
 
-bool commit_primary_window_manager_result(display::WindowManagerResult result,
-                                          bool resize_terminal_app)
+bool sync_window_session_cache(display::WindowSession session)
+{
+    if (!g_state.app_windows.sync_session(session))
+    {
+        return false;
+    }
+
+    switch (session.role)
+    {
+    case display::WindowSessionRole::Terminal:
+        g_state.primary_window_session = session;
+        g_state.primary_app_surface = session.app_surface();
+        g_state.app_surface_damage.reset(session.closed() ? session.bounds.outer
+                                                          : session.bounds.outer);
+        return true;
+    case display::WindowSessionRole::DummyDebugApp:
+        g_state.dummy_window_session = session;
+        g_state.dummy_app_surface = session.app_surface();
+        return true;
+    }
+    return false;
+}
+
+bool sync_window_policy_state_from_stack()
+{
+    g_state.window_sessions.clear_focus();
+    g_state.window_sessions.clear_active();
+    g_state.app_surfaces.clear_focus();
+    g_state.targets.clear_focus();
+    g_state.targets.clear_active();
+
+    for (size_t index = 0; index < g_state.window_stack.size(); ++index)
+    {
+        const display::WindowStackEntry * entry = g_state.window_stack.at(index);
+        const display::WindowSession * current =
+            entry == nullptr ? nullptr : g_state.window_host.find(entry->id);
+        if (current == nullptr || current->closed())
+        {
+            continue;
+        }
+
+        display::WindowSession next = *current;
+        next.state = entry->state;
+        next.focused = entry->focused;
+        next.active = entry->active;
+        if (!g_state.window_host.restore_session(next, next.app_surface()) ||
+            !sync_window_session_cache(next))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool restore_window_manager_result(display::WindowManagerResult result)
+{
+    if (result.session.previous.role == display::WindowSessionRole::Terminal)
+    {
+        return restore_primary_window_session(result.session.previous,
+                                              result.session.app_surface.previous,
+                                              result.previous_stack);
+    }
+
+    if (!g_state.window_host.restore_session(result.session.previous,
+                                             result.session.app_surface.previous))
+    {
+        return false;
+    }
+    g_state.window_stack = result.previous_stack;
+    g_state.dummy_window_session = result.session.previous;
+    g_state.dummy_app_surface = result.session.app_surface.previous;
+    if (!g_state.app_windows.sync_session(result.session.previous))
+    {
+        return false;
+    }
+    return sync_aggregate_app_layer(result.session.previous.bounds.outer);
+}
+
+bool commit_window_manager_result(display::WindowManagerResult result,
+                                  bool resize_app_client)
 {
     if (!result.success)
     {
@@ -643,40 +1081,59 @@ bool commit_primary_window_manager_result(display::WindowManagerResult result,
 
     display::WindowSessionMutation mutation = result.session;
     const desktop_bar::TerminalItemState previous_item =
-        terminal_item_state_for(mutation.previous);
+        terminal_item_state_for(g_state.primary_window_session);
+    const desktop_bar::WindowItemState previous_dummy_item =
+        dummy_item_state_for(g_state.dummy_window_session);
     const display::AppSurface current_app = mutation.current.app_surface();
 
-    if (!sync_primary_window_session_compositor_surface(mutation.current,
-                                                        mutation.previous.bounds.outer))
+    if (mutation.current.role == display::WindowSessionRole::Terminal)
     {
-        restore_primary_window_session(mutation.previous,
-                                       mutation.app_surface.previous,
-                                       result.previous_stack);
+        if (!sync_primary_window_session_compositor_surface(mutation.current,
+                                                            mutation.previous.bounds.outer))
+        {
+            restore_window_manager_result(result);
+            return false;
+        }
+    }
+    else if (!sync_aggregate_app_layer(mutation.previous.bounds.outer))
+    {
+        restore_window_manager_result(result);
         return false;
     }
 
-    g_state.primary_window_session = mutation.current;
-    g_state.primary_app_surface = current_app;
-    g_state.app_surface_damage.reset(mutation.current.closed() ? mutation.previous.bounds.outer
-                                                               : mutation.current.bounds.outer);
+    if (!sync_window_policy_state_from_stack() || !sync_window_session_cache(mutation.current))
+    {
+        restore_window_manager_result(result);
+        return false;
+    }
 
-    if (resize_terminal_app)
+    if (resize_app_client && mutation.current.role == display::WindowSessionRole::Terminal)
     {
         if (g_state.app_resize_callback == nullptr ||
             !g_state.app_resize_callback(current_app))
         {
-            restore_primary_window_session(mutation.previous,
-                                           mutation.app_surface.previous,
-                                           result.previous_stack);
+            restore_window_manager_result(result);
             return false;
         }
     }
-    else if (g_state.app_state_callback != nullptr)
+    else if (mutation.current.role == display::WindowSessionRole::Terminal &&
+             g_state.app_state_callback != nullptr)
     {
         g_state.app_state_callback(current_app);
     }
     const desktop_bar::TerminalItemState current_item =
         terminal_item_state_for(g_state.primary_window_session);
+    const desktop_bar::WindowItemState current_dummy_item =
+        dummy_item_state_for(g_state.dummy_window_session);
+    if (mutation.current.role != display::WindowSessionRole::Terminal &&
+        g_state.app_state_callback != nullptr &&
+        (previous_item.app_visible != current_item.app_visible ||
+         previous_item.app_focused != current_item.app_focused ||
+         previous_item.app_active != current_item.app_active ||
+         previous_item.app_closed != current_item.app_closed))
+    {
+        g_state.app_state_callback(g_state.primary_app_surface);
+    }
     sync_desktop_bar_terminal_item();
     relayout_debug_overlay_if_present();
 
@@ -688,7 +1145,11 @@ bool commit_primary_window_manager_result(display::WindowManagerResult result,
     if (previous_item.app_visible != current_item.app_visible ||
         previous_item.app_focused != current_item.app_focused ||
         previous_item.app_active != current_item.app_active ||
-        previous_item.app_closed != current_item.app_closed)
+        previous_item.app_closed != current_item.app_closed ||
+        previous_dummy_item.app_visible != current_dummy_item.app_visible ||
+        previous_dummy_item.app_focused != current_dummy_item.app_focused ||
+        previous_dummy_item.app_active != current_dummy_item.app_active ||
+        previous_dummy_item.app_closed != current_dummy_item.app_closed)
     {
         repaint_desktop_bar_if_visible();
     }
@@ -698,112 +1159,144 @@ bool commit_primary_window_manager_result(display::WindowManagerResult result,
 
 bool resize_app_surface(AppSurfaceId id, Rect bounds)
 {
-    if (!ready() || id != display::kTerminalAppSurfaceId || g_state.app_resize_callback == nullptr)
+    if (!ready())
+    {
+        return false;
+    }
+
+    const display::WindowSessionId session_id = window_session_id_for_app_surface(id);
+    if (session_id == display::kInvalidWindowSessionId ||
+        (id == display::kTerminalAppSurfaceId && g_state.app_resize_callback == nullptr))
     {
         return false;
     }
 
     display::WindowManagerResult result;
-    if (!g_state.window_manager.resize_window(display::kTerminalWindowSessionId,
+    if (!g_state.window_manager.resize_window(session_id,
                                               window_session_bounds_for(bounds),
                                               result))
     {
         return false;
     }
 
-    return commit_primary_window_manager_result(result, true);
+    return commit_window_manager_result(result, id == display::kTerminalAppSurfaceId);
 }
 
 bool move_app_surface(AppSurfaceId id, Rect bounds)
 {
-    if (!ready() || id != display::kTerminalAppSurfaceId)
+    if (!ready())
     {
         return false;
     }
 
-    if (bounds.width != g_state.primary_window_session.bounds.outer.width ||
-        bounds.height != g_state.primary_window_session.bounds.outer.height)
+    const display::WindowSessionId session_id = window_session_id_for_app_surface(id);
+    const display::WindowSession * session = g_state.window_manager.find_window(session_id);
+    if (session == nullptr || bounds.width != session->bounds.outer.width ||
+        bounds.height != session->bounds.outer.height)
     {
         return false;
     }
 
     display::WindowManagerResult result;
-    if (!g_state.window_manager.move_window(display::kTerminalWindowSessionId,
+    if (!g_state.window_manager.move_window(session_id,
                                             window_session_bounds_for(bounds),
                                             result))
     {
         return false;
     }
 
-    return commit_primary_window_manager_result(result, false);
+    return commit_window_manager_result(result, false);
 }
 
 bool set_app_surface_visible(AppSurfaceId id, bool visible)
 {
-    if (!ready() || id != display::kTerminalAppSurfaceId)
+    if (!ready())
+    {
+        return false;
+    }
+
+    const display::WindowSessionId session_id = window_session_id_for_app_surface(id);
+    if (session_id == display::kInvalidWindowSessionId)
     {
         return false;
     }
 
     display::WindowManagerResult result;
     const bool mutated =
-        visible ? g_state.window_manager.show_window(display::kTerminalWindowSessionId, result)
-                : g_state.window_manager.hide_window(display::kTerminalWindowSessionId, result);
+        visible ? g_state.window_manager.show_window(session_id, result)
+                : g_state.window_manager.hide_window(session_id, result);
     if (!mutated)
     {
         return false;
     }
 
-    return commit_primary_window_manager_result(result, false);
+    return commit_window_manager_result(result, false);
 }
 
 bool clear_app_surface_focus(AppSurfaceId id)
 {
-    if (!ready() || id != display::kTerminalAppSurfaceId)
+    if (!ready())
+    {
+        return false;
+    }
+
+    const display::WindowSessionId session_id = window_session_id_for_app_surface(id);
+    if (session_id == display::kInvalidWindowSessionId)
     {
         return false;
     }
 
     display::WindowManagerResult result;
-    if (!g_state.window_manager.clear_focus(display::kTerminalWindowSessionId, result))
+    if (!g_state.window_manager.clear_focus(session_id, result))
     {
         return false;
     }
 
-    return commit_primary_window_manager_result(result, false);
+    return commit_window_manager_result(result, false);
 }
 
 bool focus_app_surface(AppSurfaceId id)
 {
-    if (!ready() || id != display::kTerminalAppSurfaceId)
+    if (!ready())
+    {
+        return false;
+    }
+
+    const display::WindowSessionId session_id = window_session_id_for_app_surface(id);
+    if (session_id == display::kInvalidWindowSessionId)
     {
         return false;
     }
 
     display::WindowManagerResult result;
-    if (!g_state.window_manager.focus_activate_raise_window(display::kTerminalWindowSessionId,
-                                                            result))
+    if (!g_state.window_manager.focus_activate_raise_window(session_id, result))
     {
         return false;
     }
 
-    return commit_primary_window_manager_result(result, false);
+    return commit_window_manager_result(result, false);
 }
 
 bool close_app_surface(AppSurfaceId id)
 {
-    if (!ready() || id != display::kTerminalAppSurfaceId)
+    if (!ready())
+    {
+        return false;
+    }
+
+    const display::WindowSessionId session_id = window_session_id_for_app_surface(id);
+    if (session_id == display::kInvalidWindowSessionId)
     {
         return false;
     }
 
     display::WindowManagerResult result;
-    if (!g_state.window_manager.close_window(display::kTerminalWindowSessionId, result))
+    if (!g_state.window_manager.close_window(session_id, result))
     {
         return false;
     }
 
-    return commit_primary_window_manager_result(result, false);
+    return commit_window_manager_result(result, false);
 }
 
 HitTestResult pointer_target()
@@ -941,12 +1434,26 @@ bool register_app_surface_state_callback(AppSurfaceStateCallback callback)
 
 bool register_app_surface_pixel_source(compositor::LayerPixelCallback callback)
 {
-    return display::compositor::register_layer_pixel_callback(display::LayerKind::AppSurface, callback);
+    if (callback == nullptr)
+    {
+        return false;
+    }
+
+    g_state.terminal_app_pixel_callback = callback;
+    return display::compositor::register_layer_pixel_callback(display::LayerKind::AppSurface,
+                                                              sample_app_layer_pixel);
 }
 
 bool register_app_surface_row_source(compositor::LayerRowCallback callback)
 {
-    return display::compositor::register_layer_row_callback(display::LayerKind::AppSurface, callback);
+    if (callback == nullptr)
+    {
+        return false;
+    }
+
+    g_state.terminal_app_row_callback = callback;
+    return display::compositor::register_layer_row_callback(display::LayerKind::AppSurface,
+                                                            app_layer_row_pixels);
 }
 
 bool register_app_surface_scroll_composition(LayerScrollComposition composition)
@@ -964,6 +1471,65 @@ bool register_text_caret(compositor::LayerPixelCallback pixel_callback,
                                                                bounds_callback);
 }
 
+display::HitTestResult hit_test_app_windows_by_stack(uint64_t x, uint64_t y)
+{
+    for (size_t offset = 0; offset < g_state.window_stack.size(); ++offset)
+    {
+        const size_t index = g_state.window_stack.size() - offset - 1;
+        const display::WindowStackEntry * entry = g_state.window_stack.at(index);
+        const display::WindowSession * session =
+            entry == nullptr ? nullptr : g_state.window_host.find(entry->id);
+        if (session == nullptr || !session->visible() || session->closed() ||
+            !display::rect_contains(session->bounds.outer, x, y))
+        {
+            continue;
+        }
+
+        const display::SurfaceDescriptor * target =
+            g_state.targets.find(display::app_surface_display_id_for(session->app_surface_id));
+        if (target == nullptr || !target->valid() ||
+            target->kind != display::DisplayTargetKind::AppSurface)
+        {
+            continue;
+        }
+
+        const display::WindowFrameMetrics metrics =
+            display::WindowChrome::metrics_for(session->bounds.outer, terminal_frame_config());
+        const display::WindowChromeHitRegion chrome_region =
+            display::WindowChrome::hit_test(metrics, x, y);
+        if (chrome_region == display::WindowChromeHitRegion::None)
+        {
+            continue;
+        }
+
+        return {
+            target->id,
+            target->kind,
+            session->app_surface_id,
+            display::kInvalidGuiSurfaceId,
+            chrome_region,
+            {},
+        };
+    }
+
+    return {};
+}
+
+display::HitTestResult hit_test_runtime_targets(uint64_t x, uint64_t y)
+{
+    const display::HitTestResult app = hit_test_app_windows_by_stack(x, y);
+    if (app.hit())
+    {
+        return app;
+    }
+
+    return display::HitTester(g_state.targets,
+                              g_state.app_surfaces,
+                              g_state.gui_surfaces,
+                              terminal_frame_config())
+        .hit_test(x, y);
+}
+
 void update_pointer_target(uint64_t x, uint64_t y)
 {
     if (!ready())
@@ -973,12 +1539,7 @@ void update_pointer_target(uint64_t x, uint64_t y)
         return;
     }
 
-    g_state.pointer_target = display::hit_test(g_state.targets,
-                                               g_state.app_surfaces,
-                                               g_state.gui_surfaces,
-                                               x,
-                                               y,
-                                               terminal_frame_config());
+    g_state.pointer_target = hit_test_runtime_targets(x, y);
     if (g_state.pointer_target.target_kind == display::DisplayTargetKind::GuiSurface &&
         g_state.pointer_target.gui_surface_id == desktop_bar::kGuiSurfaceId)
     {
@@ -986,8 +1547,7 @@ void update_pointer_target(uint64_t x, uint64_t y)
     }
     g_state.pointer_cursor_shape =
         terminal_window_interaction_enabled() &&
-                g_state.pointer_target.target_kind == display::DisplayTargetKind::AppSurface &&
-                g_state.pointer_target.app_surface_id == display::kTerminalAppSurfaceId
+                g_state.pointer_target.target_kind == display::DisplayTargetKind::AppSurface
             ? display::cursor_shape_for_hit_region(g_state.pointer_target.app_chrome_region)
             : display::PointerCursorShape::Arrow;
 }
@@ -1000,17 +1560,23 @@ bool pointer_targets_desktop_shell_action(desktop_bar::DesktopShellAction action
            g_state.pointer_target.desktop_bar_hit.item_enabled;
 }
 
-bool focus_terminal_window_from_pointer(TerminalWindowInteractionResult & result)
+bool focus_window_from_pointer(display::WindowSessionId session_id,
+                               TerminalWindowInteractionResult & result)
 {
     display::WindowManagerResult manager_result;
-    if (!g_state.window_manager.focus_activate_raise_window(display::kTerminalWindowSessionId,
-                                                            manager_result) ||
-        !commit_primary_window_manager_result(manager_result, false))
+    if (!g_state.window_manager.focus_activate_raise_window(session_id, manager_result) ||
+        !commit_window_manager_result(manager_result, false))
     {
         return false;
     }
 
-    result.focus_keyboard_terminal_app = manager_result.changed;
+    const display::WindowSession * session = g_state.window_manager.find_window(session_id);
+    result.focus_keyboard_terminal_app =
+        manager_result.changed && session != nullptr &&
+        session->role == display::WindowSessionRole::Terminal;
+    result.clear_keyboard_focus =
+        manager_result.changed && session != nullptr &&
+        session->role != display::WindowSessionRole::Terminal;
     return true;
 }
 
@@ -1028,9 +1594,23 @@ bool dispatch_desktop_shell_action(desktop_bar::DesktopShellAction action,
         display::WindowManagerResult manager_result;
         if (g_state.window_manager.show_focus_activate_raise_window(display::kTerminalWindowSessionId,
                                                                     manager_result) &&
-            commit_primary_window_manager_result(manager_result, false))
+            commit_window_manager_result(manager_result, false))
         {
             result.focus_keyboard_terminal_app = manager_result.changed;
+            return manager_result.changed;
+        }
+        return false;
+    }
+    case desktop_shell::WindowCommand::DummyDebugAppShowFocusRaise:
+    {
+        display::WindowManagerResult manager_result;
+        if (g_state.window_manager.show_focus_activate_raise_window(
+                display::kDummyDebugWindowSessionId,
+                manager_result) &&
+            commit_window_manager_result(manager_result, false))
+        {
+            result.focus_keyboard_terminal_app = false;
+            result.clear_keyboard_focus = manager_result.changed;
             return manager_result.changed;
         }
         return false;
@@ -1105,14 +1685,19 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
         return result;
     }
 
-    const bool terminal_target =
+    const bool app_target =
         g_state.pointer_target.target_kind == display::DisplayTargetKind::AppSurface &&
-        g_state.pointer_target.app_surface_id == display::kTerminalAppSurfaceId;
+        window_session_id_for_app_surface(g_state.pointer_target.app_surface_id) !=
+            display::kInvalidWindowSessionId;
+    const display::WindowSessionId target_session_id =
+        app_target ? window_session_id_for_app_surface(g_state.pointer_target.app_surface_id)
+                   : display::kInvalidWindowSessionId;
+    const display::WindowSession * target_session =
+        app_target ? g_state.window_manager.find_window(target_session_id) : nullptr;
     const display::WindowInteractionResult interaction =
         g_state.terminal_window_interaction.update({
-            g_state.primary_window_session.bounds.outer,
-            terminal_target ? g_state.pointer_target.app_chrome_region
-                            : display::WindowChromeHitRegion::None,
+            target_session == nullptr ? display::Rect{} : target_session->bounds.outer,
+            app_target ? g_state.pointer_target.app_chrome_region : display::WindowChromeHitRegion::None,
             x,
             y,
             primary_down,
@@ -1121,8 +1706,8 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     g_state.pointer_cursor_shape = interaction.cursor_shape;
     result.handled = interaction.handled;
 
-    if (terminal_target && interaction.focus_requested &&
-        focus_terminal_window_from_pointer(result))
+    if (app_target && interaction.focus_requested &&
+        focus_window_from_pointer(target_session_id, result))
     {
         result.handled = true;
         update_pointer_target(x, y);
@@ -1130,7 +1715,7 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
 
     if (interaction.commit_move)
     {
-        const bool moved = move_app_surface(display::kTerminalAppSurfaceId,
+        const bool moved = move_app_surface(g_state.pointer_target.app_surface_id,
                                             interaction.proposed_bounds);
         if (moved)
         {
@@ -1140,7 +1725,7 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     }
     else if (interaction.commit_resize)
     {
-        const bool resized = resize_app_surface(display::kTerminalAppSurfaceId,
+        const bool resized = resize_app_surface(g_state.pointer_target.app_surface_id,
                                                 interaction.proposed_bounds);
         if (resized)
         {
@@ -1150,7 +1735,9 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     }
     else if (interaction.close_requested)
     {
-        result.clear_keyboard_focus = set_app_surface_visible(display::kTerminalAppSurfaceId, false);
+        result.clear_keyboard_focus =
+            set_app_surface_visible(g_state.pointer_target.app_surface_id, false) &&
+            g_state.pointer_target.app_surface_id == display::kTerminalAppSurfaceId;
         update_pointer_target(x, y);
     }
 

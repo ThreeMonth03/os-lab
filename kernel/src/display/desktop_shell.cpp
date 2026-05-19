@@ -11,6 +11,8 @@ WindowCommand ActionHandler::command_for(desktop_bar::DesktopShellAction action)
         return WindowCommand::None;
     case desktop_bar::DesktopShellAction::TerminalShowFocus:
         return WindowCommand::TerminalShowFocusRaise;
+    case desktop_bar::DesktopShellAction::DummyDebugAppShowFocus:
+        return WindowCommand::DummyDebugAppShowFocusRaise;
     }
     return WindowCommand::None;
 }

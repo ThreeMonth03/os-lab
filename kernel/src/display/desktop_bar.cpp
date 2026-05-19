@@ -66,6 +66,52 @@ bool terminal_icon_pixel(kernel::display::Rect button_bounds, uint64_t x, uint64
     return monitor_outline || prompt_mark || prompt_tail || baseline;
 }
 
+bool dummy_app_icon_pixel(kernel::display::Rect button_bounds, uint64_t x, uint64_t y)
+{
+    constexpr uint64_t kIconSize = 12;
+    constexpr uint64_t kIconLeftInset = 8;
+    if (button_bounds.width < kIconLeftInset + kIconSize + 2 ||
+        button_bounds.height < kIconSize + 2)
+    {
+        return false;
+    }
+
+    const uint64_t icon_x = button_bounds.x + kIconLeftInset;
+    const uint64_t icon_y = button_bounds.y + ((button_bounds.height - kIconSize) / 2);
+    const kernel::display::Rect icon{icon_x, icon_y, kIconSize, kIconSize};
+    if (!contains(icon, x, y))
+    {
+        return false;
+    }
+
+    const uint64_t local_x = x - icon.x;
+    const uint64_t local_y = y - icon.y;
+    const bool outline = local_x == 0 || local_y == 0 || local_x + 1 == kIconSize ||
+                         local_y + 1 == kIconSize;
+    const bool checker = ((local_x / 3) + (local_y / 3)) % 2 == 0;
+    return outline || checker;
+}
+
+kernel::display::desktop_bar::DesktopShellAction action_for_item(
+    kernel::display::desktop_bar::ItemKind kind)
+{
+    switch (kind)
+    {
+    case kernel::display::desktop_bar::ItemKind::Terminal:
+        return kernel::display::desktop_bar::DesktopShellAction::TerminalShowFocus;
+    case kernel::display::desktop_bar::ItemKind::DummyDebugApp:
+        return kernel::display::desktop_bar::DesktopShellAction::DummyDebugAppShowFocus;
+    case kernel::display::desktop_bar::ItemKind::None:
+        return kernel::display::desktop_bar::DesktopShellAction::None;
+    }
+    return kernel::display::desktop_bar::DesktopShellAction::None;
+}
+
+bool selected(kernel::display::desktop_bar::WindowItemState state)
+{
+    return state.app_visible && state.app_focused && state.app_active && !state.app_closed;
+}
+
 } // namespace
 
 namespace kernel::display::desktop_bar
@@ -154,6 +200,22 @@ bool Item::valid() const
            !bounds.empty();
 }
 
+bool ItemList::push(Item item)
+{
+    if (!item.valid() || count >= kMaxItems)
+    {
+        return false;
+    }
+
+    items[count++] = item;
+    return true;
+}
+
+const Item * ItemList::at(size_t index) const
+{
+    return index < count ? &items[index] : nullptr;
+}
+
 bool HitTestResult::hit_item() const
 {
     return region == HitRegion::Item && item_kind != ItemKind::None &&
@@ -162,9 +224,19 @@ bool HitTestResult::hit_item() const
 
 Item terminal_item_for(const GuiSurface & surface, Config config, TerminalItemState terminal)
 {
+    const ItemList items = item_list_for(surface, config, terminal, {});
+    return items.count > 0 ? items.items[0] : Item{};
+}
+
+ItemList item_list_for(const GuiSurface & surface,
+                       Config config,
+                       TerminalItemState terminal,
+                       WindowItemState dummy)
+{
+    ItemList list;
     if (!surface.valid() || !surface.visible || !config.debug_actions)
     {
-        return {};
+        return list;
     }
 
     const uint64_t margin = item_margin_for(surface.bounds);
@@ -178,29 +250,56 @@ Item terminal_item_for(const GuiSurface & surface, Config config, TerminalItemSt
     const uint64_t button_height = surface.bounds.height - (margin * 2);
     if (button_width < kItemMinWidth || button_height < kItemMinHeight)
     {
-        return {};
+        return list;
     }
 
-    const bool selected = terminal.app_visible && terminal.app_focused && terminal.app_active &&
-                          !terminal.app_closed;
-
-    return {
-        {surface.bounds.x + margin,
-         surface.bounds.y + ((surface.bounds.height - button_height) / 2),
-         button_width,
-         button_height},
-        ItemKind::Terminal,
-        DesktopShellAction::TerminalShowFocus,
-        true,
-        !terminal.app_closed && !selected,
-        terminal.app_visible && terminal.app_active && !terminal.app_closed,
-        terminal.app_focused && terminal.app_visible && !terminal.app_closed,
+    const WindowItemState states[kMaxItems] = {
+        {ItemKind::Terminal,
+         terminal.app_visible,
+         terminal.app_focused,
+         terminal.app_active,
+         terminal.app_closed},
+        dummy,
     };
+    uint64_t next_x = surface.bounds.x + margin;
+    for (const WindowItemState state : states)
+    {
+        if (state.kind == ItemKind::None)
+        {
+            continue;
+        }
+
+        if (next_x + button_width > surface.bounds.x + surface.bounds.width - margin)
+        {
+            break;
+        }
+
+        const bool item_selected = selected(state);
+        if (!list.push({
+                {next_x,
+                 surface.bounds.y + ((surface.bounds.height - button_height) / 2),
+                 button_width,
+                 button_height},
+                state.kind,
+                action_for_item(state.kind),
+                true,
+                !state.app_closed && !item_selected,
+                state.app_visible && state.app_active && !state.app_closed,
+                state.app_focused && state.app_visible && !state.app_closed,
+            }))
+        {
+            break;
+        }
+        next_x += button_width + margin;
+    }
+
+    return list;
 }
 
 HitTestResult hit_test(const GuiSurface & surface,
                        Config config,
                        TerminalItemState terminal,
+                       WindowItemState dummy,
                        uint64_t x,
                        uint64_t y)
 {
@@ -209,15 +308,19 @@ HitTestResult hit_test(const GuiSurface & surface,
         return {};
     }
 
-    const Item terminal_item = terminal_item_for(surface, config, terminal);
-    if (terminal_item.valid() && contains(terminal_item.bounds, x, y))
+    const ItemList items = item_list_for(surface, config, terminal, dummy);
+    for (size_t index = 0; index < items.count; ++index)
     {
-        return {
-            HitRegion::Item,
-            terminal_item.kind,
-            terminal_item.action,
-            terminal_item.enabled,
-        };
+        const Item & item = items.items[index];
+        if (contains(item.bounds, x, y))
+        {
+            return {
+                HitRegion::Item,
+                item.kind,
+                item.action,
+                item.enabled,
+            };
+        }
     }
 
     return {
@@ -228,10 +331,20 @@ HitTestResult hit_test(const GuiSurface & surface,
     };
 }
 
+HitTestResult hit_test(const GuiSurface & surface,
+                       Config config,
+                       TerminalItemState terminal,
+                       uint64_t x,
+                       uint64_t y)
+{
+    return hit_test(surface, config, terminal, {}, x, y);
+}
+
 PixelSample sample_pixel(const GuiSurface & surface,
                          Palette palette,
                          Config config,
                          TerminalItemState terminal,
+                         WindowItemState dummy,
                          uint64_t x,
                          uint64_t y)
 {
@@ -240,20 +353,28 @@ PixelSample sample_pixel(const GuiSurface & surface,
         return transparent_pixel();
     }
 
-    const Item terminal_item = terminal_item_for(surface, config, terminal);
-    if (terminal_item.valid() && contains(terminal_item.bounds, x, y))
+    const ItemList items = item_list_for(surface, config, terminal, dummy);
+    for (size_t index = 0; index < items.count; ++index)
     {
-        if (on_rect_border(terminal_item.bounds, x, y))
+        const Item & item = items.items[index];
+        if (!contains(item.bounds, x, y))
+        {
+            continue;
+        }
+        if (on_rect_border(item.bounds, x, y))
         {
             return opaque_pixel(palette.button_border);
         }
-        if (terminal_icon_pixel(terminal_item.bounds, x, y))
+        const bool icon_pixel =
+            item.kind == ItemKind::Terminal ? terminal_icon_pixel(item.bounds, x, y)
+                                            : dummy_app_icon_pixel(item.bounds, x, y);
+        if (icon_pixel)
         {
             return opaque_pixel(palette.button_icon);
         }
 
-        return opaque_pixel(terminal_item.enabled ? palette.button_background
-                                                  : palette.button_disabled_background);
+        return opaque_pixel(item.enabled ? palette.button_background
+                                         : palette.button_disabled_background);
     }
 
     if (y < surface.bounds.y + kTopBorderHeight)
@@ -261,6 +382,16 @@ PixelSample sample_pixel(const GuiSurface & surface,
         return opaque_pixel(palette.border);
     }
     return opaque_pixel(palette.background);
+}
+
+PixelSample sample_pixel(const GuiSurface & surface,
+                         Palette palette,
+                         Config config,
+                         TerminalItemState terminal,
+                         uint64_t x,
+                         uint64_t y)
+{
+    return sample_pixel(surface, palette, config, terminal, {}, x, y);
 }
 
 } // namespace kernel::display::desktop_bar

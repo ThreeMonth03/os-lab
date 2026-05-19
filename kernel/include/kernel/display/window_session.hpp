@@ -15,6 +15,7 @@ using WindowSessionId = uint16_t;
 
 inline constexpr WindowSessionId kInvalidWindowSessionId = 0;
 inline constexpr WindowSessionId kTerminalWindowSessionId = 1;
+inline constexpr WindowSessionId kDummyDebugWindowSessionId = 2;
 inline constexpr size_t kMaxWindowSessions = 4;
 
 enum class WindowSessionState
@@ -27,6 +28,7 @@ enum class WindowSessionState
 enum class WindowSessionRole
 {
     Terminal,
+    DummyDebugApp,
 };
 
 struct WindowSessionBounds
@@ -72,6 +74,14 @@ WindowSession make_terminal_window_session(WindowSessionId id,
                                            bool visible = true,
                                            bool focused = false,
                                            bool active = false);
+WindowSession make_app_window_session(WindowSessionId id,
+                                      AppSurfaceId app_surface_id,
+                                      WindowSessionBounds bounds,
+                                      WindowSessionRole role,
+                                      bool chrome_visible,
+                                      bool visible = true,
+                                      bool focused = false,
+                                      bool active = false);
 
 class WindowSessionRegistry
 {

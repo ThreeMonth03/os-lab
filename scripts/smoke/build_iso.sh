@@ -22,6 +22,7 @@ display_profile_script=${DISPLAY_PROFILE_SCRIPT:-OFF}
 terminal_window_chrome=${TERMINAL_WINDOW_CHROME:-OFF}
 terminal_window_interaction=${TERMINAL_WINDOW_INTERACTION:-OFF}
 desktop_bar_debug_actions=${DESKTOP_BAR_DEBUG_ACTIONS:-OFF}
+desktop_debug_dummy_app=${DESKTOP_DEBUG_DUMMY_APP:-OFF}
 
 cmake_options=(
     -DCMAKE_BUILD_TYPE="${build_type}"
@@ -33,6 +34,7 @@ cmake_options=(
     -DOS_LAB_TERMINAL_WINDOW_CHROME="${terminal_window_chrome}"
     -DOS_LAB_TERMINAL_WINDOW_INTERACTION="${terminal_window_interaction}"
     -DOS_LAB_DESKTOP_BAR_DEBUG_ACTIONS="${desktop_bar_debug_actions}"
+    -DOS_LAB_DESKTOP_DEBUG_DUMMY_APP="${desktop_debug_dummy_app}"
 )
 
 case "${kind}" in

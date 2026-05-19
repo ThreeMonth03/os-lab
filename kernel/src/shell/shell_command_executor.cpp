@@ -123,6 +123,11 @@ kernel::StringView pointer_target_name(kernel::display::HitTestResult target)
             {
                 return "desktop bar item";
             }
+            if (target.desktop_bar_hit.item_kind ==
+                kernel::display::desktop_bar::ItemKind::DummyDebugApp)
+            {
+                return "desktop bar item";
+            }
             return "desktop bar";
         }
         return "gui surface";
@@ -186,6 +191,8 @@ kernel::StringView desktop_bar_item_name(kernel::display::desktop_bar::ItemKind 
         return "none";
     case kernel::display::desktop_bar::ItemKind::Terminal:
         return "terminal";
+    case kernel::display::desktop_bar::ItemKind::DummyDebugApp:
+        return "dummy app";
     }
     return "unknown";
 }

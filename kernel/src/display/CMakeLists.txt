@@ -2,6 +2,7 @@ add_library(os_lab_kernel_display OBJECT
     app_layout.cpp
     app_surface.cpp
     app_surface_host.cpp
+    app_window.cpp
     backing_surface.cpp
     composited_surface.cpp
     compositor.cpp

@@ -28,6 +28,21 @@ kernel::display::WindowSession make_session(bool visible = true,
                                                          active);
 }
 
+kernel::display::WindowSession make_dummy_session(bool visible = true,
+                                                  bool focused = false,
+                                                  bool active = false,
+                                                  kernel::display::Rect outer = {80, 64, 240, 160})
+{
+    return kernel::display::make_app_window_session(kernel::display::kDummyDebugWindowSessionId,
+                                                    kernel::display::kDummyDebugAppSurfaceId,
+                                                    bounds_for(outer),
+                                                    kernel::display::WindowSessionRole::DummyDebugApp,
+                                                    true,
+                                                    visible,
+                                                    focused,
+                                                    active);
+}
+
 struct ManagerFixture
 {
     kernel::display::WindowSessionRegistry sessions;
@@ -39,6 +54,11 @@ struct ManagerFixture
     kernel::display::WindowManager manager;
 
     bool register_terminal(kernel::display::WindowSession session = make_session())
+    {
+        return register_window(session);
+    }
+
+    bool register_window(kernel::display::WindowSession session)
     {
         if (!sessions.register_session(session))
         {
@@ -248,6 +268,53 @@ TEST(WindowManagerTest, SnapshotKeepsPolicyTermsSeparate)
     EXPECT_EQ(snapshot.active, kernel::display::kTerminalWindowSessionId);
     EXPECT_EQ(snapshot.topmost_visible, kernel::display::kTerminalWindowSessionId);
     EXPECT_EQ(snapshot.window_count, 1u);
+}
+
+TEST(WindowManagerTest, FocusActivateRaiseDummyWindowOverTerminal)
+{
+    ManagerFixture fixture;
+    ASSERT_TRUE(fixture.register_terminal());
+    ASSERT_TRUE(fixture.register_window(make_dummy_session()));
+
+    kernel::display::WindowManagerResult result;
+    ASSERT_TRUE(fixture.manager.focus_activate_raise_window(kernel::display::kDummyDebugWindowSessionId,
+                                                            result));
+
+    const kernel::display::WindowSession * terminal =
+        fixture.sessions.find(kernel::display::kTerminalWindowSessionId);
+    const kernel::display::WindowSession * dummy =
+        fixture.sessions.find(kernel::display::kDummyDebugWindowSessionId);
+    ASSERT_NE(terminal, nullptr);
+    ASSERT_NE(dummy, nullptr);
+    EXPECT_FALSE(terminal->focused);
+    EXPECT_FALSE(terminal->active);
+    EXPECT_TRUE(dummy->focused);
+    EXPECT_TRUE(dummy->active);
+    EXPECT_EQ(fixture.stack.topmost_visible_window(),
+              kernel::display::kDummyDebugWindowSessionId);
+}
+
+TEST(WindowManagerTest, HideFocusedDummyClearsFocusAndKeepsTerminalVisible)
+{
+    ManagerFixture fixture;
+    ASSERT_TRUE(fixture.register_terminal());
+    ASSERT_TRUE(fixture.register_window(make_dummy_session()));
+
+    kernel::display::WindowManagerResult result;
+    ASSERT_TRUE(fixture.manager.focus_activate_raise_window(kernel::display::kDummyDebugWindowSessionId,
+                                                            result));
+    ASSERT_TRUE(fixture.manager.hide_window(kernel::display::kDummyDebugWindowSessionId, result));
+
+    const kernel::display::WindowSession * terminal =
+        fixture.sessions.find(kernel::display::kTerminalWindowSessionId);
+    const kernel::display::WindowSession * dummy =
+        fixture.sessions.find(kernel::display::kDummyDebugWindowSessionId);
+    ASSERT_NE(terminal, nullptr);
+    ASSERT_NE(dummy, nullptr);
+    EXPECT_TRUE(terminal->visible());
+    EXPECT_TRUE(dummy->hidden());
+    EXPECT_EQ(fixture.stack.focused_window(), kernel::display::kInvalidWindowSessionId);
+    EXPECT_EQ(fixture.stack.active_window(), kernel::display::kInvalidWindowSessionId);
 }
 
 TEST(WindowManagerTest, DesktopShellTerminalCommandGoesThroughManager)

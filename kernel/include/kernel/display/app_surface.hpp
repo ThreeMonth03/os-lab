@@ -14,6 +14,7 @@ using AppSurfaceId = uint16_t;
 
 inline constexpr AppSurfaceId kInvalidAppSurfaceId = 0;
 inline constexpr AppSurfaceId kTerminalAppSurfaceId = 1;
+inline constexpr AppSurfaceId kDummyDebugAppSurfaceId = 2;
 inline constexpr size_t kMaxAppSurfaces = 4;
 inline constexpr SurfaceId kFirstAppSurfaceDisplayId = 200;
 

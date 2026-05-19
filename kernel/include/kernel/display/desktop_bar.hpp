@@ -16,17 +16,20 @@ inline constexpr uint64_t kItemMargin = 6;
 inline constexpr uint64_t kDefaultItemWidth = 96;
 inline constexpr uint64_t kItemMinWidth = 24;
 inline constexpr uint64_t kItemMinHeight = 12;
+inline constexpr size_t kMaxItems = 2;
 
 enum class ItemKind
 {
     None,
     Terminal,
+    DummyDebugApp,
 };
 
 enum class DesktopShellAction
 {
     None,
     TerminalShowFocus,
+    DummyDebugAppShowFocus,
 };
 
 enum class HitRegion
@@ -69,6 +72,15 @@ struct TerminalItemState
     bool app_closed = false;
 };
 
+struct WindowItemState
+{
+    ItemKind kind = ItemKind::None;
+    bool app_visible = false;
+    bool app_focused = false;
+    bool app_active = false;
+    bool app_closed = true;
+};
+
 struct Item
 {
     Rect bounds;
@@ -80,6 +92,15 @@ struct Item
     bool focused = false;
 
     [[nodiscard]] bool valid() const;
+};
+
+struct ItemList
+{
+    Item items[kMaxItems] = {};
+    size_t count = 0;
+
+    [[nodiscard]] bool push(Item item);
+    [[nodiscard]] const Item * at(size_t index) const;
 };
 
 struct HitTestResult
@@ -101,11 +122,28 @@ struct HitTestResult
 [[nodiscard]] Item terminal_item_for(const GuiSurface & surface,
                                      Config config,
                                      TerminalItemState terminal);
+[[nodiscard]] ItemList item_list_for(const GuiSurface & surface,
+                                     Config config,
+                                     TerminalItemState terminal,
+                                     WindowItemState dummy = {});
+[[nodiscard]] HitTestResult hit_test(const GuiSurface & surface,
+                                     Config config,
+                                     TerminalItemState terminal,
+                                     WindowItemState dummy,
+                                     uint64_t x,
+                                     uint64_t y);
 [[nodiscard]] HitTestResult hit_test(const GuiSurface & surface,
                                      Config config,
                                      TerminalItemState terminal,
                                      uint64_t x,
                                      uint64_t y);
+[[nodiscard]] PixelSample sample_pixel(const GuiSurface & surface,
+                                       Palette palette,
+                                       Config config,
+                                       TerminalItemState terminal,
+                                       WindowItemState dummy,
+                                       uint64_t x,
+                                       uint64_t y);
 [[nodiscard]] PixelSample sample_pixel(const GuiSurface & surface,
                                        Palette palette,
                                        Config config,

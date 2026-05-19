@@ -69,6 +69,7 @@ private:
                                                StackPolicy policy,
                                                WindowManagerResult & result);
     [[nodiscard]] bool apply_stack_policy(WindowSession & session, StackPolicy policy);
+    [[nodiscard]] bool sync_sessions_from_stack();
     [[nodiscard]] bool stack_only_mutation(WindowSessionId id,
                                            StackPolicy policy,
                                            WindowManagerResult & result);

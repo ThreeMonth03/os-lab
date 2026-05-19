@@ -11,6 +11,15 @@ TEST(DesktopShellTest, TerminalActionMapsToWindowManagerCommand)
     EXPECT_EQ(command, kernel::display::desktop_shell::WindowCommand::TerminalShowFocusRaise);
 }
 
+TEST(DesktopShellTest, DummyDebugAppActionMapsToWindowManagerCommand)
+{
+    const kernel::display::desktop_shell::WindowCommand command =
+        kernel::display::desktop_shell::ActionHandler::command_for(
+            kernel::display::desktop_bar::DesktopShellAction::DummyDebugAppShowFocus);
+
+    EXPECT_EQ(command, kernel::display::desktop_shell::WindowCommand::DummyDebugAppShowFocusRaise);
+}
+
 TEST(DesktopShellTest, NoneActionDoesNothing)
 {
     const kernel::display::desktop_shell::WindowCommand command =

@@ -226,6 +226,19 @@ bool WindowManager::finish_session_mutation(WindowSessionMutation mutation,
         }
         return false;
     }
+    if (!sync_sessions_from_stack())
+    {
+        if (!rollback(mutation.previous, mutation.app_surface.previous, previous_stack))
+        {
+            return false;
+        }
+        return false;
+    }
+    if (const WindowSession * synced = sessions_->find(mutation.current.id); synced != nullptr)
+    {
+        mutation.current = *synced;
+        mutation.app_surface.current = synced->app_surface();
+    }
 
     result = {
         true,
@@ -281,6 +294,36 @@ bool WindowManager::apply_stack_policy(WindowSession & session, StackPolicy poli
     return true;
 }
 
+bool WindowManager::sync_sessions_from_stack()
+{
+    if (!ready())
+    {
+        return false;
+    }
+
+    for (size_t index = 0; index < stack_->size(); ++index)
+    {
+        const WindowStackEntry * entry = stack_->at(index);
+        const WindowSession * current =
+            entry == nullptr ? nullptr : sessions_->find(entry->id);
+        if (current == nullptr || current->closed())
+        {
+            continue;
+        }
+
+        WindowSession next = *current;
+        next.state = entry->state;
+        next.focused = entry->focused;
+        next.active = entry->active;
+        if (!sessions_->restore_session(next, next.app_surface()))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool WindowManager::stack_only_mutation(WindowSessionId id,
                                         StackPolicy policy,
                                         WindowManagerResult & result)
@@ -303,7 +346,7 @@ bool WindowManager::stack_only_mutation(WindowSessionId id,
     }
 
     const AppSurface current_app = current.app_surface();
-    if (!sessions_->restore_session(current, current_app))
+    if (!sessions_->restore_session(current, current_app) || !sync_sessions_from_stack())
     {
         if (!rollback(previous, previous_app, previous_stack))
         {
@@ -311,11 +354,21 @@ bool WindowManager::stack_only_mutation(WindowSessionId id,
         }
         return false;
     }
+    const WindowSession * synced = sessions_->find(id);
+    if (synced == nullptr)
+    {
+        if (!rollback(previous, previous_app, previous_stack))
+        {
+            return false;
+        }
+        return false;
+    }
+    current = *synced;
 
     result = {
         true,
         true,
-        {previous, current, {previous_app, current_app, {}}, {}},
+        {previous, current, {previous_app, current.app_surface(), {}}, current.bounds.outer},
         previous_stack,
         *stack_,
     };

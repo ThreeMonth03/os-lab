@@ -289,7 +289,7 @@ display::PixelSample TerminalApp::sample_pixel(uint64_t x, uint64_t y) const
 
 display::PixelSample TerminalApp::sample_caret_pixel(uint64_t x, uint64_t y) const
 {
-    return ready() && app_surface_.visible() && cursor_.visible &&
+    return ready() && app_surface_.visible() && app_surface_.focused && cursor_.visible &&
                    !display::intersect_rect(caret_bounds(), {x, y, 1, 1}).empty()
                ? display::opaque_pixel(renderer_.foreground())
                : display::transparent_pixel();
@@ -466,8 +466,9 @@ display::Rect TerminalApp::caret_rect(uint64_t column, uint64_t row) const
 
 display::Rect TerminalApp::caret_bounds() const
 {
-    return ready() && app_surface_.visible() && cursor_.visible ? caret_rect(cursor_.column, cursor_.row)
-                                                                : display::Rect{};
+    return ready() && app_surface_.visible() && app_surface_.focused && cursor_.visible
+               ? caret_rect(cursor_.column, cursor_.row)
+               : display::Rect{};
 }
 
 display::Rect TerminalApp::row_tail_rect(uint64_t column, uint64_t row) const
