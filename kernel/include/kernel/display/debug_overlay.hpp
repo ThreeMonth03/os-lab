@@ -41,11 +41,21 @@ struct Lines
     char second[kLineCapacity] = {};
 };
 
+struct DesktopStatusPlacement
+{
+    Rect desktop_bounds;
+    Rect app_chrome_avoid_bounds;
+    Rect desktop_bar_bounds;
+    Rect desktop_bar_item_bounds;
+    Config config;
+};
+
 [[nodiscard]] Rect bounds_for(uint64_t surface_width, uint64_t surface_height, Config config = {});
 [[nodiscard]] Rect bounds_for(uint64_t surface_width,
                               uint64_t surface_height,
                               Rect avoid_bounds,
                               Config config = {});
+[[nodiscard]] Rect desktop_status_bounds_for(DesktopStatusPlacement placement);
 [[nodiscard]] bool should_refresh(uint64_t last_ticks, uint64_t current_ticks, uint64_t refresh_interval_ticks);
 void format_snapshot(const Snapshot & snapshot, Lines & lines);
 

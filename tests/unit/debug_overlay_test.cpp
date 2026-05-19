@@ -70,6 +70,56 @@ TEST(DebugOverlayTest, KeepsPreferredBoundsWhenAvoidBoundsDoNotOverlap)
                 20);
 }
 
+TEST(DebugOverlayTest, DesktopStatusPlacementUsesDesktopBarRightSideWhenVisible)
+{
+    const kernel::display::Rect close_title_area{0, 0, 1280, 32};
+    const kernel::display::Rect desktop_bar{0, 688, 1280, 32};
+    const kernel::display::Rect terminal_item{6, 694, 96, 20};
+
+    const kernel::display::Rect overlay =
+        kernel::display::debug_overlay::desktop_status_bounds_for({
+            {0, 0, 1280, 720},
+            close_title_area,
+            desktop_bar,
+            terminal_item,
+            {},
+        });
+
+    expect_rect(overlay, 1052, 693, 224, 22);
+    EXPECT_TRUE(kernel::display::intersect_rect(overlay, close_title_area).empty());
+    EXPECT_TRUE(kernel::display::intersect_rect(overlay, terminal_item).empty());
+}
+
+TEST(DebugOverlayTest, DesktopStatusPlacementAvoidsTerminalChromeWithoutDesktopBar)
+{
+    const kernel::display::debug_overlay::Config config{200, 20, 4, 25};
+
+    const kernel::display::Rect overlay =
+        kernel::display::debug_overlay::desktop_status_bounds_for({
+            {0, 0, 800, 600},
+            {0, 16, 800, 20},
+            {},
+            {},
+            config,
+        });
+
+    expect_rect(overlay, 596, 40, 200, 20);
+}
+
+TEST(DebugOverlayTest, DesktopStatusPlacementFallsBackToDesktopWhenBarItemCoversBarSpace)
+{
+    const kernel::display::Rect overlay =
+        kernel::display::debug_overlay::desktop_status_bounds_for({
+            {0, 0, 320, 240},
+            {},
+            {0, 208, 320, 32},
+            {0, 208, 320, 32},
+            {120, 20, 4, 25},
+        });
+
+    expect_rect(overlay, 196, 4, 120, 20);
+}
+
 TEST(DebugOverlayTest, RefreshesOnIntervalOrCounterWrap)
 {
     EXPECT_FALSE(kernel::display::debug_overlay::should_refresh(100, 124, 25));
