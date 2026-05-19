@@ -38,5 +38,6 @@ add_library(os_lab_kernel_display OBJECT
     terminal_renderer.cpp
     window_chrome.cpp
     window_interaction.cpp
+    window_session.cpp
 )
 os_lab_configure_kernel_object(os_lab_kernel_display)
