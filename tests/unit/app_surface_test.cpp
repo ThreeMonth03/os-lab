@@ -115,6 +115,33 @@ TEST(AppSurfaceTest, RegistryUpdatesBoundsAndVisibility)
     EXPECT_TRUE(visible->active);
 }
 
+TEST(AppSurfaceTest, RegistryRestoreKeepsExactStoredState)
+{
+    kernel::display::AppSurfaceRegistry registry;
+    ASSERT_TRUE(registry.register_surface(
+        kernel::display::make_app_surface(kernel::display::kTerminalAppSurfaceId,
+                                          {0, 0, 640, 480},
+                                          true,
+                                          true,
+                                          true)));
+
+    kernel::display::AppSurface restored =
+        kernel::display::make_app_surface(kernel::display::kTerminalAppSurfaceId,
+                                          {16, 24, 320, 200},
+                                          true,
+                                          false,
+                                          true);
+    ASSERT_TRUE(registry.restore_surface(restored));
+
+    const kernel::display::AppSurface * surface =
+        registry.find(kernel::display::kTerminalAppSurfaceId);
+    ASSERT_NE(surface, nullptr);
+    EXPECT_EQ(surface->bounds.x, 16u);
+    EXPECT_EQ(surface->bounds.y, 24u);
+    EXPECT_FALSE(surface->focused);
+    EXPECT_TRUE(surface->active);
+}
+
 TEST(AppSurfaceTest, RegistryRejectsFocusOnHiddenOrClosedSurface)
 {
     kernel::display::AppSurfaceRegistry registry;

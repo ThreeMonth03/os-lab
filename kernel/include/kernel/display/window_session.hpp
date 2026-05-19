@@ -57,6 +57,14 @@ struct WindowSession
     CompositedSurfaceDescriptor composited_surface() const;
 };
 
+[[nodiscard]] AppSurface app_surface_for_window_session(WindowSession session);
+[[nodiscard]] CompositedSurfaceDescriptor app_composited_surface_for_window_session(
+    WindowSession session);
+[[nodiscard]] CompositedSurfaceDescriptor retained_app_composited_surface_for_window_session(
+    WindowSession session,
+    Rect retained_bounds);
+[[nodiscard]] SurfaceDescriptor app_display_target_for_window_session(WindowSession session);
+
 WindowSession make_terminal_window_session(WindowSessionId id,
                                            AppSurfaceId app_surface_id,
                                            WindowSessionBounds bounds,
@@ -103,6 +111,8 @@ struct WindowSessionMutation
     WindowSession current;
     AppSurfaceMutation app_surface;
     Rect repaint_bounds;
+
+    [[nodiscard]] bool valid() const;
 };
 
 class WindowSessionHost

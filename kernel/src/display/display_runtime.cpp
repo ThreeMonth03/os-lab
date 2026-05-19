@@ -78,11 +78,27 @@ struct DisplayRuntimeState
 
 DisplayRuntimeState g_state;
 
+struct DisplayFeatureConfig
+{
+    bool terminal_window_chrome = false;
+    bool terminal_window_interaction = false;
+    bool desktop_bar_debug_actions = false;
+};
+
 enum class WindowStackCommitPolicy
 {
     Sync,
     FocusActivateRaise,
 };
+
+constexpr DisplayFeatureConfig display_feature_config()
+{
+    return {
+        OS_LAB_TERMINAL_WINDOW_CHROME != 0,
+        OS_LAB_TERMINAL_WINDOW_INTERACTION != 0,
+        OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS != 0,
+    };
+}
 
 const limine_framebuffer * select_usable_framebuffer(uint64_t terminal_cell_width,
                                                      uint64_t terminal_cell_height)
@@ -124,17 +140,18 @@ display::Rect framebuffer_bounds(const limine_framebuffer & framebuffer)
 
 display::WindowFrameConfig terminal_frame_config()
 {
-    return display::terminal_window_frame_config(OS_LAB_TERMINAL_WINDOW_CHROME != 0);
+    return display::terminal_window_frame_config(display_feature_config().terminal_window_chrome);
 }
 
 bool terminal_window_interaction_enabled()
 {
-    return OS_LAB_TERMINAL_WINDOW_CHROME != 0 && OS_LAB_TERMINAL_WINDOW_INTERACTION != 0;
+    const DisplayFeatureConfig config = display_feature_config();
+    return config.terminal_window_chrome && config.terminal_window_interaction;
 }
 
 bool desktop_bar_debug_actions_enabled()
 {
-    return OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS != 0 && terminal_window_interaction_enabled();
+    return display_feature_config().desktop_bar_debug_actions && terminal_window_interaction_enabled();
 }
 
 desktop_bar::TerminalItemState terminal_item_state_for(display::WindowSession session)
@@ -479,14 +496,7 @@ bool sync_primary_window_session_compositor_surface(display::WindowSession sessi
 {
     const display::Rect layer_bounds = session.closed() ? previous_bounds : session.bounds.outer;
     const display::CompositedSurfaceDescriptor app_surface =
-        session.closed() ? display::make_composited_surface(
-                               display::app_surface_display_id_for(session.app_surface_id),
-                               display::CompositedSurfaceRole::App,
-                               layer_bounds,
-                               false,
-                               false,
-                               false)
-                         : session.composited_surface();
+        display::retained_app_composited_surface_for_window_session(session, previous_bounds);
     if (!display::compositor::update_surface(app_surface))
     {
         return false;
@@ -666,6 +676,15 @@ bool commit_primary_window_session_mutation(display::WindowSessionMutation mutat
         return false;
     }
 
+    const display::AppSurface current_app = mutation.current.app_surface();
+    if (!mutation.current.closed() && !g_state.app_host.restore_surface(current_app))
+    {
+        restore_primary_window_session(mutation.previous,
+                                       mutation.app_surface.previous,
+                                       previous_stack);
+        return false;
+    }
+
     if (!sync_primary_window_session_compositor_surface(mutation.current,
                                                         mutation.previous.bounds.outer))
     {
@@ -675,7 +694,6 @@ bool commit_primary_window_session_mutation(display::WindowSessionMutation mutat
         return false;
     }
 
-    const display::AppSurface current_app = mutation.current.app_surface();
     g_state.primary_window_session = mutation.current;
     g_state.primary_app_surface = current_app;
     g_state.app_surface_damage.reset(mutation.current.closed() ? mutation.previous.bounds.outer

@@ -71,6 +71,23 @@ bool AppSurfaceRegistry::register_surface(AppSurface surface)
     return true;
 }
 
+bool AppSurfaceRegistry::restore_surface(AppSurface surface)
+{
+    if (!surface.valid())
+    {
+        return false;
+    }
+
+    AppSurface * target = find_mutable(surface.id);
+    if (target == nullptr || target->display_surface_id != surface.display_surface_id)
+    {
+        return false;
+    }
+
+    *target = surface;
+    return true;
+}
+
 bool AppSurfaceRegistry::set_bounds(AppSurfaceId id, Rect bounds)
 {
     if (bounds.empty())

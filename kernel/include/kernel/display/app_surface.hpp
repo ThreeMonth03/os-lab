@@ -61,6 +61,7 @@ public:
 
     void clear();
     bool register_surface(AppSurface surface);
+    bool restore_surface(AppSurface surface);
     bool set_bounds(AppSurfaceId id, Rect bounds);
     bool set_visible(AppSurfaceId id, bool visible);
     bool set_focused(AppSurfaceId id);

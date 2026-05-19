@@ -12,6 +12,8 @@ struct AppSurfaceMutation
     AppSurface previous;
     AppSurface current;
     Rect repaint_bounds;
+
+    [[nodiscard]] bool valid() const;
 };
 
 class AppSurfaceHost

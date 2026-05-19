@@ -78,6 +78,7 @@ TEST(AppSurfaceHostTest, ResizeUpdatesRegistryAndDisplayTarget)
     ASSERT_NE(target, nullptr);
     expect_rect(target->bounds, 16, 32, 320, 200);
     EXPECT_TRUE(target->focused);
+    EXPECT_TRUE(mutation.valid());
 }
 
 TEST(AppSurfaceHostTest, ResizeMutationCanUpdateCompositorDescriptor)
@@ -226,4 +227,5 @@ TEST(AppSurfaceHostTest, CloseSurfaceClearsActiveAndFocus)
     EXPECT_EQ(fixture.targets.active_target_id(), kernel::display::kInvalidSurfaceId);
     EXPECT_EQ(fixture.targets.focused_target_id(), kernel::display::kInvalidSurfaceId);
     expect_rect(mutation.repaint_bounds, 0, 0, 640, 480);
+    EXPECT_TRUE(mutation.valid());
 }

@@ -16,41 +16,70 @@ bool WindowSession::valid() const
 
 AppSurface WindowSession::app_surface() const
 {
-    if (closed())
+    return app_surface_for_window_session(*this);
+}
+
+CompositedSurfaceDescriptor WindowSession::composited_surface() const
+{
+    return app_composited_surface_for_window_session(*this);
+}
+
+AppSurface app_surface_for_window_session(WindowSession session)
+{
+    if (session.closed())
     {
         return {
-            app_surface_id,
-            app_surface_display_id_for(app_surface_id),
-            bounds.outer,
+            session.app_surface_id,
+            app_surface_display_id_for(session.app_surface_id),
+            session.bounds.outer,
             AppSurfaceState::Closed,
             false,
             false,
         };
     }
 
-    return make_app_surface(app_surface_id,
-                            bounds.outer,
-                            visible(),
-                            focused && visible(),
-                            active && visible());
+    return make_app_surface(session.app_surface_id,
+                            session.bounds.outer,
+                            session.visible(),
+                            session.focused && session.visible(),
+                            session.active && session.visible());
 }
 
-CompositedSurfaceDescriptor WindowSession::composited_surface() const
+CompositedSurfaceDescriptor app_composited_surface_for_window_session(WindowSession session)
 {
-    if (closed())
+    if (session.closed())
     {
         return {};
     }
 
-    CompositedSurfaceDescriptor surface =
-        make_composited_surface(app_surface_display_id_for(app_surface_id),
-                                CompositedSurfaceRole::App,
-                                bounds.outer,
-                                visible(),
-                                active && visible(),
-                                focused && visible());
-    surface.occlusion = LayerOcclusion::Opaque;
-    return surface;
+    return app_surface_for_window_session(session).composited_surface();
+}
+
+CompositedSurfaceDescriptor retained_app_composited_surface_for_window_session(
+    WindowSession session,
+    Rect retained_bounds)
+{
+    if (!session.closed())
+    {
+        return app_composited_surface_for_window_session(session);
+    }
+
+    if (retained_bounds.empty())
+    {
+        return {};
+    }
+
+    return make_composited_surface(app_surface_display_id_for(session.app_surface_id),
+                                   CompositedSurfaceRole::App,
+                                   retained_bounds,
+                                   false,
+                                   false,
+                                   false);
+}
+
+SurfaceDescriptor app_display_target_for_window_session(WindowSession session)
+{
+    return app_surface_for_window_session(session).display_target();
 }
 
 WindowSession make_terminal_window_session(WindowSessionId id,
@@ -265,6 +294,12 @@ WindowSession * WindowSessionRegistry::find_mutable(WindowSessionId id)
         }
     }
     return nullptr;
+}
+
+bool WindowSessionMutation::valid() const
+{
+    return previous.valid() && current.valid() && previous.id == current.id &&
+           previous.app_surface_id == current.app_surface_id && app_surface.valid();
 }
 
 void WindowSessionHost::reset(WindowSessionRegistry & sessions, AppSurfaceHost & app_host)

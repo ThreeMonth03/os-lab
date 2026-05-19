@@ -143,12 +143,18 @@ TEST(WindowSessionTest, VisibleSessionEmitsAppDescriptor)
 
     const kernel::display::CompositedSurfaceDescriptor descriptor =
         session.composited_surface();
+    const kernel::display::AppSurface app =
+        kernel::display::app_surface_for_window_session(session);
 
     EXPECT_TRUE(descriptor.valid());
     EXPECT_EQ(descriptor.role, kernel::display::CompositedSurfaceRole::App);
     EXPECT_TRUE(descriptor.visible);
     EXPECT_TRUE(descriptor.active);
     EXPECT_TRUE(descriptor.focused);
+    EXPECT_EQ(app.id, session.app_surface_id);
+    EXPECT_TRUE(app.visible());
+    EXPECT_TRUE(app.active);
+    EXPECT_TRUE(app.focused);
 }
 
 TEST(WindowSessionTest, HiddenSessionEmitsInvisibleDescriptor)
@@ -156,12 +162,34 @@ TEST(WindowSessionTest, HiddenSessionEmitsInvisibleDescriptor)
     const kernel::display::WindowSession session = make_session(false, false, false);
 
     const kernel::display::CompositedSurfaceDescriptor descriptor =
-        session.composited_surface();
+        kernel::display::app_composited_surface_for_window_session(session);
+    const kernel::display::SurfaceDescriptor target =
+        kernel::display::app_display_target_for_window_session(session);
 
     EXPECT_TRUE(descriptor.valid());
     EXPECT_FALSE(descriptor.visible);
     EXPECT_FALSE(descriptor.active);
     EXPECT_FALSE(descriptor.focused);
+    EXPECT_EQ(target.id, descriptor.id);
+    EXPECT_FALSE(target.active);
+    EXPECT_FALSE(target.focused);
+}
+
+TEST(WindowSessionTest, ClosedSessionHasNoVisibleDescriptorUnlessRetainedForCompositor)
+{
+    kernel::display::WindowSession session = make_session(false, false, false);
+    session.state = kernel::display::WindowSessionState::Closed;
+
+    EXPECT_FALSE(kernel::display::app_composited_surface_for_window_session(session).valid());
+    EXPECT_FALSE(session.composited_surface().valid());
+
+    const kernel::display::CompositedSurfaceDescriptor retained =
+        kernel::display::retained_app_composited_surface_for_window_session(
+            session,
+            {10, 20, 320, 200});
+    EXPECT_TRUE(retained.valid());
+    EXPECT_FALSE(retained.visible);
+    expect_rect(retained.bounds, 10, 20, 320, 200);
 }
 
 TEST(WindowSessionHostTest, MoveUpdatesSessionAndAppSurfaceWithoutChangingSize)
@@ -183,6 +211,7 @@ TEST(WindowSessionHostTest, MoveUpdatesSessionAndAppSurfaceWithoutChangingSize)
     ASSERT_NE(app, nullptr);
     expect_rect(app->bounds, 40, 50, 320, 200);
     expect_rect(mutation.repaint_bounds, 10, 20, 350, 230);
+    EXPECT_TRUE(mutation.valid());
 }
 
 TEST(WindowSessionHostTest, ResizeUpdatesSessionAndAppSurface)
@@ -258,11 +287,13 @@ TEST(WindowSessionHostTest, ShowAndFocusRestoresVisibleAndFocusedOnly)
     EXPECT_TRUE(mutation.current.open());
     EXPECT_FALSE(mutation.current.focused);
     EXPECT_FALSE(mutation.current.active);
+    EXPECT_TRUE(mutation.valid());
 
     ASSERT_TRUE(fixture.session_host.focus_session(kernel::display::kTerminalWindowSessionId,
                                                    mutation));
     EXPECT_TRUE(mutation.current.focused);
     EXPECT_FALSE(mutation.current.active);
+    EXPECT_TRUE(mutation.valid());
 }
 
 TEST(WindowSessionHostTest, CloseKeepsSemanticsDistinctFromHide)

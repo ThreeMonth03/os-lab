@@ -3,6 +3,12 @@
 namespace kernel::display
 {
 
+bool AppSurfaceMutation::valid() const
+{
+    return previous.valid() && current.valid() && previous.id == current.id &&
+           previous.display_surface_id == current.display_surface_id;
+}
+
 void AppSurfaceHost::reset(AppSurfaceRegistry & app_surfaces, DisplayTargetRegistry & targets)
 {
     app_surfaces_ = &app_surfaces;
@@ -36,13 +42,7 @@ bool AppSurfaceHost::restore_surface(AppSurface previous)
         return false;
     }
 
-    if (!app_surfaces_->set_bounds(previous.id, previous.bounds) ||
-        !app_surfaces_->set_visible(previous.id, previous.visible()))
-    {
-        return false;
-    }
-
-    if (previous.focused && !app_surfaces_->set_focused(previous.id))
+    if (!app_surfaces_->restore_surface(previous))
     {
         return false;
     }
