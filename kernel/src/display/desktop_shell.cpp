@@ -4,22 +4,22 @@ namespace kernel::display::desktop_shell
 {
 
 AppLifecycleMutation ActionHandler::mutation_for(desktop_bar::DesktopShellAction action,
-                                                 desktop_bar::TerminalItemState terminal)
+                                                 const WindowSession & terminal)
 {
     switch (action)
     {
     case desktop_bar::DesktopShellAction::None:
         return AppLifecycleMutation::None;
     case desktop_bar::DesktopShellAction::TerminalShowFocus:
-        if (terminal.app_closed)
+        if (terminal.closed())
         {
             return AppLifecycleMutation::None;
         }
-        if (!terminal.app_visible)
+        if (!terminal.visible())
         {
             return AppLifecycleMutation::ShowAndFocus;
         }
-        return terminal.app_focused ? AppLifecycleMutation::None : AppLifecycleMutation::Focus;
+        return terminal.focused ? AppLifecycleMutation::None : AppLifecycleMutation::Focus;
     }
     return AppLifecycleMutation::None;
 }

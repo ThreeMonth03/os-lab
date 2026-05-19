@@ -1,6 +1,7 @@
 #pragma once
 
 #include "kernel/display/desktop_bar.hpp"
+#include "kernel/display/window_session.hpp"
 
 namespace kernel::display::desktop_shell
 {
@@ -16,7 +17,7 @@ class ActionHandler
 {
 public:
     static AppLifecycleMutation mutation_for(desktop_bar::DesktopShellAction action,
-                                             desktop_bar::TerminalItemState terminal);
+                                             const WindowSession & terminal);
 };
 
 } // namespace kernel::display::desktop_shell
