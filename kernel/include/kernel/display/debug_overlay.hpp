@@ -17,12 +17,19 @@ inline constexpr uint64_t kDefaultMargin = 4;
 inline constexpr uint64_t kDefaultRefreshIntervalTicks = 25;
 inline constexpr size_t kLineCapacity = 48;
 
+enum class StatusTextAlignment
+{
+    Left,
+    Right,
+};
+
 struct Config
 {
     uint64_t width = kDefaultWidth;
     uint64_t height = kDefaultHeight;
     uint64_t margin = kDefaultMargin;
     uint64_t refresh_interval_ticks = kDefaultRefreshIntervalTicks;
+    StatusTextAlignment text_alignment = StatusTextAlignment::Left;
 };
 
 struct Snapshot

@@ -64,6 +64,7 @@ void paint_overlay_backing(const debug_overlay::Snapshot & snapshot, kernel::dis
                                 g_state.target.bounds,
                                 lines,
                                 {g_state.foreground, g_state.background},
+                                g_state.config.text_alignment,
                                 dirty_rect);
 }
 
@@ -119,7 +120,7 @@ bool init(const SurfaceDescriptor & target, Color foreground, Color background, 
     return true;
 }
 
-bool update_target(const SurfaceDescriptor & target)
+bool update_target(const SurfaceDescriptor & target, Config config)
 {
     if (!overlay_ready() || !target.valid() || target.kind != DisplayTargetKind::DebugOverlay)
     {
@@ -133,6 +134,7 @@ bool update_target(const SurfaceDescriptor & target)
     }
 
     g_state.target = target;
+    g_state.config = config;
     g_state.backing = BackingSurface(g_state.backing_pixels, target.bounds, debug_overlay::kDefaultWidth);
     paint_overlay_backing(make_snapshot(), g_state.target.bounds);
     return true;

@@ -205,6 +205,16 @@ display::Rect debug_overlay_bounds_for_current_layout()
     });
 }
 
+debug_overlay::Config debug_overlay_config_for_bounds(display::Rect bounds)
+{
+    debug_overlay::Config config;
+    if (!display::intersect_rect(bounds, desktop_bar_bounds()).empty())
+    {
+        config.text_alignment = debug_overlay::StatusTextAlignment::Right;
+    }
+    return config;
+}
+
 void relayout_debug_overlay_if_present()
 {
     const display::SurfaceDescriptor * current_target =
@@ -228,7 +238,7 @@ void relayout_debug_overlay_if_present()
     const display::SurfaceDescriptor next_target = overlay.display_target();
     if (!display::compositor::update_surface(overlay) ||
         !g_state.targets.update_target(next_target) ||
-        !debug_overlay::update_target(next_target))
+        !debug_overlay::update_target(next_target, debug_overlay_config_for_bounds(next_bounds)))
     {
         return;
     }
@@ -473,7 +483,8 @@ void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
 
     if (!debug_overlay::init(*overlay_target,
                              color_for(framebuffer, palette.debug_overlay_foreground),
-                             color_for(framebuffer, palette.debug_overlay_background)))
+                             color_for(framebuffer, palette.debug_overlay_background),
+                             debug_overlay_config_for_bounds(overlay_bounds)))
     {
         return;
     }

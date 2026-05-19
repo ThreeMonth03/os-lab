@@ -197,6 +197,67 @@ TEST(DebugOverlayTest, PixelColorAtReturnsFinalGlyphOrBackgroundColor)
     EXPECT_EQ(kernel::display::debug_overlay::pixel_color_at(overlay, lines, palette, 6, 4).value, 1u);
 }
 
+TEST(DebugOverlayTest, LeftAlignedStatusTextStartsAtPadding)
+{
+    const kernel::display::Rect overlay{4, 2, 20, 12};
+
+    const kernel::display::Rect text =
+        kernel::display::debug_overlay::text_line_bounds({
+                                                             overlay,
+                                                             kernel::display::debug_overlay::
+                                                                 StatusTextAlignment::Left,
+                                                         },
+                                                         "t",
+                                                         0);
+
+    expect_rect(text, 6, 4, 5, 7);
+}
+
+TEST(DebugOverlayTest, RightAlignedStatusTextEndsAtRightPadding)
+{
+    const kernel::display::Rect overlay{4, 2, 20, 12};
+
+    const kernel::display::Rect text =
+        kernel::display::debug_overlay::text_line_bounds({
+                                                             overlay,
+                                                             kernel::display::debug_overlay::
+                                                                 StatusTextAlignment::Right,
+                                                         },
+                                                         "t",
+                                                         0);
+
+    expect_rect(text, 17, 4, 5, 7);
+}
+
+TEST(DebugOverlayTest, PixelColorAtCanRightAlignStatusText)
+{
+    kernel::display::debug_overlay::Lines lines;
+    lines.first[0] = 't';
+    lines.first[1] = '\0';
+
+    const kernel::display::Rect overlay{4, 2, 20, 12};
+    const kernel::display::debug_overlay::Palette palette{{2}, {1}};
+
+    EXPECT_EQ(kernel::display::debug_overlay::pixel_color_at(
+                  overlay,
+                  lines,
+                  palette,
+                  kernel::display::debug_overlay::StatusTextAlignment::Right,
+                  18,
+                  4)
+                  .value,
+              2u);
+    EXPECT_EQ(kernel::display::debug_overlay::pixel_color_at(
+                  overlay,
+                  lines,
+                  palette,
+                  kernel::display::debug_overlay::StatusTextAlignment::Right,
+                  7,
+                  4)
+                  .value,
+              1u);
+}
+
 TEST(DebugOverlayTest, PaintRegionOnlyWritesDirtyIntersection)
 {
     constexpr uint64_t width = 32;

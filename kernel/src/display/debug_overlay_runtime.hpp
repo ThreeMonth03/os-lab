@@ -9,7 +9,7 @@ namespace kernel::display::debug_overlay
                         Color foreground,
                         Color background,
                         Config config = {});
-[[nodiscard]] bool update_target(const SurfaceDescriptor & target);
+[[nodiscard]] bool update_target(const SurfaceDescriptor & target, Config config = {});
 [[nodiscard]] Rect bounds();
 void refresh_if_due();
 
