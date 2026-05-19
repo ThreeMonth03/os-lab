@@ -140,6 +140,12 @@ display::Rect desktop_bar_bounds()
     return bar == nullptr || !bar->visible ? display::Rect{} : bar->bounds;
 }
 
+bool same_rect(display::Rect lhs, display::Rect rhs)
+{
+    return lhs.x == rhs.x && lhs.y == rhs.y && lhs.width == rhs.width &&
+           lhs.height == rhs.height;
+}
+
 void sync_desktop_bar_terminal_item()
 {
     desktop_bar::sync_terminal_item_state(terminal_item_state_for(g_state.primary_app_surface));
@@ -159,6 +165,78 @@ display::Rect debug_overlay_avoid_bounds(display::Rect app_bounds)
     const display::WindowFrameMetrics metrics =
         display::WindowChrome::metrics_for(app_bounds, terminal_frame_config());
     return metrics.visible ? metrics.title_bar_bounds : display::Rect{};
+}
+
+display::Rect debug_overlay_app_chrome_avoid_bounds(display::AppSurface surface)
+{
+    if (!surface.visible() || surface.closed())
+    {
+        return {};
+    }
+
+    return debug_overlay_avoid_bounds(surface.bounds);
+}
+
+display::Rect desktop_bar_terminal_item_bounds()
+{
+    const display::GuiSurface * bar = g_state.gui_surfaces.find(desktop_bar::kGuiSurfaceId);
+    if (bar == nullptr || !bar->visible)
+    {
+        return {};
+    }
+
+    const desktop_bar::Item item =
+        desktop_bar::terminal_item_for(*bar,
+                                       desktop_bar::default_config(),
+                                       terminal_item_state_for(g_state.primary_app_surface));
+    return item.valid() ? item.bounds : display::Rect{};
+}
+
+display::Rect debug_overlay_bounds_for_current_layout()
+{
+    const display::Rect desktop_bounds =
+        g_state.scene.ready() ? g_state.scene.bounds() : display::Rect{};
+    return debug_overlay::desktop_status_bounds_for({
+        desktop_bounds,
+        debug_overlay_app_chrome_avoid_bounds(g_state.primary_app_surface),
+        desktop_bar_bounds(),
+        desktop_bar_terminal_item_bounds(),
+        {},
+    });
+}
+
+void relayout_debug_overlay_if_present()
+{
+    const display::SurfaceDescriptor * current_target =
+        g_state.targets.find(debug_overlay::kSurfaceId);
+    if (current_target == nullptr)
+    {
+        return;
+    }
+
+    const display::Rect next_bounds = debug_overlay_bounds_for_current_layout();
+    if (next_bounds.empty() || same_rect(current_target->bounds, next_bounds))
+    {
+        return;
+    }
+
+    const display::Rect previous_bounds = current_target->bounds;
+    const display::CompositedSurfaceDescriptor overlay =
+        display::make_composited_surface(debug_overlay::kSurfaceId,
+                                         display::CompositedSurfaceRole::Overlay,
+                                         next_bounds);
+    const display::SurfaceDescriptor next_target = overlay.display_target();
+    if (!display::compositor::update_surface(overlay) ||
+        !g_state.targets.update_target(next_target) ||
+        !debug_overlay::update_target(next_target))
+    {
+        return;
+    }
+
+    display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground,
+                                             previous_bounds);
+    display::compositor::repaint_layers_from(display::LayerKind::DesktopBackground,
+                                             next_bounds);
 }
 
 display::Rect primary_app_bounds_for(const limine_framebuffer & framebuffer,
@@ -460,10 +538,7 @@ bool init(uint64_t terminal_cell_width, uint64_t terminal_cell_height)
 
     init_optional_debug_overlay_layer(*framebuffer,
                                       palette,
-                                      debug_overlay::bounds_for(
-                                          framebuffer->width,
-                                          framebuffer->height,
-                                          debug_overlay_avoid_bounds(g_state.primary_app_surface.bounds)));
+                                      debug_overlay_bounds_for_current_layout());
 
     return true;
 }
@@ -519,6 +594,7 @@ bool commit_primary_app_mutation(display::AppSurfaceMutation mutation, bool resi
     const desktop_bar::TerminalItemState current_item =
         terminal_item_state_for(g_state.primary_app_surface);
     sync_desktop_bar_terminal_item();
+    relayout_debug_overlay_if_present();
 
     if (!mutation.repaint_bounds.empty())
     {

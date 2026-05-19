@@ -119,6 +119,30 @@ bool init(const SurfaceDescriptor & target, Color foreground, Color background, 
     return true;
 }
 
+bool update_target(const SurfaceDescriptor & target)
+{
+    if (!overlay_ready() || !target.valid() || target.kind != DisplayTargetKind::DebugOverlay)
+    {
+        return false;
+    }
+
+    if (target.bounds.width > debug_overlay::kDefaultWidth ||
+        target.bounds.height > debug_overlay::kDefaultHeight)
+    {
+        return false;
+    }
+
+    g_state.target = target;
+    g_state.backing = BackingSurface(g_state.backing_pixels, target.bounds, debug_overlay::kDefaultWidth);
+    paint_overlay_backing(make_snapshot(), g_state.target.bounds);
+    return true;
+}
+
+Rect bounds()
+{
+    return overlay_ready() ? g_state.target.bounds : Rect{};
+}
+
 void refresh_if_due()
 {
     if (!overlay_ready())
