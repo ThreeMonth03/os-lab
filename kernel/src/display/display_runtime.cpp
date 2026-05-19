@@ -81,6 +81,8 @@ struct DisplayRuntimeState
         display::kInvalidWindowSessionId;
     display::AppSurfaceId active_window_interaction_app_surface_id =
         display::kInvalidAppSurfaceId;
+    display::Rect window_resize_preview_bounds;
+    bool window_resize_preview_visible = false;
     display::PointerCursorShape pointer_cursor_shape = display::PointerCursorShape::Arrow;
     display::runtime::AppSurfaceResizeCallback app_resize_callback = nullptr;
     display::runtime::AppSurfaceStateCallback app_state_callback = nullptr;
@@ -322,6 +324,54 @@ void repaint_desktop_regions(const display::WindowRepaintRegionList & regions,
     }
 }
 
+bool sync_aggregate_app_layer(display::Rect retained_bounds = {});
+
+display::WindowRepaintRegionList preview_damage_for(display::Rect bounds)
+{
+    return window_repaint_planner().visual_state_damage(bounds);
+}
+
+void repaint_resize_preview_change(display::Rect previous, display::Rect current)
+{
+    repaint_desktop_regions(preview_damage_for(previous), WindowRepaintReason::VisualState);
+    repaint_desktop_regions(preview_damage_for(current), WindowRepaintReason::VisualState);
+}
+
+void update_resize_preview(display::Rect bounds)
+{
+    if (bounds.empty())
+    {
+        return;
+    }
+
+    const display::Rect previous =
+        g_state.window_resize_preview_visible ? g_state.window_resize_preview_bounds
+                                              : display::Rect{};
+    if (g_state.window_resize_preview_visible && same_rect(previous, bounds))
+    {
+        return;
+    }
+
+    g_state.window_resize_preview_bounds = bounds;
+    g_state.window_resize_preview_visible = true;
+    sync_aggregate_app_layer(previous);
+    repaint_resize_preview_change(previous, bounds);
+}
+
+display::Rect clear_resize_preview()
+{
+    if (!g_state.window_resize_preview_visible)
+    {
+        return {};
+    }
+
+    const display::Rect previous = g_state.window_resize_preview_bounds;
+    g_state.window_resize_preview_bounds = {};
+    g_state.window_resize_preview_visible = false;
+    sync_aggregate_app_layer(previous);
+    return previous;
+}
+
 void sync_desktop_bar_terminal_item()
 {
     desktop_bar::sync_terminal_item_state(terminal_item_state_for(g_state.primary_window_session));
@@ -344,6 +394,28 @@ bool stack_visual_state_changed(const display::WindowStackEntry & previous,
            previous.active != current.active || previous.closed() != current.closed();
 }
 
+bool stack_policy_state_changed(const display::WindowStack & previous,
+                                const display::WindowStack & current)
+{
+    if (previous.size() != current.size())
+    {
+        return true;
+    }
+
+    for (size_t index = 0; index < previous.size(); ++index)
+    {
+        const display::WindowStackEntry * previous_entry = previous.at(index);
+        const display::WindowStackEntry * current_entry = current.at(index);
+        if (previous_entry == nullptr || current_entry == nullptr ||
+            previous_entry->id != current_entry->id ||
+            stack_visual_state_changed(*previous_entry, *current_entry))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void repaint_changed_window_visual_states(const display::WindowStack & previous,
                                           const display::WindowStack & current)
 {
@@ -353,25 +425,20 @@ void repaint_changed_window_visual_states(const display::WindowStack & previous,
                                                             g_state.window_sessions),
                             WindowRepaintReason::Generic);
 
-    for (size_t index = 0; index < previous.size(); ++index)
+    if (!stack_policy_state_changed(previous, current))
     {
-        const display::WindowStackEntry * previous_entry = previous.at(index);
-        if (previous_entry == nullptr)
-        {
-            continue;
-        }
+        return;
+    }
 
-        const display::WindowStackEntry * current_entry = current.find(previous_entry->id);
-        if (current_entry != nullptr &&
-            stack_visual_state_changed(*previous_entry, *current_entry))
+    for (size_t index = 0; index < current.size(); ++index)
+    {
+        const display::WindowStackEntry * current_entry = current.at(index);
+        const display::WindowSession * session =
+            current_entry == nullptr ? nullptr : g_state.window_host.find(current_entry->id);
+        if (session != nullptr && session->visible() && !session->closed())
         {
-            const display::WindowSession * session =
-                g_state.window_host.find(previous_entry->id);
-            if (session != nullptr && session->visible() && !session->closed())
-            {
-                repaint_desktop_regions(planner.visual_state_damage(session->bounds.outer),
-                                        WindowRepaintReason::VisualState);
-            }
+            repaint_desktop_regions(planner.visual_state_damage(session->bounds.outer),
+                                    WindowRepaintReason::VisualState);
         }
     }
 }
@@ -529,18 +596,20 @@ display::Rect visible_app_layer_bounds()
         bounds = display::bounding_rect(bounds, session->bounds.outer);
     }
 
+    if (g_state.window_resize_preview_visible)
+    {
+        bounds = display::bounding_rect(bounds, g_state.window_resize_preview_bounds);
+    }
+
     return bounds;
 }
 
 display::CompositedSurfaceDescriptor aggregate_app_composited_surface(
     display::Rect retained_bounds = {})
 {
-    display::Rect bounds = visible_app_layer_bounds();
-    const bool visible = !bounds.empty();
-    if (!visible)
-    {
-        bounds = retained_bounds;
-    }
+    const display::Rect visible_bounds = visible_app_layer_bounds();
+    const bool visible = !visible_bounds.empty();
+    const display::Rect bounds = display::bounding_rect(visible_bounds, retained_bounds);
     if (bounds.empty())
     {
         return {};
@@ -555,7 +624,7 @@ display::CompositedSurfaceDescriptor aggregate_app_composited_surface(
                                             false);
 }
 
-bool sync_aggregate_app_layer(display::Rect retained_bounds = {})
+bool sync_aggregate_app_layer(display::Rect retained_bounds)
 {
     const display::CompositedSurfaceDescriptor app_layer =
         aggregate_app_composited_surface(retained_bounds);
@@ -593,6 +662,34 @@ bool chrome_region_is_border_or_resize(display::WindowChromeHitRegion region)
         return false;
     }
     return false;
+}
+
+display::PixelSample sample_window_resize_preview_pixel(uint64_t x, uint64_t y)
+{
+    if (!g_state.window_resize_preview_visible ||
+        !runtime_rect_contains(g_state.window_resize_preview_bounds, x, y))
+    {
+        return display::transparent_pixel();
+    }
+
+    constexpr display::Color kPreview{0x0066d9ff};
+    const display::WindowFrameMetrics metrics =
+        display::WindowChrome::metrics_for(g_state.window_resize_preview_bounds,
+                                           terminal_frame_config());
+    if (!metrics.visible || !metrics.valid())
+    {
+        return display::transparent_pixel();
+    }
+
+    const display::WindowChromeHitRegion region = display::WindowChrome::hit_test(metrics, x, y);
+    if (region == display::WindowChromeHitRegion::TitleBar ||
+        region == display::WindowChromeHitRegion::CloseButton ||
+        chrome_region_is_border_or_resize(region))
+    {
+        return ((x + y) % 2) == 0 ? display::opaque_pixel(kPreview)
+                                  : display::transparent_pixel();
+    }
+    return display::transparent_pixel();
 }
 
 display::PixelSample sample_dummy_debug_app_pixel(display::AppSurface surface,
@@ -719,6 +816,12 @@ display::PixelSample sample_app_window_pixel(display::WindowSession session,
 
 display::PixelSample sample_app_layer_pixel(uint64_t x, uint64_t y)
 {
+    const display::PixelSample preview = sample_window_resize_preview_pixel(x, y);
+    if (preview.opaque())
+    {
+        return preview;
+    }
+
     for (size_t offset = 0; offset < g_state.window_stack.size(); ++offset)
     {
         const size_t index = g_state.window_stack.size() - offset - 1;
@@ -1881,6 +1984,11 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     if (interaction.mode == display::WindowInteractionMode::Move &&
         !interaction.proposed_bounds.empty())
     {
+        const display::Rect preview = clear_resize_preview();
+        if (!preview.empty())
+        {
+            repaint_desktop_regions(preview_damage_for(preview), WindowRepaintReason::VisualState);
+        }
         const display::WindowSession * session =
             g_state.window_manager.find_window(interaction_session_id);
         const bool moved =
@@ -1892,8 +2000,14 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
             update_pointer_target(x, y);
         }
     }
+    else if (interaction.mode == display::WindowInteractionMode::Resize &&
+             !interaction.commit_resize && !interaction.proposed_bounds.empty())
+    {
+        update_resize_preview(interaction.proposed_bounds);
+    }
     else if (interaction.commit_resize)
     {
+        const display::Rect preview = clear_resize_preview();
         const bool resized = resize_app_surface(interaction_app_surface_id,
                                                 interaction.proposed_bounds);
         if (resized)
@@ -1901,9 +2015,18 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
             result.app_resized = true;
             update_pointer_target(x, y);
         }
+        else if (!preview.empty())
+        {
+            repaint_desktop_regions(preview_damage_for(preview), WindowRepaintReason::VisualState);
+        }
     }
     else if (interaction.close_requested)
     {
+        const display::Rect preview = clear_resize_preview();
+        if (!preview.empty())
+        {
+            repaint_desktop_regions(preview_damage_for(preview), WindowRepaintReason::VisualState);
+        }
         result.clear_keyboard_focus =
             set_app_surface_visible(interaction_app_surface_id, false) &&
             interaction_app_surface_id == display::kTerminalAppSurfaceId;
@@ -1912,6 +2035,11 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
 
     if (!primary_down && controller_was_active)
     {
+        const display::Rect preview = clear_resize_preview();
+        if (!preview.empty())
+        {
+            repaint_desktop_regions(preview_damage_for(preview), WindowRepaintReason::VisualState);
+        }
         clear_active_window_interaction_target();
     }
 
