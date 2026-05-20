@@ -28,5 +28,6 @@ void update_pointer_target(uint64_t x, uint64_t y);
 TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
                                                                uint64_t y,
                                                                bool primary_down);
+void run_window_interaction_profile();
 
 } // namespace kernel::display::runtime

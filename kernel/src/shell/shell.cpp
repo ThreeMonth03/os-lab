@@ -26,6 +26,10 @@
 #define OS_LAB_DISPLAY_PROFILE_SCRIPT 0
 #endif
 
+#ifndef OS_LAB_WINDOW_INTERACTION_PROFILE
+#define OS_LAB_WINDOW_INTERACTION_PROFILE 0
+#endif
+
 namespace
 {
 
@@ -378,6 +382,10 @@ namespace kernel::shell
 
 #if OS_LAB_DISPLAY_PROFILE_SCRIPT
     run_display_profile_script(line, view, caps_lock, history);
+#endif
+
+#if OS_LAB_WINDOW_INTERACTION_PROFILE
+    display_runtime::run_window_interaction_profile();
 #endif
 
     while (true)

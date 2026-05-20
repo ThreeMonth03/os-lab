@@ -19,6 +19,8 @@ option(OS_LAB_DESKTOP_BAR_DEBUG_ACTIONS "Debug-only desktop bar lifecycle action
 option(OS_LAB_DESKTOP_DEBUG_DUMMY_APP "Debug-only dummy app window for desktop multi-app plumbing" OFF)
 option(OS_LAB_DISPLAY_PROFILING "Debug-only display pipeline profiling" OFF)
 option(OS_LAB_DISPLAY_PROFILE_SCRIPT "Debug-only scripted shell input for display profiling" OFF)
+option(OS_LAB_WINDOW_INTERACTION_PROFILE
+    "Debug-only scripted window interaction profiling" OFF)
 
 set(OS_LAB_EXCEPTION_SMOKE_VALUE 0)
 if(OS_LAB_EXCEPTION_SMOKE STREQUAL "none")
@@ -94,6 +96,11 @@ if(OS_LAB_DISPLAY_PROFILE_SCRIPT)
     set(OS_LAB_DISPLAY_PROFILE_SCRIPT_VALUE 1)
 endif()
 
+set(OS_LAB_WINDOW_INTERACTION_PROFILE_VALUE 0)
+if(OS_LAB_WINDOW_INTERACTION_PROFILE)
+    set(OS_LAB_WINDOW_INTERACTION_PROFILE_VALUE 1)
+endif()
+
 add_library(os_lab_kernel_compile_settings INTERFACE)
 target_compile_features(os_lab_kernel_compile_settings INTERFACE cxx_std_23)
 target_include_directories(os_lab_kernel_compile_settings INTERFACE
@@ -138,6 +145,7 @@ target_compile_definitions(os_lab_kernel_compile_settings INTERFACE
     OS_LAB_DESKTOP_DEBUG_DUMMY_APP=${OS_LAB_DESKTOP_DEBUG_DUMMY_APP_VALUE}
     OS_LAB_DISPLAY_PROFILING=${OS_LAB_DISPLAY_PROFILING_VALUE}
     OS_LAB_DISPLAY_PROFILE_SCRIPT=${OS_LAB_DISPLAY_PROFILE_SCRIPT_VALUE}
+    OS_LAB_WINDOW_INTERACTION_PROFILE=${OS_LAB_WINDOW_INTERACTION_PROFILE_VALUE}
 )
 target_link_libraries(os_lab_kernel_compile_settings INTERFACE
     os_lab_project_warnings

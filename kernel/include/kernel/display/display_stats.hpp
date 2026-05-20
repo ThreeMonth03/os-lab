@@ -15,6 +15,8 @@ struct DisplayRuntimeStats
     uint64_t window_largest_repaint_area = 0;
     uint64_t window_move_repaint_pixels = 0;
     uint64_t window_visual_repaint_pixels = 0;
+    uint64_t window_preview_repaint_pixels = 0;
+    uint64_t window_interaction_pointer_events = 0;
 };
 
 struct DisplayPipelineStats

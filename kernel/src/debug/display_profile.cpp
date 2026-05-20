@@ -50,6 +50,9 @@ void write_display_profile_delta(StringView command, display::DisplayPipelineSta
     write_stat("window largest repaint area", delta.runtime.window_largest_repaint_area);
     write_stat("window move repaint pixels", delta.runtime.window_move_repaint_pixels);
     write_stat("window visual repaint pixels", delta.runtime.window_visual_repaint_pixels);
+    write_stat("window preview repaint pixels", delta.runtime.window_preview_repaint_pixels);
+    write_stat("window interaction pointer events",
+               delta.runtime.window_interaction_pointer_events);
     write_stat("scene compose pixels", delta.compositor.scene_compose_pixels);
     write_stat("scene compose from backing pixels", delta.compositor.scene_compose_from_backing_pixels);
     write_stat("scene preflight pixels", delta.compositor.scene_preflight_pixels);
