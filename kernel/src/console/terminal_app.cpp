@@ -275,7 +275,6 @@ void TerminalApp::sync_surface_state(display::AppSurface app_surface)
     if (chrome_state_changed && frame_metrics_.visible)
     {
         paint_window_chrome();
-        record_console_dirty(frame_metrics_.outer_bounds);
     }
 }
 
