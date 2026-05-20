@@ -494,6 +494,48 @@ void repaint_changed_window_visual_states(const display::WindowStack & previous,
                             WindowRepaintReason::VisualState);
 }
 
+bool move_mutation_same_size(display::WindowSessionMutation mutation)
+{
+    return !same_rect(mutation.previous.bounds.outer, mutation.current.bounds.outer) &&
+           mutation.previous.bounds.outer.width == mutation.current.bounds.outer.width &&
+           mutation.previous.bounds.outer.height == mutation.current.bounds.outer.height;
+}
+
+bool move_scene_copy_safe(display::WindowManagerResult result)
+{
+    if (!result.changed || !move_mutation_same_size(result.session) ||
+        !result.session.previous.visible() || result.session.previous.closed() ||
+        !result.session.current.visible() || result.session.current.closed() ||
+        g_state.window_preview_visible)
+    {
+        return false;
+    }
+
+    const display::WindowSessionId moved_id = result.session.current.id;
+    if (result.previous_stack.topmost_visible_window() != moved_id ||
+        result.current_stack.topmost_visible_window() != moved_id)
+    {
+        return false;
+    }
+
+    const display::Rect overlay_bounds = debug_overlay::bounds();
+    return overlay_bounds.empty() ||
+           (!display::rects_overlap(overlay_bounds, result.session.previous.bounds.outer) &&
+            !display::rects_overlap(overlay_bounds, result.session.current.bounds.outer));
+}
+
+bool copy_scene_for_window_move(display::WindowManagerResult result)
+{
+    if (!move_scene_copy_safe(result))
+    {
+        return false;
+    }
+
+    const display::Rect previous = result.session.previous.bounds.outer;
+    const display::Rect current = result.session.current.bounds.outer;
+    return display::compositor::copy_scene_rect_to_front(previous, current.x, current.y);
+}
+
 display::Rect debug_overlay_avoid_bounds(display::Rect app_bounds)
 {
     const display::WindowFrameMetrics metrics =
@@ -1445,14 +1487,14 @@ bool commit_window_manager_result(display::WindowManagerResult result,
     sync_desktop_bar_terminal_item();
     relayout_debug_overlay_if_present();
 
+    const bool scene_move_copied = copy_scene_for_window_move(result);
     display::WindowRepaintRegionList mutation_repaint =
-        window_repaint_planner().mutation_damage(mutation);
+        scene_move_copied
+            ? window_repaint_planner().move_exposed_damage(mutation.previous.bounds.outer,
+                                                           mutation.current.bounds.outer)
+            : window_repaint_planner().mutation_damage(mutation);
     const WindowRepaintReason mutation_repaint_reason =
-        !same_rect(mutation.previous.bounds.outer, mutation.current.bounds.outer) &&
-                mutation.previous.bounds.outer.width == mutation.current.bounds.outer.width &&
-                mutation.previous.bounds.outer.height == mutation.current.bounds.outer.height
-            ? WindowRepaintReason::Move
-            : WindowRepaintReason::Generic;
+        move_mutation_same_size(mutation) ? WindowRepaintReason::Move : WindowRepaintReason::Generic;
     repaint_desktop_regions(mutation_repaint, mutation_repaint_reason);
     repaint_changed_window_visual_states(result.previous_stack, result.current_stack);
     if (previous_item.app_visible != current_item.app_visible ||

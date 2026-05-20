@@ -788,6 +788,24 @@ void repaint_layers_from(LayerKind base_layer, Rect dirty_rect)
     compose_backed_region_from(base_layer, dirty_rect, true);
 }
 
+bool copy_scene_rect_to_front(Rect source, uint64_t destination_x, uint64_t destination_y)
+{
+    if (g_scene_buffer == nullptr || !g_scene_buffer->ready() || g_presenter == nullptr ||
+        !g_presenter->ready())
+    {
+        return false;
+    }
+
+    const Rect copied = g_scene_buffer->copy_rect(source, destination_x, destination_y);
+    if (copied.empty())
+    {
+        return false;
+    }
+
+    g_stats.scene_move_copy_pixels += copied.width * copied.height;
+    return g_presenter->present_rect(copied);
+}
+
 void append_damage_step_regions(LayerKind base_layer,
                                 FrameDamageStep step,
                                 PresentOperationList & operations)

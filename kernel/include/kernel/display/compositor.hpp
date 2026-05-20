@@ -148,6 +148,7 @@ struct CompositorRuntimeStats
     uint64_t scene_compose_from_backing_pixels = 0;
     uint64_t scene_preflight_pixels = 0;
     uint64_t scene_scroll_copy_pixels = 0;
+    uint64_t scene_move_copy_pixels = 0;
     uint64_t scene_scroll_count = 0;
     uint64_t repaint_plan_count = 0;
     uint64_t repaint_plan_fallback_count = 0;
@@ -234,6 +235,9 @@ void set_presenter(FramebufferPresenter & presenter);
 [[nodiscard]] bool register_layer_scroll_composition(LayerKind kind, LayerScrollComposition composition);
 [[nodiscard]] bool register_layer_bounds_callback(LayerKind kind, LayerBoundsCallback callback);
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
+[[nodiscard]] bool copy_scene_rect_to_front(Rect source,
+                                            uint64_t destination_x,
+                                            uint64_t destination_y);
 [[nodiscard]] PresentOperationList update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage);
 void present_scene_operations(const PresentOperationList & operations);
 void apply_layer_damage(LayerKind base_layer, FrameDamage damage);

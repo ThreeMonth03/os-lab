@@ -57,6 +57,7 @@ void write_display_profile_delta(StringView command, display::DisplayPipelineSta
     write_stat("scene compose from backing pixels", delta.compositor.scene_compose_from_backing_pixels);
     write_stat("scene preflight pixels", delta.compositor.scene_preflight_pixels);
     write_stat("scene scroll copy pixels", delta.compositor.scene_scroll_copy_pixels);
+    write_stat("scene move copy pixels", delta.compositor.scene_move_copy_pixels);
     write_stat("scene scroll count", delta.compositor.scene_scroll_count);
     write_stat("repaint plan count", delta.compositor.repaint_plan_count);
     write_stat("repaint plan fallback count", delta.compositor.repaint_plan_fallback_count);

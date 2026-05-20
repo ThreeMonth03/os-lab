@@ -14,6 +14,7 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
     before.compositor.scene_compose_pixels = 20;
     before.compositor.scene_compose_from_backing_pixels = 11;
     before.compositor.scene_preflight_pixels = 7;
+    before.compositor.scene_move_copy_pixels = 13;
     before.runtime.terminal_backing_copy_pixels = 30;
     before.runtime.window_repaint_request_count = 2;
     before.runtime.window_repaint_pixels = 1000;
@@ -34,6 +35,7 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
     after.compositor.scene_compose_pixels = 35;
     after.compositor.scene_compose_from_backing_pixels = 25;
     after.compositor.scene_preflight_pixels = 7;
+    after.compositor.scene_move_copy_pixels = 37;
     after.runtime.terminal_backing_copy_pixels = 90;
     after.runtime.window_repaint_request_count = 5;
     after.runtime.window_repaint_pixels = 1500;
@@ -58,6 +60,7 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
     EXPECT_EQ(delta.compositor.scene_compose_pixels, 15u);
     EXPECT_EQ(delta.compositor.scene_compose_from_backing_pixels, 14u);
     EXPECT_EQ(delta.compositor.scene_preflight_pixels, 0u);
+    EXPECT_EQ(delta.compositor.scene_move_copy_pixels, 24u);
     EXPECT_EQ(delta.runtime.terminal_backing_copy_pixels, 60u);
     EXPECT_EQ(delta.runtime.window_repaint_request_count, 3u);
     EXPECT_EQ(delta.runtime.window_repaint_pixels, 500u);

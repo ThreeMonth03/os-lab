@@ -59,6 +59,8 @@ public:
 
     [[nodiscard]] WindowRepaintRegionList move_damage(Rect previous_bounds,
                                                       Rect current_bounds) const;
+    [[nodiscard]] WindowRepaintRegionList move_exposed_damage(Rect previous_bounds,
+                                                              Rect current_bounds) const;
     [[nodiscard]] WindowRepaintRegionList mutation_damage(
         WindowSessionMutation mutation) const;
     [[nodiscard]] WindowRepaintRegionList visual_state_damage(Rect outer_bounds) const;

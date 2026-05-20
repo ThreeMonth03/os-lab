@@ -48,6 +48,7 @@ CompositorRuntimeStats delta(CompositorRuntimeStats before, CompositorRuntimeSta
                             before.scene_compose_from_backing_pixels),
         saturating_subtract(after.scene_preflight_pixels, before.scene_preflight_pixels),
         saturating_subtract(after.scene_scroll_copy_pixels, before.scene_scroll_copy_pixels),
+        saturating_subtract(after.scene_move_copy_pixels, before.scene_move_copy_pixels),
         saturating_subtract(after.scene_scroll_count, before.scene_scroll_count),
         saturating_subtract(after.repaint_plan_count, before.repaint_plan_count),
         saturating_subtract(after.repaint_plan_fallback_count,

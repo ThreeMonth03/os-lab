@@ -15,8 +15,8 @@ function flush_command() {
     if (command == "") {
         return
     }
-    printf "%-46s %8s %8s %8s %8s %14s %14s %14s %14s %14s %14s %14s %14s %8s\n", \
-        command, elapsed, operations, presenter_calls, scrolls, pixels, terminal_copy_pixels, scene_scroll_pixels, scene_backing_pixels, front_scroll_pixels, window_repaint_pixels, move_repaint_pixels, visual_repaint_pixels, preview_repaint_pixels, fallback
+    printf "%-46s %8s %8s %8s %8s %14s %14s %14s %14s %14s %14s %14s %14s %14s %8s\n", \
+        command, elapsed, operations, presenter_calls, scrolls, pixels, terminal_copy_pixels, scene_scroll_pixels, scene_move_pixels, scene_backing_pixels, front_scroll_pixels, window_repaint_pixels, move_repaint_pixels, visual_repaint_pixels, preview_repaint_pixels, fallback
 }
 
 {
@@ -24,15 +24,15 @@ function flush_command() {
 }
 
 BEGIN {
-    printf "%-46s %8s %8s %8s %8s %14s %14s %14s %14s %14s %14s %14s %14s %8s\n", \
-        "command", "ticks", "ops", "calls", "scrolls", "pixels", "term_copy", "scene_scroll", "scene_backing", "front_scroll", "window_repaint", "move_repaint", "visual_repaint", "preview_repaint", "fallback"
+    printf "%-46s %8s %8s %8s %8s %14s %14s %14s %14s %14s %14s %14s %14s %14s %8s\n", \
+        "command", "ticks", "ops", "calls", "scrolls", "pixels", "term_copy", "scene_scroll", "scene_move", "scene_backing", "front_scroll", "window_repaint", "move_repaint", "visual_repaint", "preview_repaint", "fallback"
 }
 
 /^os-lab display profile: command=/ {
     flush_command()
     command = $0
     sub(/^os-lab display profile: command=/, "", command)
-    elapsed = operations = presenter_calls = scrolls = pixels = terminal_copy_pixels = scene_scroll_pixels = scene_backing_pixels = front_scroll_pixels = window_repaint_pixels = move_repaint_pixels = visual_repaint_pixels = preview_repaint_pixels = fallback = 0
+    elapsed = operations = presenter_calls = scrolls = pixels = terminal_copy_pixels = scene_scroll_pixels = scene_move_pixels = scene_backing_pixels = front_scroll_pixels = window_repaint_pixels = move_repaint_pixels = visual_repaint_pixels = preview_repaint_pixels = fallback = 0
     next
 }
 
@@ -63,6 +63,11 @@ BEGIN {
 
 /^  scene scroll copy pixels:/ {
     scene_scroll_pixels = $5
+    next
+}
+
+/^  scene move copy pixels:/ {
+    scene_move_pixels = $5
     next
 }
 

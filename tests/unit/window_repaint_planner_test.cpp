@@ -92,6 +92,18 @@ TEST(WindowRepaintPlannerTest, MoveDamageKeepsOldAndNewRegionsSeparate)
     EXPECT_FALSE(regions.full_screen_fallback());
 }
 
+TEST(WindowRepaintPlannerTest, MoveExposedDamageExcludesNewBoundsForSceneCopyFastPath)
+{
+    const kernel::display::WindowRepaintRegionList regions =
+        planner().move_exposed_damage({10, 20, 320, 200}, {40, 50, 320, 200});
+
+    ASSERT_EQ(regions.count(), 2u);
+    expect_rect(regions.at(0), 10, 20, 320, 30);
+    expect_rect(regions.at(1), 10, 50, 30, 170);
+    EXPECT_LT(regions.total_area(), 320u * 200u);
+    EXPECT_FALSE(regions.full_screen_fallback());
+}
+
 TEST(WindowRepaintPlannerTest, RepeatedMoveStepsDoNotFallbackToFullscreen)
 {
     kernel::display::Rect previous{10, 20, 320, 200};

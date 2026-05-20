@@ -203,6 +203,14 @@ WindowRepaintRegionList WindowRepaintPlanner::move_damage(Rect previous_bounds,
     return regions;
 }
 
+WindowRepaintRegionList WindowRepaintPlanner::move_exposed_damage(Rect previous_bounds,
+                                                                  Rect current_bounds) const
+{
+    WindowRepaintRegionList regions(desktop_bounds_);
+    append_rect_minus(regions, previous_bounds, current_bounds);
+    return regions;
+}
+
 WindowRepaintRegionList WindowRepaintPlanner::mutation_damage(
     WindowSessionMutation mutation) const
 {

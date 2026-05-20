@@ -345,6 +345,7 @@ void write_display_stats()
     write_stat("scene compose from backing pixels", stats.compositor.scene_compose_from_backing_pixels);
     write_stat("scene preflight pixels", stats.compositor.scene_preflight_pixels);
     write_stat("scene scroll copy pixels", stats.compositor.scene_scroll_copy_pixels);
+    write_stat("scene move copy pixels", stats.compositor.scene_move_copy_pixels);
     write_stat("scene scroll count", stats.compositor.scene_scroll_count);
     write_stat("repaint plan count", stats.compositor.repaint_plan_count);
     write_stat("repaint plan fallback count", stats.compositor.repaint_plan_fallback_count);
