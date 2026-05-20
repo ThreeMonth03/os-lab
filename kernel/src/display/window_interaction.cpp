@@ -101,6 +101,12 @@ void record_repaint_regions(display::WindowInteractionReplayStats & stats,
     }
 }
 
+bool same_rect(display::Rect lhs, display::Rect rhs)
+{
+    return lhs.x == rhs.x && lhs.y == rhs.y && lhs.width == rhs.width &&
+           lhs.height == rhs.height;
+}
+
 } // namespace
 
 namespace kernel::display
@@ -463,6 +469,47 @@ WindowInteractionReplay::WindowInteractionReplay(Rect desktop_bounds,
 {
 }
 
+WindowLiveMoveCoalescer::WindowLiveMoveCoalescer(size_t stride)
+    : stride_(stride == 0 ? 1 : stride)
+{
+}
+
+WindowCoalescedMoveResult WindowLiveMoveCoalescer::update(Rect proposed_bounds, bool force)
+{
+    if (proposed_bounds.empty())
+    {
+        return {};
+    }
+
+    pending_bounds_ = proposed_bounds;
+    ++pending_count_;
+
+    const bool first_commit = !has_committed_;
+    const bool stride_commit = pending_count_ >= stride_;
+    if (!force && !first_commit && !stride_commit)
+    {
+        return {};
+    }
+
+    pending_count_ = 0;
+    if (has_committed_ && same_rect(last_committed_bounds_, pending_bounds_))
+    {
+        return {};
+    }
+
+    last_committed_bounds_ = pending_bounds_;
+    has_committed_ = true;
+    return {true, pending_bounds_};
+}
+
+void WindowLiveMoveCoalescer::reset()
+{
+    pending_count_ = 0;
+    pending_bounds_ = {};
+    last_committed_bounds_ = {};
+    has_committed_ = false;
+}
+
 WindowInteractionReplayStats WindowInteractionReplay::profile_preview_then_commit(
     WindowInteractionReplayConfig config) const
 {
@@ -534,6 +581,84 @@ WindowInteractionReplayStats WindowInteractionReplay::profile_preview_then_commi
     {
         ++stats.commit_count;
         record_repaint_regions(stats, planner.move_damage(config.start_bounds, release.proposed_bounds), true);
+    }
+    return stats;
+}
+
+WindowInteractionReplayStats WindowInteractionReplay::profile_live_move(
+    WindowInteractionReplayConfig config) const
+{
+    WindowInteractionReplayStats stats;
+    if (desktop_bounds_.empty() || config.start_bounds.empty() || config.step_count == 0 ||
+        config.kind != WindowInteractionReplayKind::Move)
+    {
+        return stats;
+    }
+
+    WindowInteractionController controller;
+    WindowLiveMoveCoalescer coalescer(3);
+    WindowRepaintPlanner planner(desktop_bounds_, frame_config_);
+    Rect current_bounds = config.start_bounds;
+    const WindowInteractionResult press = controller.update({
+        current_bounds,
+        config.press_region,
+        config.press_x,
+        config.press_y,
+        true,
+        config.constraints,
+    });
+    ++stats.pointer_event_count;
+    if (!press.handled)
+    {
+        return stats;
+    }
+
+    for (size_t step = 1; step <= config.step_count; ++step)
+    {
+        const uint64_t x = config.press_x + (config.step_delta_x * step);
+        const uint64_t y = config.press_y + (config.step_delta_y * step);
+        const WindowInteractionResult drag = controller.update({
+            current_bounds,
+            WindowChromeHitRegion::None,
+            x,
+            y,
+            true,
+            config.constraints,
+        });
+        ++stats.pointer_event_count;
+        if (drag.proposed_bounds.empty() || drag.commit_move)
+        {
+            continue;
+        }
+
+        const WindowCoalescedMoveResult coalesced = coalescer.update(drag.proposed_bounds, false);
+        if (!coalesced.commit)
+        {
+            continue;
+        }
+
+        ++stats.commit_count;
+        record_repaint_regions(stats, planner.move_damage(current_bounds, coalesced.bounds), true);
+        current_bounds = coalesced.bounds;
+    }
+
+    const uint64_t release_x = config.press_x + (config.step_delta_x * config.step_count);
+    const uint64_t release_y = config.press_y + (config.step_delta_y * config.step_count);
+    const WindowInteractionResult release = controller.update({
+        current_bounds,
+        WindowChromeHitRegion::None,
+        release_x,
+        release_y,
+        false,
+        config.constraints,
+    });
+    ++stats.pointer_event_count;
+    const WindowCoalescedMoveResult coalesced =
+        coalescer.update(release.proposed_bounds, release.commit_move);
+    if (coalesced.commit && !coalesced.bounds.empty() && !same_rect(coalesced.bounds, current_bounds))
+    {
+        ++stats.commit_count;
+        record_repaint_regions(stats, planner.move_damage(current_bounds, coalesced.bounds), true);
     }
     return stats;
 }

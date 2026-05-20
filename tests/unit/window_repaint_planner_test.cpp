@@ -144,6 +144,34 @@ TEST(WindowRepaintPlannerTest, VisualStateDamageCoversPaintedChromeOutline)
     }
 }
 
+TEST(WindowRepaintPlannerTest, VisualStateTransitionDamagesOldAndNewActiveChrome)
+{
+    kernel::display::WindowSessionRegistry sessions;
+    ASSERT_TRUE(sessions.register_session(terminal_session(false, false)));
+    ASSERT_TRUE(sessions.register_session(dummy_session(true, true)));
+
+    kernel::display::WindowStack previous;
+    ASSERT_TRUE(previous.register_window(terminal_session(false, false)));
+    ASSERT_TRUE(previous.register_window(dummy_session(true, true)));
+
+    kernel::display::WindowStack current = previous;
+    ASSERT_TRUE(current.focus_and_activate(kernel::display::kTerminalWindowSessionId));
+    ASSERT_TRUE(current.raise_to_front(kernel::display::kTerminalWindowSessionId));
+
+    ASSERT_TRUE(sessions.restore_session(terminal_session(true, true)));
+    ASSERT_TRUE(sessions.restore_session(dummy_session(false, false)));
+
+    const kernel::display::WindowRepaintRegionList regions =
+        planner().visual_state_transition_damage(previous, current, sessions);
+
+    EXPECT_TRUE(contained_by_any(regions, 10, 20))
+        << "terminal active chrome was not damaged";
+    EXPECT_TRUE(contained_by_any(regions, 120, 80))
+        << "dummy inactive chrome was not damaged";
+    EXPECT_LT(regions.total_area(), 800u * 600u);
+    EXPECT_FALSE(regions.full_screen_fallback());
+}
+
 TEST(WindowRepaintPlannerTest, RaiseDamageOnlyIncludesPreviouslyObscuredOverlapAndChrome)
 {
     kernel::display::WindowSessionRegistry sessions;

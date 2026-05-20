@@ -89,12 +89,9 @@ struct DisplayRuntimeState
         display::kInvalidWindowSessionId;
     display::AppSurfaceId active_window_interaction_app_surface_id =
         display::kInvalidAppSurfaceId;
-    display::WindowSessionId suppressed_drag_window_session_id =
-        display::kInvalidWindowSessionId;
     display::WindowSessionId hidden_drag_caret_window_session_id =
         display::kInvalidWindowSessionId;
-    display::WindowSessionId optimized_drag_commit_session_id =
-        display::kInvalidWindowSessionId;
+    display::WindowLiveMoveCoalescer live_drag_move_coalescer{3};
     display::Rect window_preview_bounds;
     bool window_preview_visible = false;
     bool window_preview_layer_registered = false;
@@ -237,6 +234,7 @@ void clear_active_window_interaction_target()
 {
     g_state.active_window_interaction_session_id = display::kInvalidWindowSessionId;
     g_state.active_window_interaction_app_surface_id = display::kInvalidAppSurfaceId;
+    g_state.live_drag_move_coalescer.reset();
 }
 
 bool active_window_interaction_target_valid()
@@ -490,17 +488,10 @@ void repaint_changed_window_visual_states(const display::WindowStack & previous,
         return;
     }
 
-    for (size_t index = 0; index < current.size(); ++index)
-    {
-        const display::WindowStackEntry * current_entry = current.at(index);
-        const display::WindowSession * session =
-            current_entry == nullptr ? nullptr : g_state.window_host.find(current_entry->id);
-        if (session != nullptr && session->visible() && !session->closed())
-        {
-            repaint_desktop_regions(planner.visual_state_damage(session->bounds.outer),
-                                    WindowRepaintReason::VisualState);
-        }
-    }
+    repaint_desktop_regions(planner.visual_state_transition_damage(previous,
+                                                                   current,
+                                                                   g_state.window_sessions),
+                            WindowRepaintReason::VisualState);
 }
 
 display::Rect debug_overlay_avoid_bounds(display::Rect app_bounds)
@@ -844,11 +835,6 @@ display::PixelSample sample_app_layer_pixel(uint64_t x, uint64_t y)
         {
             continue;
         }
-        if (entry->id == g_state.suppressed_drag_window_session_id)
-        {
-            continue;
-        }
-
         const display::WindowSession * session = g_state.window_host.find(entry->id);
         if (session == nullptr)
         {
@@ -873,7 +859,6 @@ const uint32_t * app_layer_row_pixels(uint64_t y)
 
     const display::WindowSession & terminal = g_state.primary_window_session;
     if (!terminal.visible() || terminal.closed() ||
-        g_state.suppressed_drag_window_session_id == display::kTerminalWindowSessionId ||
         !same_rect(g_state.app_layer_bounds, terminal.bounds.outer))
     {
         return nullptr;
@@ -1138,10 +1123,9 @@ bool sync_primary_window_session_compositor_surface(display::WindowSession sessi
         terminal_caret_visible_for(session)));
 }
 
-bool begin_drag_suppression(display::WindowSessionId session_id)
+bool begin_drag_caret_suppression(display::WindowSessionId session_id)
 {
     if (session_id == display::kInvalidWindowSessionId ||
-        g_state.suppressed_drag_window_session_id == session_id ||
         g_state.hidden_drag_caret_window_session_id == session_id)
     {
         return false;
@@ -1156,28 +1140,23 @@ bool begin_drag_suppression(display::WindowSessionId session_id)
         return true;
     }
 
-    g_state.suppressed_drag_window_session_id = session_id;
-    return true;
+    return false;
 }
 
-display::Rect clear_drag_suppression()
+void clear_drag_caret_suppression()
 {
-    const display::WindowSessionId session_id = g_state.suppressed_drag_window_session_id;
     const display::WindowSessionId caret_session_id = g_state.hidden_drag_caret_window_session_id;
-    display::Rect bounds;
-    if (session_id != display::kInvalidWindowSessionId)
-    {
-        const display::WindowSession * session = g_state.window_manager.find_window(session_id);
-        bounds = session == nullptr ? display::Rect{} : session->bounds.outer;
-        g_state.suppressed_drag_window_session_id = display::kInvalidWindowSessionId;
-    }
     if (caret_session_id == display::kTerminalWindowSessionId)
     {
         g_state.hidden_drag_caret_window_session_id = display::kInvalidWindowSessionId;
         sync_terminal_caret_surface(g_state.primary_window_session);
         repaint_terminal_caret_bounds(terminal_caret_bounds());
     }
-    return bounds;
+}
+
+void clear_drag_suppression()
+{
+    clear_drag_caret_suppression();
 }
 
 void init_optional_debug_overlay_layer(const limine_framebuffer & framebuffer,
@@ -1474,12 +1453,6 @@ bool commit_window_manager_result(display::WindowManagerResult result,
                 mutation.previous.bounds.outer.height == mutation.current.bounds.outer.height
             ? WindowRepaintReason::Move
             : WindowRepaintReason::Generic;
-    if (mutation_repaint_reason == WindowRepaintReason::Move &&
-        g_state.optimized_drag_commit_session_id == mutation.current.id)
-    {
-        mutation_repaint.clear();
-        mutation_repaint.append(mutation.current.bounds.outer);
-    }
     repaint_desktop_regions(mutation_repaint, mutation_repaint_reason);
     repaint_changed_window_visual_states(result.previous_stack, result.current_stack);
     if (previous_item.app_visible != current_item.app_visible ||
@@ -2067,6 +2040,7 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     {
         g_state.active_window_interaction_session_id = pointer_session_id;
         g_state.active_window_interaction_app_surface_id = g_state.pointer_target.app_surface_id;
+        g_state.live_drag_move_coalescer.reset();
     }
     g_state.pointer_cursor_shape = interaction.cursor_shape;
     result.handled = interaction.handled;
@@ -2092,30 +2066,29 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
             g_state.window_manager.find_window(interaction_session_id);
         if (session != nullptr && !same_rect(session->bounds.outer, interaction.proposed_bounds))
         {
-            if (begin_drag_suppression(interaction_session_id))
+            begin_drag_caret_suppression(interaction_session_id);
+            const display::WindowCoalescedMoveResult coalesced =
+                g_state.live_drag_move_coalescer.update(interaction.proposed_bounds, false);
+            if (coalesced.commit && move_app_surface(interaction_app_surface_id, coalesced.bounds))
             {
-                if (g_state.suppressed_drag_window_session_id == interaction_session_id)
-                {
-                    repaint_desktop_from(session->bounds.outer, WindowRepaintReason::Move);
-                }
+                result.app_moved = true;
+                update_pointer_target(x, y);
             }
-            update_window_interaction_preview(interaction.proposed_bounds);
         }
     }
     else if (interaction.commit_move)
     {
         const display::Rect preview = clear_window_interaction_preview();
-        const bool suppressed_drag =
-            g_state.suppressed_drag_window_session_id == interaction_session_id;
         const display::WindowSession * session =
             g_state.window_manager.find_window(interaction_session_id);
-        g_state.optimized_drag_commit_session_id =
-            suppressed_drag ? interaction_session_id : display::kInvalidWindowSessionId;
+        const display::WindowCoalescedMoveResult coalesced =
+            g_state.live_drag_move_coalescer.update(interaction.proposed_bounds, true);
         const bool moved =
-            session != nullptr && !same_rect(session->bounds.outer, interaction.proposed_bounds) &&
-            move_app_surface(interaction_app_surface_id, interaction.proposed_bounds);
-        g_state.optimized_drag_commit_session_id = display::kInvalidWindowSessionId;
-        const display::Rect suppressed = clear_drag_suppression();
+            session != nullptr && coalesced.commit &&
+            !same_rect(session->bounds.outer, coalesced.bounds) &&
+            move_app_surface(interaction_app_surface_id, coalesced.bounds);
+        clear_drag_caret_suppression();
+        g_state.live_drag_move_coalescer.reset();
         if (moved)
         {
             result.app_moved = true;
@@ -2123,10 +2096,6 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
         }
         else
         {
-            if (!suppressed.empty())
-            {
-                repaint_desktop_from(suppressed, WindowRepaintReason::Move);
-            }
             if (!preview.empty())
             {
                 repaint_desktop_regions(window_preview_damage_for(preview),
@@ -2170,14 +2139,10 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     if (!primary_down && controller_was_active)
     {
         const display::Rect preview = clear_window_interaction_preview();
-        const display::Rect suppressed = clear_drag_suppression();
+        clear_drag_suppression();
         if (!preview.empty())
         {
             repaint_desktop_regions(window_preview_damage_for(preview), WindowRepaintReason::Preview);
-        }
-        if (!suppressed.empty())
-        {
-            repaint_desktop_from(suppressed, WindowRepaintReason::Move);
         }
         clear_active_window_interaction_target();
     }
@@ -2380,6 +2345,32 @@ void profile_drag_phases(kernel::StringView start_name,
     finish_interaction_profile_phase(release_name, phase);
 }
 
+void profile_rapid_drag_phase(kernel::StringView name,
+                              display::Rect press_region,
+                              uint64_t step_delta_x,
+                              uint64_t step_delta_y,
+                              size_t step_count)
+{
+    if (press_region.empty() || step_count == 0)
+    {
+        return;
+    }
+
+    const uint64_t press_x = center_x(press_region);
+    const uint64_t press_y = center_y(press_region);
+    const InteractionProfilePhase phase = begin_interaction_profile_phase();
+    dispatch_profile_pointer(press_x, press_y, true);
+    for (size_t step = 1; step <= step_count; ++step)
+    {
+        const bool outward = (step % 2) != 0;
+        dispatch_profile_pointer(press_x + (outward ? step_delta_x : 0),
+                                 press_y + (outward ? step_delta_y : 0),
+                                 true);
+    }
+    dispatch_profile_pointer(press_x, press_y, false);
+    finish_interaction_profile_phase(name, phase);
+}
+
 void prepare_profile_terminal_sequence()
 {
     prepare_profile_terminal_window();
@@ -2397,6 +2388,16 @@ void profile_terminal_drag_sequence()
                         16);
 }
 
+void profile_terminal_rapid_drag_sequence()
+{
+    prepare_profile_terminal_sequence();
+    profile_rapid_drag_phase("window-rapid-drag-terminal",
+                             title_drag_hit_bounds(session_outer_bounds(display::kTerminalWindowSessionId)),
+                             48,
+                             28,
+                             18);
+}
+
 void profile_dummy_drag_sequence()
 {
     ensure_profile_window_front(display::kDummyDebugWindowSessionId);
@@ -2407,6 +2408,16 @@ void profile_dummy_drag_sequence()
                         8,
                         5,
                         12);
+}
+
+void profile_dummy_rapid_drag_sequence()
+{
+    ensure_profile_window_front(display::kDummyDebugWindowSessionId);
+    profile_rapid_drag_phase("window-rapid-drag-dummy",
+                             title_drag_hit_bounds(session_outer_bounds(display::kDummyDebugWindowSessionId)),
+                             40,
+                             24,
+                             18);
 }
 
 void profile_terminal_resize_sequence()
@@ -2426,6 +2437,21 @@ void profile_terminal_resize_sequence()
                         10);
 }
 
+void profile_terminal_rapid_resize_sequence()
+{
+    prepare_profile_terminal_sequence();
+    const display::Rect bounds = session_outer_bounds(display::kTerminalWindowSessionId);
+    if (bounds.empty())
+    {
+        return;
+    }
+    profile_rapid_drag_phase("window-rapid-resize-terminal",
+                             {bounds.x + bounds.width - 2, bounds.y + bounds.height - 2, 1, 1},
+                             48,
+                             28,
+                             18);
+}
+
 void profile_dummy_resize_sequence()
 {
     ensure_profile_window_front(display::kDummyDebugWindowSessionId);
@@ -2441,6 +2467,21 @@ void profile_dummy_resize_sequence()
                         6,
                         4,
                         8);
+}
+
+void profile_dummy_rapid_resize_sequence()
+{
+    ensure_profile_window_front(display::kDummyDebugWindowSessionId);
+    const display::Rect bounds = session_outer_bounds(display::kDummyDebugWindowSessionId);
+    if (bounds.empty())
+    {
+        return;
+    }
+    profile_rapid_drag_phase("window-rapid-resize-dummy",
+                             {bounds.x + bounds.width - 2, bounds.y + bounds.height - 2, 1, 1},
+                             36,
+                             24,
+                             18);
 }
 
 void profile_terminal_bar_reopen_sequence()
@@ -2501,13 +2542,17 @@ void run_window_interaction_profile()
     if (desktop_debug_dummy_app_enabled())
     {
         profile_dummy_drag_sequence();
+        profile_dummy_rapid_drag_sequence();
     }
     profile_terminal_drag_sequence();
+    profile_terminal_rapid_drag_sequence();
     if (desktop_debug_dummy_app_enabled())
     {
         profile_dummy_resize_sequence();
+        profile_dummy_rapid_resize_sequence();
     }
     profile_terminal_resize_sequence();
+    profile_terminal_rapid_resize_sequence();
     kernel::drivers::serial::write_line("os-lab: window interaction profile done");
 #endif
 }

@@ -91,6 +91,29 @@ struct WindowInteractionReplayStats
     uint64_t full_screen_fallback_count = 0;
 };
 
+struct WindowCoalescedMoveResult
+{
+    bool commit = false;
+    Rect bounds;
+};
+
+class WindowLiveMoveCoalescer
+{
+public:
+    WindowLiveMoveCoalescer() = default;
+    explicit WindowLiveMoveCoalescer(size_t stride);
+
+    [[nodiscard]] WindowCoalescedMoveResult update(Rect proposed_bounds, bool force);
+    void reset();
+
+private:
+    size_t stride_ = 1;
+    size_t pending_count_ = 0;
+    Rect pending_bounds_;
+    Rect last_committed_bounds_;
+    bool has_committed_ = false;
+};
+
 class WindowInteractionReplay
 {
 public:
@@ -98,6 +121,8 @@ public:
     WindowInteractionReplay(Rect desktop_bounds, WindowFrameConfig frame_config);
 
     [[nodiscard]] WindowInteractionReplayStats profile_preview_then_commit(
+        WindowInteractionReplayConfig config) const;
+    [[nodiscard]] WindowInteractionReplayStats profile_live_move(
         WindowInteractionReplayConfig config) const;
 
 private:

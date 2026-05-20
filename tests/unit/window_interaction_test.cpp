@@ -348,6 +348,60 @@ TEST(WindowInteractionTest, ReplayProfilesMoveAsPreviewThenSingleCommit)
     EXPECT_LT(stats.largest_repaint_area, 800u * 600u);
 }
 
+TEST(WindowInteractionTest, LiveMoveCoalescerCommitsFirstStrideAndFinalBounds)
+{
+    kernel::display::WindowLiveMoveCoalescer coalescer(3);
+
+    kernel::display::WindowCoalescedMoveResult result =
+        coalescer.update({10, 20, 100, 80}, false);
+    EXPECT_TRUE(result.commit);
+    EXPECT_EQ(result.bounds.x, 10u);
+
+    result = coalescer.update({20, 20, 100, 80}, false);
+    EXPECT_FALSE(result.commit);
+
+    result = coalescer.update({30, 20, 100, 80}, false);
+    EXPECT_FALSE(result.commit);
+
+    result = coalescer.update({40, 20, 100, 80}, false);
+    EXPECT_TRUE(result.commit);
+    EXPECT_EQ(result.bounds.x, 40u);
+
+    result = coalescer.update({50, 20, 100, 80}, true);
+    EXPECT_TRUE(result.commit);
+    EXPECT_EQ(result.bounds.x, 50u);
+
+    result = coalescer.update({50, 20, 100, 80}, true);
+    EXPECT_FALSE(result.commit);
+}
+
+TEST(WindowInteractionTest, ReplayProfilesLiveMoveCoalescedWithoutPreview)
+{
+    const kernel::display::WindowInteractionReplay replay(
+        {0, 0, 800, 600},
+        kernel::display::terminal_window_frame_config(true));
+
+    const kernel::display::WindowInteractionReplayStats stats = replay.profile_live_move({
+        kernel::display::WindowInteractionReplayKind::Move,
+        {10, 20, 320, 200},
+        kernel::display::WindowChromeHitRegion::TitleBar,
+        30,
+        40,
+        12,
+        6,
+        10,
+        constraints(),
+    });
+
+    EXPECT_EQ(stats.pointer_event_count, 12u);
+    EXPECT_EQ(stats.preview_update_count, 0u);
+    EXPECT_EQ(stats.commit_count, 4u);
+    EXPECT_EQ(stats.preview_repaint_pixels, 0u);
+    EXPECT_GT(stats.commit_repaint_pixels, 0u);
+    EXPECT_EQ(stats.full_screen_fallback_count, 0u);
+    EXPECT_LT(stats.largest_repaint_area, 800u * 600u);
+}
+
 TEST(WindowInteractionTest, ReplayProfilesResizeAsPreviewThenSingleCommit)
 {
     const kernel::display::WindowInteractionReplay replay(

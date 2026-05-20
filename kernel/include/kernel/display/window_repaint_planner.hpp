@@ -62,6 +62,10 @@ public:
     [[nodiscard]] WindowRepaintRegionList mutation_damage(
         WindowSessionMutation mutation) const;
     [[nodiscard]] WindowRepaintRegionList visual_state_damage(Rect outer_bounds) const;
+    [[nodiscard]] WindowRepaintRegionList visual_state_transition_damage(
+        const WindowStack & previous,
+        const WindowStack & current,
+        const WindowSessionRegistry & sessions) const;
     [[nodiscard]] WindowRepaintRegionList stack_transition_damage(
         const WindowStack & previous,
         const WindowStack & current,

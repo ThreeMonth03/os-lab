@@ -74,6 +74,16 @@ bool visible_entry(const WindowStackEntry * entry)
     return entry != nullptr && entry->visible();
 }
 
+bool visual_state_changed(const WindowStackEntry * previous, const WindowStackEntry * current)
+{
+    if (previous == nullptr || current == nullptr)
+    {
+        return previous != current;
+    }
+    return previous->state != current->state || previous->focused != current->focused ||
+           previous->active != current->active;
+}
+
 size_t stack_index_of(const WindowStack & stack, WindowSessionId id)
 {
     for (size_t index = 0; index < stack.size(); ++index)
@@ -223,6 +233,39 @@ WindowRepaintRegionList WindowRepaintPlanner::visual_state_damage(Rect outer_bou
 {
     WindowRepaintRegionList regions(desktop_bounds_);
     append_chrome_damage(regions, outer_bounds);
+    return regions;
+}
+
+WindowRepaintRegionList WindowRepaintPlanner::visual_state_transition_damage(
+    const WindowStack & previous,
+    const WindowStack & current,
+    const WindowSessionRegistry & sessions) const
+{
+    WindowRepaintRegionList regions(desktop_bounds_);
+
+    for (size_t index = 0; index < current.size(); ++index)
+    {
+        const WindowStackEntry * current_entry = current.at(index);
+        if (!visible_entry(current_entry))
+        {
+            continue;
+        }
+
+        const WindowStackEntry * previous_entry =
+            current_entry == nullptr ? nullptr : previous.find(current_entry->id);
+        if (!visual_state_changed(previous_entry, current_entry))
+        {
+            continue;
+        }
+
+        const WindowSession * session =
+            current_entry == nullptr ? nullptr : sessions.find(current_entry->id);
+        if (session != nullptr && session->visible() && !session->closed())
+        {
+            append_chrome_damage(regions, session->bounds.outer);
+        }
+    }
+
     return regions;
 }
 
