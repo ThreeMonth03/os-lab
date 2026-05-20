@@ -15,7 +15,7 @@ function flush_command() {
     if (command == "") {
         return
     }
-    printf "%-26s %8s %8s %8s %8s %14s %14s %14s %14s %14s %14s %14s %8s\n", \
+    printf "%-46s %8s %8s %8s %8s %14s %14s %14s %14s %14s %14s %14s %8s\n", \
         command, elapsed, operations, presenter_calls, scrolls, pixels, terminal_copy_pixels, scene_scroll_pixels, scene_backing_pixels, front_scroll_pixels, window_repaint_pixels, preview_repaint_pixels, fallback
 }
 
@@ -24,7 +24,7 @@ function flush_command() {
 }
 
 BEGIN {
-    printf "%-26s %8s %8s %8s %8s %14s %14s %14s %14s %14s %14s %14s %8s\n", \
+    printf "%-46s %8s %8s %8s %8s %14s %14s %14s %14s %14s %14s %14s %8s\n", \
         "command", "ticks", "ops", "calls", "scrolls", "pixels", "term_copy", "scene_scroll", "scene_backing", "front_scroll", "window_repaint", "preview_repaint", "fallback"
 }
 

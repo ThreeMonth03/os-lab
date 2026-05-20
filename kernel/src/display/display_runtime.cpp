@@ -91,6 +91,10 @@ struct DisplayRuntimeState
         display::kInvalidAppSurfaceId;
     display::WindowSessionId suppressed_drag_window_session_id =
         display::kInvalidWindowSessionId;
+    display::WindowSessionId hidden_drag_caret_window_session_id =
+        display::kInvalidWindowSessionId;
+    display::WindowSessionId optimized_drag_commit_session_id =
+        display::kInvalidWindowSessionId;
     display::Rect window_preview_bounds;
     bool window_preview_visible = false;
     bool window_preview_layer_registered = false;
@@ -99,6 +103,7 @@ struct DisplayRuntimeState
     display::runtime::AppSurfaceStateCallback app_state_callback = nullptr;
     display::compositor::LayerPixelCallback terminal_app_pixel_callback = nullptr;
     display::compositor::LayerRowCallback terminal_app_row_callback = nullptr;
+    display::compositor::LayerBoundsCallback terminal_caret_bounds_callback = nullptr;
     desktop_bar::DesktopShellAction pressed_desktop_shell_action =
         desktop_bar::DesktopShellAction::None;
     uint32_t * scene_memory = nullptr;
@@ -691,29 +696,6 @@ bool runtime_rect_contains(display::Rect rect, uint64_t x, uint64_t y)
     return display::rect_contains(rect, x, y);
 }
 
-bool chrome_region_is_border_or_resize(display::WindowChromeHitRegion region)
-{
-    switch (region)
-    {
-    case display::WindowChromeHitRegion::Border:
-    case display::WindowChromeHitRegion::ResizeLeft:
-    case display::WindowChromeHitRegion::ResizeRight:
-    case display::WindowChromeHitRegion::ResizeTop:
-    case display::WindowChromeHitRegion::ResizeBottom:
-    case display::WindowChromeHitRegion::ResizeTopLeft:
-    case display::WindowChromeHitRegion::ResizeTopRight:
-    case display::WindowChromeHitRegion::ResizeBottomLeft:
-    case display::WindowChromeHitRegion::ResizeBottomRight:
-        return true;
-    case display::WindowChromeHitRegion::None:
-    case display::WindowChromeHitRegion::TitleBar:
-    case display::WindowChromeHitRegion::CloseButton:
-    case display::WindowChromeHitRegion::Content:
-        return false;
-    }
-    return false;
-}
-
 display::PixelSample sample_window_interaction_preview_pixel(uint64_t x, uint64_t y)
 {
     if (!g_state.window_preview_visible ||
@@ -760,10 +742,7 @@ display::PixelSample sample_dummy_debug_app_pixel(display::AppSurface surface,
         return display::opaque_pixel(kText);
     }
 
-    const bool border =
-        metrics.visible &&
-        chrome_region_is_border_or_resize(display::WindowChrome::hit_test(metrics, x, y));
-    if (border)
+    if (display::WindowChrome::outline_contains_pixel(metrics, x, y))
     {
         return display::opaque_pixel(surface.active ? kAccent : kText);
     }
@@ -1120,7 +1099,7 @@ display::CompositedSurfaceDescriptor text_caret_surface_for(display::Rect app_bo
 bool terminal_caret_visible_for(display::WindowSession session)
 {
     return session.visible() && !session.closed() && session.focused &&
-           g_state.suppressed_drag_window_session_id != display::kTerminalWindowSessionId;
+           g_state.hidden_drag_caret_window_session_id != display::kTerminalWindowSessionId;
 }
 
 bool sync_terminal_caret_surface(display::WindowSession session)
@@ -1128,6 +1107,21 @@ bool sync_terminal_caret_surface(display::WindowSession session)
     return display::compositor::update_surface(text_caret_surface_for(
         session.bounds.outer,
         terminal_caret_visible_for(session)));
+}
+
+display::Rect terminal_caret_bounds()
+{
+    return g_state.terminal_caret_bounds_callback == nullptr
+               ? display::Rect{}
+               : g_state.terminal_caret_bounds_callback();
+}
+
+void repaint_terminal_caret_bounds(display::Rect bounds)
+{
+    if (!bounds.empty())
+    {
+        repaint_desktop_from(bounds, WindowRepaintReason::VisualState);
+    }
 }
 
 bool sync_primary_window_session_compositor_surface(display::WindowSession session,
@@ -1147,33 +1141,41 @@ bool sync_primary_window_session_compositor_surface(display::WindowSession sessi
 bool begin_drag_suppression(display::WindowSessionId session_id)
 {
     if (session_id == display::kInvalidWindowSessionId ||
-        g_state.suppressed_drag_window_session_id == session_id)
+        g_state.suppressed_drag_window_session_id == session_id ||
+        g_state.hidden_drag_caret_window_session_id == session_id)
     {
         return false;
     }
 
-    g_state.suppressed_drag_window_session_id = session_id;
     if (session_id == display::kTerminalWindowSessionId)
     {
+        const display::Rect old_caret = terminal_caret_bounds();
+        g_state.hidden_drag_caret_window_session_id = session_id;
         sync_terminal_caret_surface(g_state.primary_window_session);
+        repaint_terminal_caret_bounds(old_caret);
+        return true;
     }
+
+    g_state.suppressed_drag_window_session_id = session_id;
     return true;
 }
 
 display::Rect clear_drag_suppression()
 {
     const display::WindowSessionId session_id = g_state.suppressed_drag_window_session_id;
-    if (session_id == display::kInvalidWindowSessionId)
+    const display::WindowSessionId caret_session_id = g_state.hidden_drag_caret_window_session_id;
+    display::Rect bounds;
+    if (session_id != display::kInvalidWindowSessionId)
     {
-        return {};
+        const display::WindowSession * session = g_state.window_manager.find_window(session_id);
+        bounds = session == nullptr ? display::Rect{} : session->bounds.outer;
+        g_state.suppressed_drag_window_session_id = display::kInvalidWindowSessionId;
     }
-
-    const display::WindowSession * session = g_state.window_manager.find_window(session_id);
-    const display::Rect bounds = session == nullptr ? display::Rect{} : session->bounds.outer;
-    g_state.suppressed_drag_window_session_id = display::kInvalidWindowSessionId;
-    if (session_id == display::kTerminalWindowSessionId)
+    if (caret_session_id == display::kTerminalWindowSessionId)
     {
+        g_state.hidden_drag_caret_window_session_id = display::kInvalidWindowSessionId;
         sync_terminal_caret_surface(g_state.primary_window_session);
+        repaint_terminal_caret_bounds(terminal_caret_bounds());
     }
     return bounds;
 }
@@ -1464,7 +1466,7 @@ bool commit_window_manager_result(display::WindowManagerResult result,
     sync_desktop_bar_terminal_item();
     relayout_debug_overlay_if_present();
 
-    const display::WindowRepaintRegionList mutation_repaint =
+    display::WindowRepaintRegionList mutation_repaint =
         window_repaint_planner().mutation_damage(mutation);
     const WindowRepaintReason mutation_repaint_reason =
         !same_rect(mutation.previous.bounds.outer, mutation.current.bounds.outer) &&
@@ -1472,6 +1474,12 @@ bool commit_window_manager_result(display::WindowManagerResult result,
                 mutation.previous.bounds.outer.height == mutation.current.bounds.outer.height
             ? WindowRepaintReason::Move
             : WindowRepaintReason::Generic;
+    if (mutation_repaint_reason == WindowRepaintReason::Move &&
+        g_state.optimized_drag_commit_session_id == mutation.current.id)
+    {
+        mutation_repaint.clear();
+        mutation_repaint.append(mutation.current.bounds.outer);
+    }
     repaint_desktop_regions(mutation_repaint, mutation_repaint_reason);
     repaint_changed_window_visual_states(result.previous_stack, result.current_stack);
     if (previous_item.app_visible != current_item.app_visible ||
@@ -1797,10 +1805,16 @@ bool register_app_surface_scroll_composition(LayerScrollComposition composition)
 bool register_text_caret(compositor::LayerPixelCallback pixel_callback,
                          compositor::LayerBoundsCallback bounds_callback)
 {
-    return display::compositor::register_layer_pixel_callback(display::LayerKind::TerminalCaret,
-                                                              pixel_callback) &&
-           display::compositor::register_layer_bounds_callback(display::LayerKind::TerminalCaret,
-                                                               bounds_callback);
+    if (!display::compositor::register_layer_pixel_callback(display::LayerKind::TerminalCaret,
+                                                            pixel_callback) ||
+        !display::compositor::register_layer_bounds_callback(display::LayerKind::TerminalCaret,
+                                                             bounds_callback))
+    {
+        return false;
+    }
+
+    g_state.terminal_caret_bounds_callback = bounds_callback;
+    return true;
 }
 
 display::HitTestResult hit_test_app_windows_by_stack(uint64_t x, uint64_t y)
@@ -2080,7 +2094,10 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
         {
             if (begin_drag_suppression(interaction_session_id))
             {
-                repaint_desktop_from(session->bounds.outer, WindowRepaintReason::Move);
+                if (g_state.suppressed_drag_window_session_id == interaction_session_id)
+                {
+                    repaint_desktop_from(session->bounds.outer, WindowRepaintReason::Move);
+                }
             }
             update_window_interaction_preview(interaction.proposed_bounds);
         }
@@ -2088,12 +2105,17 @@ TerminalWindowInteractionResult handle_terminal_window_pointer(uint64_t x,
     else if (interaction.commit_move)
     {
         const display::Rect preview = clear_window_interaction_preview();
-        const display::Rect suppressed = clear_drag_suppression();
+        const bool suppressed_drag =
+            g_state.suppressed_drag_window_session_id == interaction_session_id;
         const display::WindowSession * session =
             g_state.window_manager.find_window(interaction_session_id);
+        g_state.optimized_drag_commit_session_id =
+            suppressed_drag ? interaction_session_id : display::kInvalidWindowSessionId;
         const bool moved =
             session != nullptr && !same_rect(session->bounds.outer, interaction.proposed_bounds) &&
             move_app_surface(interaction_app_surface_id, interaction.proposed_bounds);
+        g_state.optimized_drag_commit_session_id = display::kInvalidWindowSessionId;
+        const display::Rect suppressed = clear_drag_suppression();
         if (moved)
         {
             result.app_moved = true;
@@ -2204,6 +2226,16 @@ uint64_t center_y(display::Rect rect)
     return rect.y + (rect.height / 2);
 }
 
+uint64_t title_press_x(display::Rect rect)
+{
+    return rect.x + (rect.width / 4);
+}
+
+uint64_t title_press_y(display::Rect rect)
+{
+    return center_y(rect);
+}
+
 display::Rect title_drag_hit_bounds(display::Rect outer)
 {
     const display::WindowFrameMetrics metrics =
@@ -2230,10 +2262,95 @@ void profile_click(uint64_t x, uint64_t y)
     dispatch_profile_pointer(x, y, false);
 }
 
-void profile_drag(display::Rect press_region,
-                  uint64_t step_delta_x,
-                  uint64_t step_delta_y,
-                  size_t step_count)
+display::Rect profile_compact_terminal_bounds()
+{
+    const display::Rect work_area =
+        g_state.app_work_area.empty() ? (g_state.scene.ready() ? g_state.scene.bounds()
+                                                               : display::Rect{})
+                                      : g_state.app_work_area;
+    if (work_area.width < 320 || work_area.height < 240)
+    {
+        return {};
+    }
+
+    constexpr uint64_t kMargin = 48;
+    constexpr uint64_t kPreferredWidth = 720;
+    constexpr uint64_t kPreferredHeight = 360;
+    const uint64_t margin_x = work_area.width > kMargin * 2 ? kMargin : 0;
+    const uint64_t margin_y = work_area.height > kMargin * 2 ? kMargin : 0;
+    return {
+        work_area.x + margin_x,
+        work_area.y + margin_y,
+        kPreferredWidth < work_area.width - (margin_x * 2)
+            ? kPreferredWidth
+            : work_area.width - (margin_x * 2),
+        kPreferredHeight < work_area.height - (margin_y * 2)
+            ? kPreferredHeight
+            : work_area.height - (margin_y * 2),
+    };
+}
+
+void ensure_profile_window_front(display::WindowSessionId id)
+{
+    display::WindowManagerResult result;
+    if (g_state.window_manager.show_focus_activate_raise_window(id, result))
+    {
+        commit_window_manager_result(result, false);
+    }
+}
+
+void prepare_profile_terminal_window()
+{
+    ensure_profile_window_front(display::kTerminalWindowSessionId);
+    const display::Rect bounds = profile_compact_terminal_bounds();
+    if (!bounds.empty())
+    {
+        const bool resized = resize_app_surface(display::kTerminalAppSurfaceId, bounds);
+        (void)resized;
+        ensure_profile_window_front(display::kTerminalWindowSessionId);
+    }
+}
+
+struct InteractionProfilePhase
+{
+    display::DisplayStatsSnapshot before;
+    uint64_t start_ticks = 0;
+};
+
+InteractionProfilePhase begin_interaction_profile_phase()
+{
+    reset_stats();
+    return {
+        display::make_display_stats_snapshot(stats()),
+        kernel::time::timer::ticks(),
+    };
+}
+
+void finish_interaction_profile_phase(kernel::StringView name,
+                                      InteractionProfilePhase phase)
+{
+    display::DisplayPipelineStats after = stats();
+    after.elapsed_ticks = kernel::time::timer::ticks();
+    display::DisplayPipelineStats delta =
+        display::display_stats_delta(phase.before, display::make_display_stats_snapshot(after));
+    delta.elapsed_ticks = kernel::time::timer::ticks() - phase.start_ticks;
+    kernel::debug::write_display_profile_delta(name, delta);
+}
+
+void profile_click_phase(kernel::StringView name, uint64_t x, uint64_t y)
+{
+    const InteractionProfilePhase phase = begin_interaction_profile_phase();
+    profile_click(x, y);
+    finish_interaction_profile_phase(name, phase);
+}
+
+void profile_drag_phases(kernel::StringView start_name,
+                         kernel::StringView steps_name,
+                         kernel::StringView release_name,
+                         display::Rect press_region,
+                         uint64_t step_delta_x,
+                         uint64_t step_delta_y,
+                         size_t step_count)
 {
     if (press_region.empty() || step_count == 0)
     {
@@ -2242,100 +2359,88 @@ void profile_drag(display::Rect press_region,
 
     const uint64_t press_x = center_x(press_region);
     const uint64_t press_y = center_y(press_region);
+
+    InteractionProfilePhase phase = begin_interaction_profile_phase();
     dispatch_profile_pointer(press_x, press_y, true);
+    finish_interaction_profile_phase(start_name, phase);
+
+    phase = begin_interaction_profile_phase();
     for (size_t step = 1; step <= step_count; ++step)
     {
         dispatch_profile_pointer(press_x + (step_delta_x * step),
                                  press_y + (step_delta_y * step),
                                  true);
     }
+    finish_interaction_profile_phase(steps_name, phase);
+
+    phase = begin_interaction_profile_phase();
     dispatch_profile_pointer(press_x + (step_delta_x * step_count),
                              press_y + (step_delta_y * step_count),
                              false);
+    finish_interaction_profile_phase(release_name, phase);
 }
 
-void write_interaction_profile_delta(kernel::StringView name,
-                                     display::DisplayStatsSnapshot before,
-                                     uint64_t start_ticks)
+void prepare_profile_terminal_sequence()
 {
-    display::DisplayPipelineStats after = stats();
-    after.elapsed_ticks = kernel::time::timer::ticks();
-    display::DisplayPipelineStats delta =
-        display::display_stats_delta(before, display::make_display_stats_snapshot(after));
-    delta.elapsed_ticks = kernel::time::timer::ticks() - start_ticks;
-    kernel::debug::write_display_profile_delta(name, delta);
-}
-
-void run_profile_sequence(kernel::StringView name, void (*sequence)())
-{
-    reset_stats();
-    const display::DisplayStatsSnapshot before = display::make_display_stats_snapshot(stats());
-    const uint64_t start_ticks = kernel::time::timer::ticks();
-    sequence();
-    write_interaction_profile_delta(name, before, start_ticks);
-}
-
-void profile_focus_terminal_from_bar()
-{
-    const display::Rect item = desktop_bar_item_bounds(desktop_bar::ItemKind::Terminal);
-    if (!item.empty())
-    {
-        profile_click(center_x(item), center_y(item));
-    }
+    prepare_profile_terminal_window();
 }
 
 void profile_terminal_drag_sequence()
 {
-    profile_focus_terminal_from_bar();
-    profile_drag(title_drag_hit_bounds(session_outer_bounds(display::kTerminalWindowSessionId)),
-                 10,
-                 4,
-                 16);
+    prepare_profile_terminal_sequence();
+    profile_drag_phases("window-drag-terminal:drag-start",
+                        "window-drag-terminal:drag-steps",
+                        "window-drag-terminal:drag-release",
+                        title_drag_hit_bounds(session_outer_bounds(display::kTerminalWindowSessionId)),
+                        10,
+                        4,
+                        16);
 }
 
 void profile_dummy_drag_sequence()
 {
-    const display::Rect item = desktop_bar_item_bounds(desktop_bar::ItemKind::DummyDebugApp);
-    if (!item.empty())
-    {
-        profile_click(center_x(item), center_y(item));
-    }
-    profile_drag(title_drag_hit_bounds(session_outer_bounds(display::kDummyDebugWindowSessionId)),
-                 8,
-                 5,
-                 12);
+    ensure_profile_window_front(display::kDummyDebugWindowSessionId);
+    profile_drag_phases("window-drag-dummy:drag-start",
+                        "window-drag-dummy:drag-steps",
+                        "window-drag-dummy:drag-release",
+                        title_drag_hit_bounds(session_outer_bounds(display::kDummyDebugWindowSessionId)),
+                        8,
+                        5,
+                        12);
 }
 
 void profile_terminal_resize_sequence()
 {
-    profile_focus_terminal_from_bar();
+    prepare_profile_terminal_sequence();
     const display::Rect bounds = session_outer_bounds(display::kTerminalWindowSessionId);
     if (bounds.empty())
     {
         return;
     }
-    profile_drag({bounds.x + bounds.width - 2, bounds.y + bounds.height - 2, 1, 1},
-                 8,
-                 4,
-                 10);
+    profile_drag_phases("window-resize-terminal:resize-start",
+                        "window-resize-terminal:resize-steps",
+                        "window-resize-terminal:resize-release",
+                        {bounds.x + bounds.width - 2, bounds.y + bounds.height - 2, 1, 1},
+                        8,
+                        4,
+                        10);
 }
 
 void profile_dummy_resize_sequence()
 {
-    const display::Rect item = desktop_bar_item_bounds(desktop_bar::ItemKind::DummyDebugApp);
-    if (!item.empty())
-    {
-        profile_click(center_x(item), center_y(item));
-    }
+    ensure_profile_window_front(display::kDummyDebugWindowSessionId);
     const display::Rect bounds = session_outer_bounds(display::kDummyDebugWindowSessionId);
     if (bounds.empty())
     {
         return;
     }
-    profile_drag({bounds.x + bounds.width - 2, bounds.y + bounds.height - 2, 1, 1},
-                 6,
-                 4,
-                 8);
+    profile_drag_phases("window-resize-dummy:resize-start",
+                        "window-resize-dummy:resize-steps",
+                        "window-resize-dummy:resize-release",
+                        {bounds.x + bounds.width - 2, bounds.y + bounds.height - 2, 1, 1},
+                        6,
+                        4,
+                        8);
 }
 
 void profile_terminal_bar_reopen_sequence()
@@ -2343,36 +2448,42 @@ void profile_terminal_bar_reopen_sequence()
     const display::Rect close = close_hit_bounds(session_outer_bounds(display::kTerminalWindowSessionId));
     if (!close.empty())
     {
-        profile_click(center_x(close), center_y(close));
+        profile_click_phase("window-bar-reopen-terminal:hide-click",
+                            center_x(close),
+                            center_y(close));
     }
 
     const display::Rect item = desktop_bar_item_bounds(desktop_bar::ItemKind::Terminal);
     if (!item.empty())
     {
-        profile_click(center_x(item), center_y(item));
+        profile_click_phase("window-bar-reopen-terminal:bar-click",
+                            center_x(item),
+                            center_y(item));
     }
 }
 
 void profile_focus_switch_sequence()
 {
-    const display::Rect item = desktop_bar_item_bounds(desktop_bar::ItemKind::DummyDebugApp);
-    if (!item.empty())
-    {
-        profile_click(center_x(item), center_y(item));
-    }
+    prepare_profile_terminal_window();
 
     const display::Rect dummy_title =
         title_drag_hit_bounds(session_outer_bounds(display::kDummyDebugWindowSessionId));
     if (!dummy_title.empty())
     {
-        profile_click(center_x(dummy_title), center_y(dummy_title));
+        profile_click_phase("window-focus-switch:dummy-title-click",
+                            title_press_x(dummy_title),
+                            title_press_y(dummy_title));
     }
+
+    ensure_profile_window_front(display::kDummyDebugWindowSessionId);
 
     const display::Rect terminal_title =
         title_drag_hit_bounds(session_outer_bounds(display::kTerminalWindowSessionId));
     if (!terminal_title.empty())
     {
-        profile_click(center_x(terminal_title), center_y(terminal_title));
+        profile_click_phase("window-focus-switch:terminal-title-click",
+                            title_press_x(terminal_title),
+                            title_press_y(terminal_title));
     }
 }
 
@@ -2382,21 +2493,21 @@ void run_window_interaction_profile()
 {
 #if OS_LAB_WINDOW_INTERACTION_PROFILE
     kernel::drivers::serial::write_line("os-lab: window interaction profile running");
-    run_profile_sequence("window-bar-reopen-terminal", profile_terminal_bar_reopen_sequence);
+    profile_terminal_bar_reopen_sequence();
     if (desktop_debug_dummy_app_enabled())
     {
-        run_profile_sequence("window-focus-switch", profile_focus_switch_sequence);
+        profile_focus_switch_sequence();
     }
     if (desktop_debug_dummy_app_enabled())
     {
-        run_profile_sequence("window-drag-dummy", profile_dummy_drag_sequence);
+        profile_dummy_drag_sequence();
     }
-    run_profile_sequence("window-drag-terminal", profile_terminal_drag_sequence);
+    profile_terminal_drag_sequence();
     if (desktop_debug_dummy_app_enabled())
     {
-        run_profile_sequence("window-resize-dummy", profile_dummy_resize_sequence);
+        profile_dummy_resize_sequence();
     }
-    run_profile_sequence("window-resize-terminal", profile_terminal_resize_sequence);
+    profile_terminal_resize_sequence();
     kernel::drivers::serial::write_line("os-lab: window interaction profile done");
 #endif
 }

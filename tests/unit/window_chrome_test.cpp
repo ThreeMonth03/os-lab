@@ -157,6 +157,25 @@ TEST(WindowChromeTest, CloseButtonIconDrawsAnXInsideButtonBounds)
         close.y + 2));
 }
 
+TEST(WindowChromeTest, OutlineContainsOnlyPaintedChromePixelsNotResizeHitSlop)
+{
+    kernel::display::WindowFrameConfig config;
+    config.visible = true;
+    const kernel::display::WindowFrameMetrics metrics =
+        kernel::display::WindowChrome::metrics_for({10, 20, 320, 200}, config);
+
+    ASSERT_TRUE(metrics.valid());
+    EXPECT_TRUE(kernel::display::WindowChrome::outline_contains_pixel(metrics, 10, 100));
+    EXPECT_TRUE(kernel::display::WindowChrome::outline_contains_pixel(metrics, 329, 100));
+    EXPECT_TRUE(kernel::display::WindowChrome::outline_contains_pixel(metrics, 200, 219));
+    EXPECT_TRUE(kernel::display::WindowChrome::outline_contains_pixel(metrics, 40, 39));
+
+    EXPECT_FALSE(kernel::display::WindowChrome::outline_contains_pixel(metrics, 11, 100));
+    EXPECT_FALSE(kernel::display::WindowChrome::outline_contains_pixel(metrics, 328, 100));
+    EXPECT_FALSE(kernel::display::WindowChrome::outline_contains_pixel(metrics, 200, 208));
+    EXPECT_FALSE(kernel::display::WindowChrome::outline_contains_pixel(metrics, 40, 38));
+}
+
 TEST(WindowChromeTest, VisualStatePrefersFocusedThenActive)
 {
     EXPECT_EQ(kernel::display::WindowChrome::visual_state_for(false, false),

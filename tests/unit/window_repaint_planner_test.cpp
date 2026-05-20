@@ -17,6 +17,26 @@ void expect_rect(kernel::display::Rect actual,
     EXPECT_EQ(actual.height, height);
 }
 
+bool contains(kernel::display::Rect rect, uint64_t x, uint64_t y)
+{
+    return !rect.empty() && x >= rect.x && y >= rect.y && x < rect.x + rect.width &&
+           y < rect.y + rect.height;
+}
+
+bool contained_by_any(const kernel::display::WindowRepaintRegionList & regions,
+                      uint64_t x,
+                      uint64_t y)
+{
+    for (size_t index = 0; index < regions.count(); ++index)
+    {
+        if (contains(regions.at(index), x, y))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 kernel::display::WindowSessionBounds bounds_for(kernel::display::Rect outer)
 {
     return {
@@ -99,6 +119,29 @@ TEST(WindowRepaintPlannerTest, VisualStateDamageIsLimitedToChrome)
     expect_rect(regions.at(2), 329, 40, 1, 180);
     expect_rect(regions.at(3), 10, 219, 320, 1);
     EXPECT_LT(regions.total_area(), 320u * 200u);
+}
+
+TEST(WindowRepaintPlannerTest, VisualStateDamageCoversPaintedChromeOutline)
+{
+    const kernel::display::Rect bounds{10, 20, 320, 200};
+    const kernel::display::WindowFrameMetrics metrics =
+        kernel::display::WindowChrome::metrics_for(
+            bounds,
+            kernel::display::terminal_window_frame_config(true));
+    const kernel::display::WindowRepaintRegionList regions =
+        planner().visual_state_damage(bounds);
+
+    for (uint64_t y = bounds.y; y < bounds.y + bounds.height; ++y)
+    {
+        for (uint64_t x = bounds.x; x < bounds.x + bounds.width; ++x)
+        {
+            if (kernel::display::WindowChrome::outline_contains_pixel(metrics, x, y))
+            {
+                EXPECT_TRUE(contained_by_any(regions, x, y))
+                    << "painted chrome pixel outside visual damage at " << x << "," << y;
+            }
+        }
+    }
 }
 
 TEST(WindowRepaintPlannerTest, RaiseDamageOnlyIncludesPreviouslyObscuredOverlapAndChrome)

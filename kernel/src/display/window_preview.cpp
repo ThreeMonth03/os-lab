@@ -33,26 +33,29 @@ bool WindowPreviewShape::contains(Rect rect, uint64_t x, uint64_t y)
 void WindowPreviewShape::append_paint_regions(WindowRepaintRegionList & regions,
                                               WindowFrameMetrics metrics)
 {
-    if (!metrics.valid() || !metrics.visible)
+    if (!metrics.valid() || !metrics.visible || metrics.border_thickness == 0)
     {
         return;
     }
 
-    regions.append(metrics.title_bar_bounds);
     const uint64_t border = metrics.border_thickness;
-    if (border == 0 || metrics.outer_bounds.height <= metrics.title_bar_bounds.height)
-    {
-        return;
-    }
-
-    const uint64_t chrome_top = rect_bottom(metrics.title_bar_bounds);
-    const uint64_t chrome_height = rect_bottom(metrics.outer_bounds) - chrome_top;
-    regions.append({metrics.outer_bounds.x, chrome_top, border, chrome_height});
-    regions.append({rect_right(metrics.outer_bounds) - border, chrome_top, border, chrome_height});
+    regions.append({metrics.outer_bounds.x, metrics.outer_bounds.y, metrics.outer_bounds.width, border});
+    regions.append({metrics.outer_bounds.x, metrics.outer_bounds.y, border, metrics.outer_bounds.height});
+    regions.append({rect_right(metrics.outer_bounds) - border,
+                    metrics.outer_bounds.y,
+                    border,
+                    metrics.outer_bounds.height});
     regions.append({metrics.outer_bounds.x,
                     rect_bottom(metrics.outer_bounds) - border,
                     metrics.outer_bounds.width,
                     border});
+    if (!metrics.title_bar_bounds.empty() && metrics.title_bar_bounds.height >= border)
+    {
+        regions.append({metrics.title_bar_bounds.x,
+                        rect_bottom(metrics.title_bar_bounds) - border,
+                        metrics.title_bar_bounds.width,
+                        border});
+    }
 }
 
 bool WindowPreviewShape::should_paint(WindowFrameMetrics metrics, uint64_t x, uint64_t y)
@@ -62,23 +65,7 @@ bool WindowPreviewShape::should_paint(WindowFrameMetrics metrics, uint64_t x, ui
         return false;
     }
 
-    if (contains(metrics.title_bar_bounds, x, y))
-    {
-        return true;
-    }
-
-    const uint64_t border = metrics.border_thickness;
-    if (border == 0 || !contains(metrics.outer_bounds, x, y))
-    {
-        return false;
-    }
-
-    const uint64_t chrome_top = rect_bottom(metrics.title_bar_bounds);
-    const uint64_t right = rect_right(metrics.outer_bounds);
-    const uint64_t bottom = rect_bottom(metrics.outer_bounds);
-    return y >= chrome_top &&
-           (x < metrics.outer_bounds.x + border || x >= right - border ||
-            y >= bottom - border);
+    return WindowChrome::outline_contains_pixel(metrics, x, y);
 }
 
 WindowRepaintRegionList WindowPreviewShape::damage_for(Rect outer_bounds) const

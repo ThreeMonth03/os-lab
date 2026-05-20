@@ -262,6 +262,37 @@ WindowChromeVisualState WindowChrome::visual_state_for(bool active, bool focused
     return WindowChromeVisualState::Inactive;
 }
 
+bool WindowChrome::outline_contains_pixel(WindowFrameMetrics metrics, uint64_t x, uint64_t y)
+{
+    if (!metrics.valid() || !metrics.visible || metrics.border_thickness == 0 ||
+        !contains(metrics.outer_bounds, x, y))
+    {
+        return false;
+    }
+
+    const uint64_t border = metrics.border_thickness;
+    const uint64_t outer_right = metrics.outer_bounds.x + metrics.outer_bounds.width;
+    const uint64_t outer_bottom = metrics.outer_bounds.y + metrics.outer_bounds.height;
+    if (x < metrics.outer_bounds.x + border || x >= outer_right - border ||
+        y < metrics.outer_bounds.y + border || y >= outer_bottom - border)
+    {
+        return true;
+    }
+
+    if (!metrics.title_bar_bounds.empty())
+    {
+        const uint64_t title_bottom = metrics.title_bar_bounds.y + metrics.title_bar_bounds.height;
+        if (y >= title_bottom - border && y < title_bottom &&
+            x >= metrics.title_bar_bounds.x &&
+            x < metrics.title_bar_bounds.x + metrics.title_bar_bounds.width)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool WindowChrome::close_button_icon_contains_pixel(WindowFrameMetrics metrics,
                                                     uint64_t x,
                                                     uint64_t y)
