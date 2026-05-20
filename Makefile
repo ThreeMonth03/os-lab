@@ -10,6 +10,7 @@ CLANG_CC ?= clang-19
 CLANG_CXX ?= clang++-19
 CLANG_FORMAT ?= clang-format-19
 CLANG_TIDY ?= clang-tidy-19
+TIDY_JOBS ?= 4
 LD_LLD ?= ld.lld-19
 DOCKER_COMPOSE ?= $(shell if docker compose version >/dev/null 2>&1; then \
 	printf 'docker compose'; \
@@ -102,6 +103,7 @@ help:
 		'  make unit      Run host-side unit tests' \
 		'  make format    Apply clang-format inside Docker' \
 		'  make tidy      Run clang-tidy on host-side pure logic' \
+		'                 Uses TIDY_JOBS=4 by default; override with TIDY_JOBS=N' \
 		'  make shell     Open the development container' \
 		'  make clean     Remove generated files'
 
@@ -151,7 +153,7 @@ format: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _format
 
 tidy: _docker-image
-	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _tidy
+	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder make _tidy TIDY_JOBS=$(TIDY_JOBS)
 
 shell: _docker-image
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) run --rm builder bash
@@ -291,7 +293,7 @@ _format-check: _check-clang-format
 	$(FORMAT_SOURCES) check "$(CLANG_FORMAT)"
 
 _tidy: _check-clang-tidy _unit
-	$(RUN_TIDY) "$(UNIT_BUILD_DIR)" "$(CLANG_TIDY)"
+	$(RUN_TIDY) "$(UNIT_BUILD_DIR)" "$(CLANG_TIDY)" "$(TIDY_JOBS)"
 
 _docker-image: _check-docker-compose
 	$(DOCKER_RUN_ENV) $(DOCKER_COMPOSE) build builder

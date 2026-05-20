@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 2 ]]; then
-    printf 'usage: %s <compile-commands-dir> <clang-tidy>\n' "$0" >&2
+if [[ $# -lt 2 || $# -gt 3 ]]; then
+    printf 'usage: %s <compile-commands-dir> <clang-tidy> [jobs]\n' "$0" >&2
     exit 1
 fi
 
 compile_commands_dir=$1
 clang_tidy=$2
+tidy_jobs=${3:-1}
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 project_root=$(cd -- "${script_dir}/../.." && pwd)
+
+if ! [[ "${tidy_jobs}" =~ ^[0-9]+$ ]] || [[ "${tidy_jobs}" -lt 1 ]]; then
+    printf 'jobs must be a positive integer; got: %s\n' "${tidy_jobs}" >&2
+    exit 1
+fi
 
 if [[ ! -f "${compile_commands_dir}/compile_commands.json" ]]; then
     printf 'compile_commands.json not found in: %s\n' "${compile_commands_dir}" >&2
@@ -65,5 +71,12 @@ if [[ ${#sources[@]} -eq 0 ]]; then
     exit 0
 fi
 
-"${clang_tidy}" -p "${compile_commands_dir}" --quiet "${sources[@]}" \
-    2> >(grep -vE '^[0-9]+ warnings generated\.$$' >&2)
+if [[ "${tidy_jobs}" -eq 1 ]]; then
+    "${clang_tidy}" -p "${compile_commands_dir}" --quiet "${sources[@]}" \
+        2> >(grep -vE '^[0-9]+ warnings generated\.$$' >&2)
+    exit 0
+fi
+
+printf '%s\0' "${sources[@]}" |
+    xargs -0 -n1 -P "${tidy_jobs}" "${clang_tidy}" -p "${compile_commands_dir}" --quiet \
+        2> >(grep -vE '^[0-9]+ warnings generated\.$$' >&2)
