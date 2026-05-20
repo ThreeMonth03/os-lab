@@ -17,6 +17,7 @@
 #include "kernel/display/framebuffer_presenter.hpp"
 #include "kernel/display/gui_surface.hpp"
 #include "kernel/display/pointer_cursor_shape.hpp"
+#include "kernel/display/present_operation_list.hpp"
 #include "kernel/display/scene_buffer.hpp"
 #include "kernel/display/window_chrome.hpp"
 #include "kernel/display/window_interaction.hpp"
@@ -343,6 +344,83 @@ void repaint_desktop_regions(const display::WindowRepaintRegionList & regions,
     }
 }
 
+void append_present_operation(display::PresentOperationList & target,
+                              display::PresentOperation operation)
+{
+    if (operation.rect_present())
+    {
+        if (operation.scroll_repair_rect_present())
+        {
+            target.append_scroll_repair_rect(operation.rect);
+        }
+        else if (operation.scroll_exposed_rect_present())
+        {
+            target.append_scroll_exposed_rect(operation.rect);
+        }
+        else
+        {
+            target.append_rect(operation.rect);
+        }
+    }
+    else if (operation.scroll_present())
+    {
+        target.append_scroll(operation.rect, operation.distance);
+    }
+}
+
+void append_present_operations(display::PresentOperationList & target,
+                               const display::PresentOperationList & source)
+{
+    for (size_t index = 0; index < source.count(); ++index)
+    {
+        append_present_operation(target, source.at(index));
+    }
+}
+
+display::PresentOperationList compose_desktop_regions_to_scene(
+    const display::WindowRepaintRegionList & regions,
+    WindowRepaintReason reason)
+{
+    display::PresentOperationList operations(g_state.scene.ready() ? g_state.scene.bounds()
+                                                                   : display::Rect{});
+    for (size_t index = 0; index < regions.count(); ++index)
+    {
+        const display::Rect rect = regions.at(index);
+        if (rect.empty())
+        {
+            continue;
+        }
+
+        record_window_repaint(rect, reason);
+        display::FrameDamage damage;
+        if (!damage.append_dirty(rect))
+        {
+            continue;
+        }
+        append_present_operations(
+            operations,
+            display::compositor::update_scene_from_layer_damage(display::LayerKind::DesktopBackground,
+                                                                damage));
+    }
+    return operations;
+}
+
+void present_window_move_frame(display::Rect copied_move_rect,
+                               const display::WindowRepaintRegionList & exposed_regions,
+                               WindowRepaintReason exposed_reason)
+{
+    if (copied_move_rect.empty())
+    {
+        repaint_desktop_regions(exposed_regions, exposed_reason);
+        return;
+    }
+
+    display::PresentOperationList operations =
+        compose_desktop_regions_to_scene(exposed_regions, exposed_reason);
+    operations.append_rect(copied_move_rect);
+    display::compositor::present_scene_operations(operations);
+}
+
 bool sync_aggregate_app_layer(display::Rect retained_bounds = {});
 
 display::WindowRepaintRegionList window_preview_damage_for(display::Rect bounds)
@@ -524,16 +602,16 @@ bool move_scene_copy_safe(display::WindowManagerResult result)
             !display::rects_overlap(overlay_bounds, result.session.current.bounds.outer));
 }
 
-bool copy_scene_for_window_move(display::WindowManagerResult result)
+display::Rect copy_scene_for_window_move(display::WindowManagerResult result)
 {
     if (!move_scene_copy_safe(result))
     {
-        return false;
+        return {};
     }
 
     const display::Rect previous = result.session.previous.bounds.outer;
     const display::Rect current = result.session.current.bounds.outer;
-    return display::compositor::copy_scene_rect_to_front(previous, current.x, current.y);
+    return display::compositor::copy_scene_rect(previous, current.x, current.y);
 }
 
 display::Rect debug_overlay_avoid_bounds(display::Rect app_bounds)
@@ -1459,8 +1537,13 @@ bool commit_window_manager_result(display::WindowManagerResult result,
 
     if (resize_app_client && mutation.current.role == display::WindowSessionRole::Terminal)
     {
-        if (g_state.app_resize_callback == nullptr ||
-            !g_state.app_resize_callback(current_app))
+        const uint64_t resize_start_ticks = kernel::time::timer::ticks();
+        const bool resized =
+            g_state.app_resize_callback != nullptr && g_state.app_resize_callback(current_app);
+        ++g_state.stats.terminal_resize_count;
+        g_state.stats.terminal_resize_ticks +=
+            kernel::time::timer::ticks() - resize_start_ticks;
+        if (!resized)
         {
             restore_window_manager_result(result);
             return false;
@@ -1487,7 +1570,8 @@ bool commit_window_manager_result(display::WindowManagerResult result,
     sync_desktop_bar_terminal_item();
     relayout_debug_overlay_if_present();
 
-    const bool scene_move_copied = copy_scene_for_window_move(result);
+    const display::Rect scene_move_copy_rect = copy_scene_for_window_move(result);
+    const bool scene_move_copied = !scene_move_copy_rect.empty();
     display::WindowRepaintRegionList mutation_repaint =
         scene_move_copied
             ? window_repaint_planner().move_exposed_damage(mutation.previous.bounds.outer,
@@ -1495,7 +1579,14 @@ bool commit_window_manager_result(display::WindowManagerResult result,
             : window_repaint_planner().mutation_damage(mutation);
     const WindowRepaintReason mutation_repaint_reason =
         move_mutation_same_size(mutation) ? WindowRepaintReason::Move : WindowRepaintReason::Generic;
-    repaint_desktop_regions(mutation_repaint, mutation_repaint_reason);
+    if (scene_move_copied)
+    {
+        present_window_move_frame(scene_move_copy_rect, mutation_repaint, mutation_repaint_reason);
+    }
+    else
+    {
+        repaint_desktop_regions(mutation_repaint, mutation_repaint_reason);
+    }
     repaint_changed_window_visual_states(result.previous_stack, result.current_stack);
     if (previous_item.app_visible != current_item.app_visible ||
         previous_item.app_focused != current_item.app_focused ||

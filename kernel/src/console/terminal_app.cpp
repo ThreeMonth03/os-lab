@@ -194,7 +194,6 @@ bool TerminalApp::replace_surface(display::AppSurface app_surface, TerminalResiz
     pending_dirty_after_scroll_ = {};
     backing_.fill_rect(app_surface_.bounds, background_);
     paint_window_chrome();
-    renderer_.clear_screen();
     repaint_text_layer();
     return renderer_.ready();
 }

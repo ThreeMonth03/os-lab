@@ -23,6 +23,8 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
     before.runtime.window_visual_repaint_pixels = 120;
     before.runtime.window_preview_repaint_pixels = 40;
     before.runtime.window_interaction_pointer_events = 3;
+    before.runtime.terminal_resize_count = 1;
+    before.runtime.terminal_resize_ticks = 4;
     before.elapsed_ticks = 2;
 
     kernel::display::DisplayPipelineStats after;
@@ -44,6 +46,8 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
     after.runtime.window_visual_repaint_pixels = 240;
     after.runtime.window_preview_repaint_pixels = 120;
     after.runtime.window_interaction_pointer_events = 13;
+    after.runtime.terminal_resize_count = 4;
+    after.runtime.terminal_resize_ticks = 15;
     after.elapsed_ticks = 9;
 
     const kernel::display::DisplayPipelineStats delta =
@@ -69,6 +73,8 @@ TEST(DisplayStatsTest, ComputesPipelineDelta)
     EXPECT_EQ(delta.runtime.window_visual_repaint_pixels, 120u);
     EXPECT_EQ(delta.runtime.window_preview_repaint_pixels, 80u);
     EXPECT_EQ(delta.runtime.window_interaction_pointer_events, 10u);
+    EXPECT_EQ(delta.runtime.terminal_resize_count, 3u);
+    EXPECT_EQ(delta.runtime.terminal_resize_ticks, 11u);
     EXPECT_EQ(delta.elapsed_ticks, 7u);
 }
 

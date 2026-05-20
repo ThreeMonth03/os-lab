@@ -235,9 +235,7 @@ void set_presenter(FramebufferPresenter & presenter);
 [[nodiscard]] bool register_layer_scroll_composition(LayerKind kind, LayerScrollComposition composition);
 [[nodiscard]] bool register_layer_bounds_callback(LayerKind kind, LayerBoundsCallback callback);
 void repaint_layers_from(LayerKind base_layer, Rect dirty_rect);
-[[nodiscard]] bool copy_scene_rect_to_front(Rect source,
-                                            uint64_t destination_x,
-                                            uint64_t destination_y);
+[[nodiscard]] Rect copy_scene_rect(Rect source, uint64_t destination_x, uint64_t destination_y);
 [[nodiscard]] PresentOperationList update_scene_from_layer_damage(LayerKind base_layer, FrameDamage damage);
 void present_scene_operations(const PresentOperationList & operations);
 void apply_layer_damage(LayerKind base_layer, FrameDamage damage);

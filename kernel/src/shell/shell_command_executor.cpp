@@ -362,6 +362,8 @@ void write_display_stats()
 
     terminal::write_line("  runtime:");
     write_stat("terminal backing copy pixels", stats.runtime.terminal_backing_copy_pixels);
+    write_stat("terminal resize count", stats.runtime.terminal_resize_count);
+    write_stat("terminal resize ticks", stats.runtime.terminal_resize_ticks);
 
     display_runtime::reset_stats();
 }

@@ -74,6 +74,8 @@ DisplayRuntimeStats delta(DisplayRuntimeStats before, DisplayRuntimeStats after)
                             before.window_preview_repaint_pixels),
         saturating_subtract(after.window_interaction_pointer_events,
                             before.window_interaction_pointer_events),
+        saturating_subtract(after.terminal_resize_count, before.terminal_resize_count),
+        saturating_subtract(after.terminal_resize_ticks, before.terminal_resize_ticks),
     };
 }
 

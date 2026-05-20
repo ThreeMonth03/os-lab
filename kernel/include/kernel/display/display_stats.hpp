@@ -17,6 +17,8 @@ struct DisplayRuntimeStats
     uint64_t window_visual_repaint_pixels = 0;
     uint64_t window_preview_repaint_pixels = 0;
     uint64_t window_interaction_pointer_events = 0;
+    uint64_t terminal_resize_count = 0;
+    uint64_t terminal_resize_ticks = 0;
 };
 
 struct DisplayPipelineStats

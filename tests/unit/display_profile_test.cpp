@@ -14,6 +14,8 @@ TEST(DisplayProfileTest, CommandProfileDeltaIsReportedAfterFinish)
     before.compositor.scene_compose_pixels = 20;
     before.compositor.scene_compose_from_backing_pixels = 12;
     before.runtime.terminal_backing_copy_pixels = 8;
+    before.runtime.terminal_resize_count = 1;
+    before.runtime.terminal_resize_ticks = 2;
     before.runtime.window_repaint_pixels = 10;
     before.runtime.window_visual_repaint_pixels = 4;
 
@@ -31,6 +33,8 @@ TEST(DisplayProfileTest, CommandProfileDeltaIsReportedAfterFinish)
     after.compositor.repaint_plan_count = 3;
     after.compositor.repaint_plan_fallback_count = 1;
     after.runtime.terminal_backing_copy_pixels = 48;
+    after.runtime.terminal_resize_count = 2;
+    after.runtime.terminal_resize_ticks = 11;
     after.runtime.window_repaint_pixels = 60;
     after.runtime.window_visual_repaint_pixels = 24;
 
@@ -52,6 +56,8 @@ TEST(DisplayProfileTest, CommandProfileDeltaIsReportedAfterFinish)
     EXPECT_EQ(delta.delta.compositor.repaint_plan_count, 3u);
     EXPECT_EQ(delta.delta.compositor.repaint_plan_fallback_count, 1u);
     EXPECT_EQ(delta.delta.runtime.terminal_backing_copy_pixels, 40u);
+    EXPECT_EQ(delta.delta.runtime.terminal_resize_count, 1u);
+    EXPECT_EQ(delta.delta.runtime.terminal_resize_ticks, 9u);
     EXPECT_EQ(delta.delta.runtime.window_repaint_pixels, 50u);
     EXPECT_EQ(delta.delta.runtime.window_visual_repaint_pixels, 20u);
     EXPECT_FALSE(tracker.pending());
