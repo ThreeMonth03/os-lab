@@ -1,5 +1,6 @@
 #include "kernel/display/window_interaction.hpp"
 
+#include "kernel/display/window_preview.hpp"
 #include "kernel/display/window_repaint_planner.hpp"
 
 namespace
@@ -473,6 +474,7 @@ WindowInteractionReplayStats WindowInteractionReplay::profile_preview_then_commi
 
     WindowInteractionController controller;
     WindowRepaintPlanner planner(desktop_bounds_, frame_config_);
+    WindowPreviewShape preview_shape(desktop_bounds_, frame_config_);
     Rect preview_bounds;
     const WindowInteractionResult press = controller.update({
         config.start_bounds,
@@ -509,8 +511,8 @@ WindowInteractionReplayStats WindowInteractionReplay::profile_preview_then_commi
 
         proposed_bounds = drag.proposed_bounds;
         ++stats.preview_update_count;
-        record_repaint_regions(stats, planner.visual_state_damage(preview_bounds), false);
-        record_repaint_regions(stats, planner.visual_state_damage(proposed_bounds), false);
+        record_repaint_regions(stats, preview_shape.damage_for(preview_bounds), false);
+        record_repaint_regions(stats, preview_shape.damage_for(proposed_bounds), false);
         preview_bounds = proposed_bounds;
     }
 

@@ -43,6 +43,7 @@ add_executable(os_lab_unit_tests
     window_chrome_test.cpp
     window_interaction_test.cpp
     window_manager_test.cpp
+    window_preview_test.cpp
     window_repaint_planner_test.cpp
     window_stack_test.cpp
     window_session_test.cpp
